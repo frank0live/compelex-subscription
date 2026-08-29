@@ -1,0 +1,87 @@
+name: Bug report
+description: Report a problem with Row-Template
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report.
+
+        **Do not include secrets.** Never paste subscription URLs, `subId`
+        values, client UUIDs, panel usernames/passwords, cookies, tokens, the
+        panel `webBasePath`, TLS keys, or real server addresses. Redact logs
+        before sharing them.
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have removed all secrets (subscription URLs, subId, UUIDs, credentials, tokens, keys, server addresses) from this report.
+          required: true
+        - label: I am running the latest stable release.
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the problem and what you expected instead.
+      placeholder: When I run ..., I expected ... but got ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps, in order, that reproduce the problem.
+      placeholder: |
+        1. Install with ...
+        2. Run row-template ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: rt-version
+    attributes:
+      label: Row-Template version
+      description: Output of `row-template version`.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: xui-version
+    attributes:
+      label: 3X-UI (panel) version
+      placeholder: "3.7.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version
+      placeholder: "Ubuntu 24.04 LTS"
+    validations:
+      required: true
+  - type: input
+    id: arch
+    attributes:
+      label: CPU architecture
+      placeholder: "x86_64"
+    validations:
+      required: true
+  - type: textarea
+    id: verify-output
+    attributes:
+      label: "`row-template verify` output"
+      description: Paste the output of `row-template verify` (it contains no secrets).
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs (sanitized)
+      description: Any relevant command output, with secrets removed.
+      render: text
+    validations:
+      required: false

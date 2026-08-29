@@ -1,0 +1,39 @@
+# --- build output / scratch (regenerated; never the source of truth) ---------
+# The published artifact template/index.html IS committed on purpose; these are
+# transient build products only.
+/build/
+/out/
+/tools/fixtures/out/
+
+# Release bundle produced by tools/make-release.sh. The immutable artifacts live
+# in GitHub Releases, not in the source tree — rebuild locally when needed.
+/release/
+
+node_modules/
+*.exe
+
+# --- editor / agent tooling (machine-specific, never published) ---------------
+.claude/
+/.vscode/
+/.idea/
+
+# --- internal development & validation material (kept local, not published) ---
+# Design, research and server-validation notes used while building the project.
+# They contain internal working terminology and are intentionally excluded from
+# the public tree; the public documentation is the README set + SECURITY.md +
+# CHANGELOG.md + CONTRIBUTING.md.
+/DESIGN-REVIEW.md
+/INSTALLER-DESIGN.md
+/INSTALLER-UX.md
+/INSTALLER-VALIDATION.md
+/REAL-SERVER-VALIDATION.md
+/RESEARCH.md
+/UX-SPEC.md
+
+# Live server validation harness and panel-provisioning scripts (developer-only
+# validation infrastructure, kept local and not published).
+/tests/vps/
+
+# --- OS noise -----------------------------------------------------------------
+.DS_Store
+Thumbs.db

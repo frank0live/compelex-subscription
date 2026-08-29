@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# row-template CLI launcher — the installed management entry point.
+#
+# This thin dispatcher lives at /usr/local/bin/row-template. It sources the
+# management library from the Row-Template install root and hands off to the
+# rt_cmd_* functions. The exact string "row-template CLI launcher" above is the
+# signature the uninstaller matches before ever removing this file, so a
+# same-named script it did not install is never deleted.
+
+set -Eeuo pipefail
+
+# The install root is fixed at install time; RT_ROOT may be overridden in the
+# environment for testing. The library reads the same variable.
+RT_ROOT="${RT_ROOT:-/etc/3x-ui/sub_templates/row-template}"
+RT_LIB="${RT_LIB_OVERRIDE:-$RT_ROOT/lib/row-template.sh}"
+
+if [ ! -r "$RT_LIB" ]; then
+  printf 'row-template: management library not found at %s\n' "$RT_LIB" >&2
+  printf 'row-template: the install may be damaged; re-run the installer.\n' >&2
+  exit 1
+fi
+
+# shellcheck source=/dev/null
+. "$RT_LIB"
+
+trap 'rt_err "unexpected error (line $LINENO); no partial change was committed."' ERR
+trap 'rt_cleanup' EXIT
+
+# No arguments: open the interactive manager when attached to a terminal;
+# otherwise (scripts, CI, curl | bash) fall back to help so nothing ever hangs
+# waiting for input. RT_ASSUME_NONINTERACTIVE forces the non-interactive path.
+if [ "$#" -eq 0 ]; then
+  if [ -t 0 ] && [ -t 1 ] && [ -z "${RT_ASSUME_NONINTERACTIVE:-}" ]; then
+    cmd="menu"
+  else
+    cmd="help"
+  fi
+else
+  cmd="$1"; shift
+fi
+
+case "$cmd" in
+  config)              rt_cmd_config "$@" ;;
+  update)              rt_cmd_update "$@" ;;
+  rollback)            rt_cmd_rollback "$@" ;;
+  verify)              rt_cmd_verify "$@" ;;
+  version|-v|--version) rt_cmd_version "$@" ;;
+  help|-h|--help)      rt_print_help ;;
+  menu|manager)        rt_manager_main "$@" ;;
+  uninstall)           rt_cmd_uninstall "$@" ;;
+  *)
+    rt_err "unknown command: $cmd"
+    rt_print_help >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,151 @@
+/* Design tokens. Every value that a theme can change lives here and nowhere
+   else; the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 1.75rem;
+  --fs-title: 1.0625rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.75rem;
+
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+
+  --r-card: 14px;
+  --r-control: 10px;
+  --r-mark: 8px;
+  --r-pill: 999px;
+
+  --dur-fast: 120ms;
+  --dur: 160ms;
+  --dur-slow: 240ms;
+  --ease: cubic-bezier(0.2, 0.6, 0.3, 1);
+
+  --page-max: 768px;
+  --tap: 44px;
+
+  /* Measurements the layout repeats often enough that a single name is worth
+     more than the literal: the header band, the brand tile, the padding every
+     card shares, and the two button heights the hierarchy depends on. */
+  --header-h: 56px;
+  --mark: 40px;
+  --card-pad: var(--sp-5);
+  --btn-h: 48px;
+}
+
+/* Dark is the default so that a client with no matchMedia and no stored
+   preference still lands on a coherent theme. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Four steps of near-black, not one: the page, the card that sits on it, the
+     secondary fill inside that card, and the progress track. Elevation is read
+     from those steps first and from the border second. */
+  --bg: #08090B;
+  --surface: #101215;
+  --surface-2: #191C21;
+  --track: #1D2126;
+
+  --hairline: #1B1E23;
+  --border: #23262C;
+  --border-strong: #33373F;
+  --control-border: #646B78;
+
+  --text: #F2F3F5;
+  --muted: #A2A8B2;
+  --subtle: #8B92A0;
+
+  --accent: #3B82F6;
+  --accent-solid: #2563EB;
+  --accent-hover: #1D4ED8;
+  --info-surface: #101520;
+  --info-border: #202B3D;
+  --on-accent: #FFFFFF;
+
+  /* Held one step below the usual bright dark-mode green so that the 8px
+     online dot cannot outshout the brand blue on a perfectly healthy page. */
+  --success: #3DBE74;
+  --warning: #FBBF24;
+  --danger: #F87171;
+  --focus: #60A5FA;
+
+  --shadow-card: none;
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.5);
+  --scrim: rgb(0 0 0 / 0.6);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F1F2F5;
+  --surface: #FFFFFF;
+  --surface-2: #F4F5F8;
+  --track: #E9EBF0;
+
+  --hairline: #EDEFF3;
+  --border: #E2E5EA;
+  --border-strong: #CDD2DA;
+  --control-border: #808895;
+
+  --text: #14161A;
+  --muted: #565E6B;
+  --subtle: #656D79;
+
+  --accent: #2563EB;
+  --accent-solid: #2563EB;
+  --accent-hover: #1D4ED8;
+  --info-surface: #F6F9FE;
+  --info-border: #DBE7FB;
+  --on-accent: #FFFFFF;
+
+  --success: #15803D;
+  --warning: #8A5406;
+  --danger: #C81E1E;
+  --focus: #2563EB;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05);
+  --shadow-pop: 0 10px 30px rgb(16 24 40 / 0.14);
+  --scrim: rgb(0 0 0 / 0.5);
+}
+
+@media (min-width: 480px) {
+  :root { --card-pad: var(--sp-6); }
+}
+
+@media (min-width: 720px) {
+  :root { --fs-display: 2.125rem; }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.7;
+}

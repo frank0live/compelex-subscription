@@ -1,0 +1,11 @@
+# The repository stores all text as LF and checks it out as LF on every
+# platform. This project's shell scripts and CLI run on Linux, so CRLF must
+# never leak into a checkout, whatever the cloner's core.autocrlf setting is.
+* text=auto eol=lf
+
+# Executable shell entry points — always LF.
+*.sh    text eol=lf
+installer/bin/row-template text eol=lf
+
+# Binary assets — never normalized or line-ending converted.
+*.woff2 binary

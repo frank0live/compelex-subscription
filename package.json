@@ -1,0 +1,30 @@
+{
+  "name": "row-template",
+  "type": "module",
+  "description": "Custom subscription page template for 3x-ui panels",
+  "license": "MIT",
+  "author": "frank0live",
+  "homepage": "https://github.com/frank0live/Row-Template#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frank0live/Row-Template.git"
+  },
+  "bugs": {
+    "url": "https://github.com/frank0live/Row-Template/issues"
+  },
+  "keywords": [
+    "3x-ui",
+    "xray",
+    "subscription",
+    "subscription-page",
+    "template",
+    "self-hosted"
+  ],
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "verify": "node tools/verify.mjs",
+    "test": "node --test \"tests/*.test.mjs\"",
+    "fixtures": "go -C tools/fixtures run .",
+    "preview": "go -C tools/fixtures run . -serve 127.0.0.1:8787"
+  }
+}

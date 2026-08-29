@@ -1,0 +1,38 @@
+uqr — QR code encoder, vendored verbatim
+========================================
+
+index.mjs is dist/index.mjs from the npm package, copied byte for byte. It is
+never fetched at build time; tools/build.mjs reads it from this directory.
+
+  package          uqr
+  version          0.1.3
+  upstream         https://github.com/unjs/uqr
+  tag              v0.1.3  (annotated tag 25ca83b0af4b62b57a013e8793a2ee542489dc18)
+  commit           23ac4e3c7a172da8f5f9e619ba6fa07394d9fd52
+  tarball          https://registry.npmjs.org/uqr/-/uqr-0.1.3.tgz
+  tarball sha512   0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==
+  tarball sha1     43b5b27508cd28ccc42401ea75b92a39bd8cd510
+  index.mjs bytes  27482
+  index.mjs sha256 7f0e61c2f13bb3724edee7bfb876e13c54ac9ee4fcfa283c9fa93cfb1241c325
+  licence          MIT — Project Nayuki and Anthony Fu, LICENSE in this directory
+
+Verifying this copy:
+
+  curl -sSLo uqr.tgz https://registry.npmjs.org/uqr/-/uqr-0.1.3.tgz
+  openssl dgst -sha512 -binary uqr.tgz | openssl base64 -A
+  tar -xzf uqr.tgz -O package/dist/index.mjs | diff - index.mjs
+
+Why three pins rather than one: the version alone can be republished, the tag
+alone can be moved, and the tarball digest alone does not say what upstream
+called it. This code runs on every visitor's device, so all three are recorded.
+
+Audited, and the reason each matters on a page whose URL is a credential:
+
+  no network access      the subscription URL never leaves the device
+  no DOM access          the encoder returns a matrix; the drawing is ours
+  no eval, no Function   nothing is compiled at runtime
+  no timers              nothing runs after encode() returns
+
+Only encode() is called. renderSVG, renderANSI, renderUnicode and
+renderUnicodeCompact are unused; the file is kept whole so that it can be
+diffed against upstream without a normalisation step.

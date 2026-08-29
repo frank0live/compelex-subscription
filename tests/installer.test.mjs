@@ -1,0 +1,625 @@
+/* The management layer is shell, but its pure helpers decide whether a real
+   panel gets a safe template or a broken one, so they are tested exactly like
+   the browser code. Each case runs the SHIPPED installer/lib/row-template.sh in
+   a real bash process — there is no second, drifting reimplementation here. */
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { platform } from 'node:os';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+/* Every case sources the library into a throwaway RT_ROOT and cleans up on
+   exit, so tests never touch a real install and never depend on each other. */
+const PREAMBLE = [
+  'set -Eeuo pipefail',
+  'export RT_ROOT="$(mktemp -d)/rt"',
+  'mkdir -p "$RT_ROOT" "$RT_ROOT/dist"',
+  'source installer/lib/row-template.sh',
+  'cleanup(){ rm -rf "$(dirname "$RT_ROOT")"; }',
+  'trap cleanup EXIT',
+  '',
+].join('\n');
+
+/* Run a bash snippet against the library. Returns {code, out, err}. cwd is the
+   repo root so the lib and artifact are reached by stable relative paths. */
+function sh(body) {
+  const r = spawnSync('bash', ['-c', PREAMBLE + body], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  if (r.error) throw r.error;
+  return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+}
+
+/* True when the snippet exits zero. */
+function ok(body) {
+  return sh(body).code === 0;
+}
+
+test('version comparison orders releases and tolerates suffixes', () => {
+  assert.ok(ok('rt_semver_ge 3.7.0 3.6.0'));
+  assert.ok(ok('rt_semver_ge 3.6.0 3.6.0'), 'equal is >=');
+  assert.ok(!ok('rt_semver_ge 3.5.9 3.6.0'));
+  assert.ok(ok('rt_semver_ge 3.6.1 3.6.0'));
+  assert.ok(!ok('rt_semver_ge 3.6.0 3.10.0'), '3.6 < 3.10, not string-compared');
+  assert.ok(ok('rt_semver_ge v3.7.0-dev 3.6.0'), 'leading v and -suffix ignored');
+  assert.ok(ok('rt_semver_ge 3.7 3.6.0'), 'missing patch defaults to 0');
+  assert.equal(sh('rt_normalize_semver 3.7').out, '3.7.0');
+  assert.equal(sh('rt_normalize_semver v3.6.0-fork.2').out, '3.6.0');
+});
+
+test('json escape neutralises a </script> breakout without touching data', () => {
+  assert.equal(sh('rt_json_escape "plain text"').out, 'plain text');
+  assert.equal(sh('rt_json_escape "a\\"b"').out, 'a\\"b', 'double quote escaped');
+  assert.equal(sh('rt_json_escape "a\\\\b"').out, 'a\\\\b', 'backslash doubled');
+  assert.equal(sh('rt_json_escape "</script>"').out, '\\u003c/script>', '< escaped');
+  /* & and > are inert inside a <script> string; only < can end the element. */
+  assert.equal(sh('rt_json_escape "a & b > c"').out, 'a & b > c');
+});
+
+test('support URL validation accepts only frontend-renderable schemes', () => {
+  for (const u of ['https://t.me/x', 'http://a.b', 'tg://resolve?domain=x', 'mailto:a@b.c']) {
+    assert.ok(ok(`rt_validate_support_url ${JSON.stringify(u)}`), u);
+  }
+  for (const u of ['javascript:alert(1)', 'data:text/html,x', 'file:///etc/passwd', 'ftp://a', 'about:blank']) {
+    assert.ok(!ok(`rt_validate_support_url ${JSON.stringify(u)}`), u);
+  }
+  assert.ok(ok('rt_validate_support_url ""'), 'empty is allowed (no link)');
+  assert.ok(ok('rt_validate_support_url "   "'), 'whitespace-only trims to empty');
+  assert.ok(ok('rt_validate_support_url "HTTPS://T.ME/x"'), 'scheme is case-insensitive');
+  assert.ok(!ok('rt_validate_support_url "https://"'), 'scheme alone is not a URL');
+});
+
+test('service name validation rejects control chars and over-length', () => {
+  assert.ok(ok('rt_validate_service_name "Katze-VPN"'));
+  assert.ok(ok('rt_validate_service_name ""'), 'empty is allowed (white-label)');
+  assert.ok(ok('rt_validate_service_name "极速网络"'), 'unicode allowed');
+  assert.ok(!ok('rt_validate_service_name "$(printf "a\\tb")"'), 'tab rejected');
+  assert.ok(!ok('rt_validate_service_name "$(printf "a\\nb")"'), 'newline rejected');
+  assert.ok(!ok('rt_validate_service_name "$(printf "%0.sX" {1..200})"'), 'too long');
+});
+
+/* Feed values in as base64 so JS/shell quoting can never corrupt the fixture —
+   the point is that config.env survives arbitrary data, including quotes and
+   markup, and comes back byte-identical because it is parsed, never executed. */
+function cfgRoundtrip(name, url) {
+  const nb = Buffer.from(name, 'utf8').toString('base64');
+  const ub = Buffer.from(url, 'utf8').toString('base64');
+  const r = sh(
+    `N="$(printf %s ${nb} | base64 -d)"; U="$(printf %s ${ub} | base64 -d)";` +
+    `rt_config_write "$N" "$U" "" ""; ` +
+    `printf 'NAME=%s\\n' "$(rt_config_get_text SERVICE_NAME_B64)"; ` +
+    `printf 'URL=%s\\n' "$(rt_config_get_text SUPPORT_URL_B64)"`,
+  );
+  const name2 = /^NAME=(.*)$/m.exec(r.out)?.[1] ?? null;
+  const url2 = /^URL=(.*)$/m.exec(r.out)?.[1] ?? null;
+  return { name: name2, url: url2 };
+}
+
+test('config serialize/parse round-trips arbitrary data as data', () => {
+  const cases = [
+    ['Katze-VPN', 'https://t.me/support'],
+    ['Café Røör & Co', 'mailto:help@example.com'],
+    ['极速网络', 'tg://resolve?domain=x'],
+    ['a"b\'c$(whoami)`id`;rm -rf /', 'https://a.b/?x=1&y=2'],
+    ['</script><img src=x>', 'http://ex.io'],
+  ];
+  for (const [n, u] of cases) {
+    const got = cfgRoundtrip(n, u);
+    assert.equal(got.name, n, `name: ${n}`);
+    assert.equal(got.url, u, `url: ${u}`);
+  }
+});
+
+test('config value assignment never executes shell', () => {
+  /* If config.env were sourced, this would write the marker file. */
+  const r = sh(
+    'MARKER="$RT_ROOT/pwned"; ' +
+    'rt_config_write "x\\$(touch \'"$MARKER"\')" "" "" ""; ' +
+    'rt_config_get_text SERVICE_NAME_B64 >/dev/null; ' +
+    '[ -e "$MARKER" ] && echo EXECUTED || echo SAFE',
+  );
+  assert.equal(r.out, 'SAFE');
+});
+
+test('config get returns the last assignment (append-wins)', () => {
+  const r = sh(
+    'printf "SERVICE_NAME_B64=%s\\n" "$(printf first | rt_b64_encode)" > "$RT_CONFIG"; ' +
+    'printf "SERVICE_NAME_B64=%s\\n" "$(printf second | rt_b64_encode)" >> "$RT_CONFIG"; ' +
+    'rt_config_get_text SERVICE_NAME_B64',
+  );
+  assert.equal(r.out, 'second');
+});
+
+test('rt_cleanup returns success even with nothing to clean (EXIT-trap safety)', () => {
+  /* Regression: the entry scripts and the CLI run rt_cleanup from an EXIT trap.
+     A non-zero return there becomes the process exit status, which made a
+     perfectly good `help`/`version`/passing-`verify` exit 1. With an empty
+     RT_TMP_TO_CLEAN the cleanup loop's final test leaked its non-zero status. */
+  assert.ok(ok('rt_cleanup'), 'exits 0 with the default (unset/empty) list');
+  assert.ok(ok('RT_TMP_TO_CLEAN=(); rt_cleanup'), 'exits 0 with an explicit empty array');
+  assert.ok(ok('d="$(mktemp -d)"; RT_TMP_TO_CLEAN=("$d"); rt_cleanup; test ! -d "$d"'),
+    'still removes a registered temp dir and returns 0');
+});
+
+test('logo validation trusts content signatures, not extensions', () => {
+  const mk = (bytes) =>
+    `printf '${bytes}' > "$RT_ROOT/l"; head -c 4096 /dev/zero >> "$RT_ROOT/l"; `;
+  assert.equal(sh(mk('\\x89PNG\\r\\n\\x1a\\n') + 'rt_logo_validate "$RT_ROOT/l"').out, 'image/png');
+  assert.equal(sh(mk('\\xff\\xd8\\xff\\xe0') + 'rt_logo_validate "$RT_ROOT/l"').out, 'image/jpeg');
+  assert.equal(sh(mk('RIFF\\x00\\x00\\x00\\x00WEBP') + 'rt_logo_validate "$RT_ROOT/l"').out, 'image/webp');
+  /* An SVG is XML/executable markup, not a raster image — rejected. */
+  assert.ok(!ok(mk('<svg xmlns=\\x27a\\x27>') + 'rt_logo_validate "$RT_ROOT/l"'));
+  assert.ok(!ok(mk('GIF89a') + 'rt_logo_validate "$RT_ROOT/l"'), 'gif not in allow-list');
+  assert.ok(!ok(mk('#!/bin/sh\\n') + 'rt_logo_validate "$RT_ROOT/l"'), 'script rejected');
+});
+
+test('logo validation enforces the size cap and rejects empty/missing', () => {
+  assert.ok(!ok(
+    'printf "\\x89PNG\\r\\n\\x1a\\n" > "$RT_ROOT/big"; ' +
+    'head -c 300000 /dev/zero >> "$RT_ROOT/big"; ' +
+    'rt_logo_validate "$RT_ROOT/big"',
+  ), 'over 256 KiB rejected');
+  assert.ok(!ok(': > "$RT_ROOT/empty"; rt_logo_validate "$RT_ROOT/empty"'), 'empty rejected');
+  assert.ok(!ok('rt_logo_validate "$RT_ROOT/does-not-exist"'), 'missing rejected');
+});
+
+test('sha256 verification has no override and rejects any mismatch', () => {
+  assert.ok(ok(
+    'printf payload > "$RT_ROOT/f"; ' +
+    'rt_verify_sha256 "$RT_ROOT/f" "$(rt_sha256 "$RT_ROOT/f")"',
+  ), 'correct checksum matches');
+  assert.ok(!ok(
+    'printf payload > "$RT_ROOT/f"; rt_verify_sha256 "$RT_ROOT/f" "$(printf %064d 0)"',
+  ), 'wrong checksum rejected');
+  assert.ok(!ok('printf x > "$RT_ROOT/f"; rt_verify_sha256 "$RT_ROOT/f" "deadbeef"'),
+    'short/garbage checksum rejected');
+  assert.ok(!ok('rt_verify_sha256 "$RT_ROOT/nope" "$(printf %064d 0)"'),
+    'missing file rejected');
+});
+
+test('SHA256SUMS lookup finds the entry for a basename', () => {
+  const body =
+    'S="$RT_ROOT/SHA256SUMS"; ' +
+    'printf "%s  a.tar.gz\\n" "$(printf %064d 1)" > "$S"; ' +
+    'printf "%s  b.tar.gz\\n" "$(printf %064d 2)" >> "$S"; ';
+  assert.equal(sh(body + 'rt_sums_lookup b.tar.gz "$S"').out, '0'.repeat(63) + '2');
+  assert.equal(sh(body + 'rt_sums_lookup missing.tar.gz "$S"').out, '');
+});
+
+test('manifest parsing reads values as data, last wins', () => {
+  const body =
+    'M="$RT_ROOT/manifest.txt"; ' +
+    'printf "version=0.9.0-dev\\n" > "$M"; ' +
+    'printf "artifact=row-template-0.9.0-dev.tar.gz\\n" >> "$M"; ' +
+    'printf "note=a=b=c\\n" >> "$M"; ' +
+    'printf "version=1.0.0\\n" >> "$M"; ';
+  assert.equal(sh(body + 'rt_manifest_get artifact "$M"').out, 'row-template-0.9.0-dev.tar.gz');
+  assert.equal(sh(body + 'rt_manifest_get note "$M"').out, 'a=b=c', 'value keeps its = signs');
+  assert.equal(sh(body + 'rt_manifest_get version "$M"').out, '1.0.0', 'last wins');
+});
+
+/* Generation needs the real artifact; splice branding into a copy of it. */
+const GEN_SETUP = 'cp template/index.html "$RT_DIST"; ';
+
+test('generation injects branding and always passes the structural gate', () => {
+  const r = sh(
+    GEN_SETUP +
+    'rt_config_write "Nova Proxy" "https://t.me/nova" "" ""; ' +
+    'OUT="$RT_ROOT/out.html"; rt_generate "$RT_DIST" "$OUT"; ' +
+    'echo CODE=$?; ' +
+    'grep -c "Nova Proxy" "$OUT"; ' +
+    'awk "/row:branding \\*\\//{f=1} f{print} /row:branding end/{exit}" "$OUT" | grep -c "supportUrl"',
+  );
+  assert.equal(r.code, 0);
+  assert.match(r.out, /CODE=0/);
+});
+
+test('generation escapes a </script> payload in the service name', () => {
+  const nb = Buffer.from('</script><script>alert(1)</script>', 'utf8').toString('base64');
+  const r = sh(
+    GEN_SETUP +
+    `N="$(printf %s ${nb} | base64 -d)"; rt_config_write "$N" "" "" ""; ` +
+    'OUT="$RT_ROOT/out.html"; rt_generate "$RT_DIST" "$OUT"; ' +
+    'BLK="$(awk "/row:branding \\*\\//{f=1} f{print} /row:branding end/{exit}" "$OUT")"; ' +
+    'printf %s "$BLK" | grep -o "u003c/script>" | wc -l; ' +
+    'printf "RAW=%s\\n" "$(printf %s "$BLK" | grep -c "</script>")"',
+  );
+  /* the branding block contains the escaped form twice and no raw closing tag. */
+  assert.match(r.out, /^\s*2$/m, 'both </script> in the payload were escaped');
+  assert.match(r.out, /RAW=0/, 'no unescaped </script> inside the block');
+});
+
+test('the structural gate rejects a template it cannot trust', () => {
+  assert.ok(!ok('printf "<html>tiny</html>" > "$RT_ROOT/t"; rt_validate_template "$RT_ROOT/t"'),
+    'too small / not a full doc');
+  assert.ok(!ok(
+    GEN_SETUP +
+    'printf "\\n" >> "$RT_DIST"; ' +   // artifact still fine, but strip markers below
+    'sed "s#/\\* row:branding \\*/##" "$RT_DIST" > "$RT_ROOT/nomark"; ' +
+    'rt_generate "$RT_ROOT/nomark" "$RT_ROOT/out.html"',
+  ), 'generation refuses an artifact missing its markers');
+});
+
+/* Fabricate valid backups with deterministic, sortable names so ordering and
+   pruning are tested without sleeping on the clock. */
+const MKB =
+  'mkb(){ local d="$RT_BACKUPS/$1"; mkdir -p "$d"; ' +
+  'printf "%s" "$1" > "$d/template.html"; ' +
+  'rt_sha256 "$d/template.html" > "$d/template.html.sha256"; }; ';
+
+test('backup create captures a validatable snapshot', () => {
+  const r = sh(
+    GEN_SETUP +
+    'printf "0.9.0-dev\\n" > "$RT_VERSION_FILE"; ' +
+    'rt_config_write "X" "" "" ""; ' +
+    'D="$(rt_backup_create)"; ' +
+    'rt_backup_validate "$D" && echo VALID; ' +
+    'test -f "$D/template.html.sha256" && echo HASSUM; ' +
+    'test -f "$D/config.env" && echo HASCFG; ' +
+    'test -f "$D/VERSION" && echo HASVER',
+  );
+  assert.match(r.out, /VALID/);
+  assert.match(r.out, /HASSUM/);
+  assert.match(r.out, /HASCFG/);
+  assert.match(r.out, /HASVER/);
+});
+
+test('backup selection returns newest first and prune keeps the N newest', () => {
+  const names = [
+    '20260101T000000Z__0.7.0',
+    '20260201T000000Z__0.8.0',
+    '20260301T000000Z__0.9.0',
+    '20260401T000000Z__1.0.0',
+  ];
+  const setup = MKB + names.map((n) => `mkb ${n}; `).join('');
+  const list = sh(setup + 'rt_backups_list | sed "s#.*/##"').out.split('\n');
+  assert.deepEqual(list, [...names].reverse(), 'newest first');
+  assert.equal(sh(setup + 'basename "$(rt_backup_latest)"').out, names[3]);
+
+  const afterPrune = sh(setup + 'rt_backups_prune 2; rt_backups_list | sed "s#.*/##"').out.split('\n');
+  assert.deepEqual(afterPrune, [names[3], names[2]], 'kept the two newest');
+});
+
+test('a corrupt backup is excluded and never counted or pruned', () => {
+  const r = sh(
+    MKB +
+    'mkb 20260101T000000Z__good; ' +
+    'bd="$RT_BACKUPS/20260201T000000Z__bad"; mkdir -p "$bd"; ' +
+    'printf real > "$bd/template.html"; ' +
+    'printf "%s  template.html\\n" "$(printf %064d 0)" > "$bd/template.html.sha256"; ' +
+    'rt_backups_list | sed "s#.*/##"',
+  );
+  assert.equal(r.out, '20260101T000000Z__good', 'only the valid backup is listed');
+});
+
+test('recursive delete is refused outside the backups tree', () => {
+  assert.ok(!ok('rt_safe_rmdir "$RT_ROOT"'), 'RT_ROOT itself is not a backup');
+  assert.ok(!ok('rt_safe_rmdir /tmp'), 'system path refused');
+  assert.ok(!ok('rt_safe_rmdir ""'), 'empty refused');
+  assert.ok(ok(
+    'd="$RT_BACKUPS/20260101T000000Z__x"; mkdir -p "$d"; ' +
+    'rt_safe_rmdir "$d"; test ! -e "$d"',
+  ), 'a real backup dir is removed');
+});
+
+test('containment check resolves traversal before comparing', () => {
+  assert.ok(ok('rt_is_within "$RT_BACKUPS" "$RT_BACKUPS/a/b"'));
+  assert.ok(!ok('rt_is_within "$RT_BACKUPS" "$RT_BACKUPS/../evil"'), '.. escapes the base');
+  assert.ok(!ok('rt_is_within "$RT_BACKUPS" "/etc/passwd"'));
+});
+
+test('symlinked targets are refused for write and delete', { skip: platform() !== 'linux' }, () => {
+  assert.ok(!ok('ln -s /etc/hosts "$RT_ROOT/link"; rt_assert_not_symlink "$RT_ROOT/link"'));
+  assert.ok(!ok(
+    'mkdir -p "$RT_BACKUPS"; ln -s /tmp "$RT_BACKUPS/evil"; rt_safe_rmdir "$RT_BACKUPS/evil"',
+  ), 'a symlinked backup entry is not followed');
+});
+
+/* Stage a minimal but real release under RT_ROOT/rel: the pristine artifact,
+   VERSION, lib and a stub CLI, packed into a versioned tarball with a manifest
+   and a SHA256SUMS the loader must honour. Exercises the download-free
+   (RT_RELEASE_DIR) acquisition path end to end. */
+const STAGE = [
+  'stage_release(){',
+  '  local rel="$1"; mkdir -p "$rel";',
+  '  local pay="$RT_ROOT/pay/row-template-0.9.0-dev"; rm -rf "$RT_ROOT/pay"; mkdir -p "$pay/lib" "$pay/bin";',
+  '  cp template/index.html "$pay/template.html";',
+  '  cp VERSION "$pay/VERSION";',
+  '  cp installer/lib/row-template.sh "$pay/lib/row-template.sh";',
+  '  : > "$pay/bin/row-template";',
+  '  tar -C "$RT_ROOT/pay" -czf "$rel/row-template-0.9.0-dev.tar.gz" row-template-0.9.0-dev;',
+  '  printf "artifact=row-template-0.9.0-dev.tar.gz\\nversion=0.9.0-dev\\n" > "$rel/manifest.txt";',
+  '  printf "%s  row-template-0.9.0-dev.tar.gz\\n" "$(rt_sha256 "$rel/row-template-0.9.0-dev.tar.gz")" > "$rel/SHA256SUMS";',
+  '}',
+  '',
+].join('\n');
+
+test('release fetch verifies the checksum and extracts a usable payload', () => {
+  const r = sh(STAGE +
+    'stage_release "$RT_ROOT/rel"; export RT_RELEASE_DIR="$RT_ROOT/rel"; ' +
+    'P="$(rt_fetch_release "$(mktemp -d)")"; ' +
+    'test -f "$P/template.html" && echo HAS_TEMPLATE; ' +
+    'test -f "$P/lib/row-template.sh" && echo HAS_LIB; ' +
+    'rt_validate_template "$P/template.html" >/dev/null 2>&1 && echo VALID; ' +
+    'basename "$P"');
+  assert.match(r.out, /HAS_TEMPLATE/);
+  assert.match(r.out, /HAS_LIB/);
+  assert.match(r.out, /VALID/);
+  assert.match(r.out, /row-template-0\.9\.0-dev/, 'descended into the single top-level dir');
+});
+
+test('single-top detects exactly one child directory', () => {
+  assert.equal(sh('d="$RT_ROOT/s"; mkdir -p "$d/only"; rt_single_top "$d" | sed "s#.*/##"').out, 'only');
+  assert.ok(!ok('d="$RT_ROOT/s2"; mkdir -p "$d/a" "$d/b"; rt_single_top "$d"'), 'two children => none');
+  assert.ok(!ok('d="$RT_ROOT/s3"; mkdir -p "$d"; printf x > "$d/f"; rt_single_top "$d"'), 'a lone file is not a top dir');
+});
+
+test('release fetch aborts on a bad, missing, or unsafe checksum/manifest', () => {
+  const base = STAGE + 'stage_release "$RT_ROOT/rel"; ';
+  /* corrupt the artifact after its checksum was recorded */
+  assert.ok(!ok(base +
+    'printf x >> "$RT_ROOT/rel/row-template-0.9.0-dev.tar.gz"; ' +
+    'RT_RELEASE_DIR="$RT_ROOT/rel" rt_fetch_release "$(mktemp -d)"'),
+    'corrupt artifact rejected');
+  /* an empty SHA256SUMS has no entry for the artifact — there is no override */
+  assert.ok(!ok(base +
+    ': > "$RT_ROOT/rel/SHA256SUMS"; ' +
+    'RT_RELEASE_DIR="$RT_ROOT/rel" rt_fetch_release "$(mktemp -d)"'),
+    'missing checksum rejected');
+  /* a traversal artifact name in the manifest is refused before any fetch */
+  assert.ok(!ok(base +
+    'printf "artifact=../evil.tar.gz\\n" > "$RT_ROOT/rel/manifest.txt"; ' +
+    'RT_RELEASE_DIR="$RT_ROOT/rel" rt_fetch_release "$(mktemp -d)"'),
+    'unsafe artifact name rejected');
+});
+
+test('archive extraction rejects traversal paths but allows clean ones', () => {
+  const mkEvil =
+    'd="$RT_ROOT/mk"; mkdir -p "$d/sub"; printf hi > "$d/sub/f"; ' +
+    'tar -C "$d" -czf "$RT_ROOT/evil.tgz" --transform "s,^,../," sub 2>/dev/null; ';
+  assert.ok(!ok(mkEvil + 'rt_tar_extract_safe "$RT_ROOT/evil.tgz" "$(mktemp -d)"'),
+    'traversal path refused');
+  const mkOk =
+    'd="$RT_ROOT/ok"; mkdir -p "$d/sub"; printf hi > "$d/sub/f"; ' +
+    'tar -C "$d" -czf "$RT_ROOT/ok.tgz" sub; ';
+  assert.ok(ok(mkOk + 'o="$(mktemp -d)"; rt_tar_extract_safe "$RT_ROOT/ok.tgz" "$o"; test -f "$o/sub/f"'),
+    'a clean archive extracts');
+});
+
+test('restore-from-backup reinstates artifact + VERSION but keeps current config', () => {
+  /* A rollback must bring back the old template and version, yet preserve the
+     admin's CURRENT branding — restoring stale config would silently undo a
+     rename the admin made after the backup. */
+  const r = sh(GEN_SETUP +
+    'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
+    'rt_set_dist "$RT_DIST" >/dev/null; ' +
+    'B="$(rt_backup_create)"; ' +
+    'printf "0.9.0\\n" > "$RT_VERSION_FILE"; rt_config_write "NewName" "https://t.me/x" "" ""; ' +
+    'rt_restore_from_backup "$B" >/dev/null && echo RESTORED; ' +
+    'printf "VER=%s\\n" "$(cat "$RT_VERSION_FILE")"; ' +
+    'printf "NAME=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"');
+  assert.match(r.out, /RESTORED/);
+  assert.match(r.out, /VER=0\.8\.0/, 'the backed-up version is reinstated');
+  assert.match(r.out, /NAME=NewName/, 'the current admin config is preserved, not reverted');
+});
+
+test('archive extraction rejects a symlink member even when its name is clean',
+  { skip: platform() !== 'linux' }, () => {
+  /* The name "link" is traversal-free, so it clears the path screen; it must be
+     caught by the member-type screen because a symlink could redirect a later
+     write outside the extraction dir when tar follows it. */
+  const mk =
+    'd="$RT_ROOT/lk"; mkdir -p "$d"; ln -s /etc/hosts "$d/link"; printf hi > "$d/reg"; ' +
+    'tar -C "$d" -czf "$RT_ROOT/lk.tgz" link reg; ';
+  assert.ok(!ok(mk + 'rt_tar_extract_safe "$RT_ROOT/lk.tgz" "$(mktemp -d)"'),
+    'a symlink member is refused');
+});
+
+test('release fetch requires https for a URL source (no silent http downgrade)', () => {
+  const httpBad = sh('RT_RELEASE_URL="http://example.invalid/rel" rt_fetch_release "$(mktemp -d)"');
+  assert.notEqual(httpBad.code, 0, 'http:// is refused by default');
+  assert.match(httpBad.err, /https/i, 'the refusal names the https requirement');
+  const ftpBad = sh('RT_RELEASE_URL="ftp://example.invalid/rel" rt_fetch_release "$(mktemp -d)"');
+  assert.notEqual(ftpBad.code, 0, 'a non-http(s) scheme is refused');
+});
+
+test('the default release source is the public GitHub stable channel over https', () => {
+  /* With no RT_RELEASE_DIR / RT_RELEASE_URL, a normal user must reach the public
+     stable channel with zero configuration: releases/latest/download resolves to
+     the newest published, non-prerelease release over https, no API token. */
+  const r = sh('unset RT_RELEASE_DIR RT_RELEASE_URL; rt_release_source; ' +
+    'printf "KIND=%s\\nBASE=%s\\n" "$RT_SRC_KIND" "$RT_SRC_BASE"');
+  assert.match(r.out, /KIND=url/, 'no env => a url source');
+  assert.match(r.out,
+    /BASE=https:\/\/github\.com\/frank0live\/Row-Template\/releases\/latest\/download/,
+    'defaults to the GitHub releases/latest/download channel');
+});
+
+test('remote version reads the manifest without downloading the artifact', () => {
+  const r = sh(STAGE +
+    'stage_release "$RT_ROOT/rel"; ' +
+    'v="$(RT_RELEASE_DIR="$RT_ROOT/rel" rt_remote_version)"; printf "V=%s\\n" "$v"');
+  assert.match(r.out, /V=0\.9\.0-dev/, 'the advertised manifest version is returned');
+});
+
+test('manager update reports "up to date" when installed matches available', () => {
+  const r = sh(STAGE +
+    'stage_release "$RT_ROOT/rel"; printf "0.9.0-dev\\n" > "$RT_VERSION_FILE"; ' +
+    'RT_RELEASE_DIR="$RT_ROOT/rel" rt_manager_update </dev/null');
+  assert.match(r.out, /Installed/, 'shows the installed version');
+  assert.match(r.out, /Available/, 'shows the available version');
+  assert.match(r.out + r.err, /up to date/i, 'equal versions read as up to date');
+});
+
+test('manager update reports "unable to check" when the source is unreachable', () => {
+  /* A missing/unreachable source must never masquerade as a damaged install. */
+  const r = sh('RT_RELEASE_DIR="$RT_ROOT/does-not-exist" rt_manager_update </dev/null');
+  assert.match(r.out + r.err, /Unable to check/i, 'a failed check is reported, not a failure');
+});
+
+test('render smoke classifies a large served page as pass, not a SIGPIPE miss',
+  { skip: platform() !== 'linux' }, () => {
+  /* Regression: the classifier used `printf %s "$body" | grep -q PAT`. Under
+     `set -o pipefail` grep -q exits on the first hit, printf dies with SIGPIPE
+     (141) writing the long tail, and pipefail promotes 141 to the pipeline
+     status — so the real ~160 KB Row-Template page (early `id="sub-data"`
+     match) was misread as 'fallback'. Drive the SHIPPED function through a
+     file:// URL with a >64 KB body whose marker is at the very top. */
+  const big =
+    'f="$(mktemp)"; { printf "%s" \'<!doctype html><div id="sub-data">\'; ' +
+    'head -c 300000 /dev/zero | tr "\\0" x; printf "</div>"; } > "$f"; ';
+  const hit = sh(big + 'RT_SMOKE_URL="file://$f" rt_render_smoke; rm -f "$f"');
+  assert.equal(hit.out, 'pass', 'a large page containing the marker is served (pass)');
+
+  /* A large page WITHOUT the marker must still classify as fallback. */
+  const miss = sh(
+    'f="$(mktemp)"; head -c 300000 /dev/zero | tr "\\0" x > "$f"; ' +
+    'RT_SMOKE_URL="file://$f" rt_render_smoke; rm -f "$f"');
+  assert.equal(miss.out, 'fallback', 'a large page missing the marker is a fallback');
+});
+
+test('systemd unit detection survives pipefail when the unit list is long',
+  { skip: platform() !== 'linux' }, () => {
+  /* Regression: rt_detect_xui matched the unit with `systemctl list-unit-files
+     | grep -q '^x-ui\.service'`. Under `set -o pipefail` grep -q closes the pipe
+     on the first hit, systemctl dies of SIGPIPE (141) writing the long tail, and
+     pipefail promotes 141 to the pipeline status — so the `if` read false and
+     RT_XUI_UNIT was left empty on a real box, surfacing as "Service: not
+     detected" while the version (which needs no pipe) still showed. Stub a
+     systemctl whose list is far bigger than the pipe buffer, x-ui.service on top. */
+  const stub =
+    'mkdir -p "$RT_ROOT/fakebin"; ' +
+    'cat > "$RT_ROOT/fakebin/systemctl" <<\'EOF\'\n' +
+    '#!/usr/bin/env bash\n' +
+    'if [ "$1" = list-unit-files ]; then\n' +
+    '  echo "x-ui.service enabled"\n' +
+    '  for i in $(seq 1 6000); do echo "filler-$i.service enabled"; done\n' +
+    'fi\n' +
+    'exit 0\n' +
+    'EOF\n' +
+    'chmod +x "$RT_ROOT/fakebin/systemctl"; ' +
+    'export PATH="$RT_ROOT/fakebin:$PATH"; ';
+  const r = sh(stub + 'rt_detect_xui; echo "rc=$? UNIT=${RT_XUI_UNIT:-<empty>}"');
+  assert.match(r.out, /UNIT=x-ui\.service/, 'the unit is detected despite the long list');
+  assert.match(r.out, /rc=0/, 'detection reports success when the unit is present');
+});
+
+/* ---- interactive installer & manager UX ----------------------------------
+   These exercise the presentation layer through the SHIPPED library. spawnSync
+   gives the snippet a piped (non-TTY) stdout, so rt_ui_is_interactive() is false
+   and RT_C_* colour is empty — exactly the automation/CI/curl|bash path. Prompts
+   are driven by feeding stdin (or /dev/null for EOF) so nothing can hang. */
+
+test('rt_ui_confirm takes the default on EOF and honours explicit input', () => {
+  assert.equal(sh('rt_ui_confirm "Q" yes </dev/null && echo Y || echo N').out, 'Y', 'EOF + default yes');
+  assert.equal(sh('rt_ui_confirm "Q" no  </dev/null && echo Y || echo N').out, 'N', 'EOF + default no');
+  assert.equal(sh('printf "y\\n" | { rt_ui_confirm "Q" no  && echo Y || echo N; }').out, 'Y', 'explicit yes beats default no');
+  assert.equal(sh('printf "n\\n" | { rt_ui_confirm "Q" yes && echo Y || echo N; }').out, 'N', 'explicit no beats default yes');
+  assert.equal(sh('printf "\\n"  | { rt_ui_confirm "Q" yes && echo Y || echo N; }').out, 'Y', 'a blank line takes the default');
+});
+
+test('rt_ui_menu_select validates, re-prompts on junk, and never spins on EOF', () => {
+  assert.equal(sh('printf "x\\n9\\n2\\n" | rt_ui_menu_select 3').out, '2', 'junk + out-of-range rejected, 2 accepted');
+  assert.equal(sh('rt_ui_menu_select 5 </dev/null').out, '0', 'EOF returns 0 (Exit) so a non-TTY caller cannot spin');
+  assert.equal(sh('printf "0\\n" | rt_ui_menu_select 5').out, '0', '0 is a valid selection');
+  assert.equal(sh('printf "7\\n" | rt_ui_menu_select 7').out, '7', 'the maximum is inclusive');
+});
+
+test('rt_status_theme reports evidence-based tokens, not mere file presence', () => {
+  assert.equal(sh('rt_status_theme').out, 'notinstalled', 'no VERSION file => not installed');
+  assert.equal(sh('printf "0.9.0-dev\\n" > "$RT_VERSION_FILE"; rt_status_theme').out, 'damaged',
+    'version present but template missing => damaged');
+  const unknown = sh(GEN_SETUP + 'cp template/index.html "$RT_LIVE"; ' +
+    'printf "0.9.0-dev\\n" > "$RT_VERSION_FILE"; rt_status_theme');
+  assert.equal(unknown.out, 'unknown', 'installed but unverifiable without sqlite3/DB => unknown, never a bare "active"');
+});
+
+test('rt_status labels map every token to a human string', () => {
+  assert.match(sh('rt_status_label active').out, /Active/);
+  assert.match(sh('rt_status_label inactive').out, /Not active/);
+  assert.match(sh('rt_status_label unknown').out, /unverified/i);
+  assert.match(sh('rt_status_label damaged').out, /damaged/i);
+  assert.match(sh('rt_status_label notinstalled').out, /Not installed/);
+  assert.match(sh('rt_status_theme_label active').out, /Row-Template \(active\)/);
+});
+test('the UI header carries the project identity and emits no ANSI when not a TTY', () => {
+  const h = sh('rt_ui_header');
+  assert.match(h.out, /Row-Template/, 'project name shown');
+  assert.match(h.out, /frank0live/, 'developer shown');
+  assert.ok(!/\x1b\[/.test(h.out), 'no ANSI escapes on a non-terminal stdout');
+  assert.ok(!/\x1b\[/.test(sh('NO_COLOR=1 rt_ui_header').out), 'NO_COLOR also yields plain text');
+});
+
+test('help advertises the identity, the interactive manager and the menu command', () => {
+  const h = sh('rt_print_help');
+  assert.match(h.out, /github\.com\/frank0live\/Row-Template/, 'GitHub URL present');
+  assert.match(h.out, /by frank0live/, 'developer credited');
+  assert.match(h.out, /^\s*menu\b/m, 'the explicit menu command is documented');
+  assert.match(h.out, /interactive manager/i, 'the no-arg interactive behaviour is documented');
+});
+
+test('the CLI dispatcher routes no-arg non-TTY to help and never blocks', () => {
+  const bin = 'RT_LIB_OVERRIDE="$PWD/installer/lib/row-template.sh" bash installer/bin/row-template';
+  const noargs = sh(`${bin} </dev/null`);
+  assert.equal(noargs.code, 0, 'a no-arg non-interactive run exits cleanly instead of opening a blocking menu');
+  assert.match(noargs.out + noargs.err, /Usage/, 'it printed help');
+  const help = sh(`${bin} help </dev/null`);
+  assert.equal(help.code, 0);
+  assert.match(help.out, /frank0live/);
+  assert.equal(sh(`${bin} not-a-command </dev/null`).code, 2, 'an unknown command exits 2');
+});
+
+test('the existing-install re-run menu maps each choice to one stable token', () => {
+  const setup = 'printf "0.9.0-dev\\n" > "$RT_VERSION_FILE"; ';
+  assert.equal(sh(setup + 'rt_existing_install_menu </dev/null').out, 'exit', 'EOF => exit (no changes)');
+  assert.equal(sh(setup + 'printf "1\\n" | rt_existing_install_menu').out, 'manager');
+  assert.equal(sh(setup + 'printf "2\\n" | rt_existing_install_menu').out, 'reconfigure');
+  assert.equal(sh(setup + 'printf "3\\n" | rt_existing_install_menu').out, 'update');
+  assert.equal(sh(setup + 'printf "4\\n" | rt_existing_install_menu').out, 'repair');
+});
+test('the pre-commit summary reflects the branding, defaults to yes, and never prints the URL', () => {
+  const setup = 'rt_config_write "Nova Proxy" "https://t.me/nova" "" ""; ';
+  assert.equal(sh(setup + 'rt_install_summary_confirm </dev/null >/dev/null 2>&1 && echo GO || echo STOP').out,
+    'GO', 'EOF takes the default (yes) so the confirm never hangs');
+  const shown = sh(setup + 'rt_install_summary_confirm </dev/null 2>/dev/null');
+  assert.match(shown.out, /Nova Proxy/, 'the service name is echoed back');
+  assert.match(shown.out, /Support URL\s+configured/, 'the support URL is shown as configured');
+  assert.ok(!/t\.me\/nova/.test(shown.out), 'the support URL itself is never printed (redaction-by-construction)');
+});
+
+test('the install success screen only claims Active when activation was verified', () => {
+  const setup = 'printf "0.9.0-dev\\n" > "$RT_VERSION_FILE"; rt_config_write "Nova" "" "" ""; ';
+  const auto = sh(setup + 'rt_install_success_screen auto');
+  assert.match(auto.out, /Theme\s+Active/, 'a verified auto activation is reported as Active');
+  for (const oc of ['manual', 'skipped']) {
+    const r = sh(setup + `rt_install_success_screen ${oc}`);
+    assert.ok(!/Theme\s+Active/.test(r.out), `${oc} never shows "Theme Active"`);
+    assert.match(r.out, /Manual activation required/, `${oc} => manual activation required`);
+    assert.match(r.out, /Sub Theme Directory/i, `${oc} shows the exact panel step`);
+    /* the guidance shows the RESOLVED install dir ($RT_ROOT), not a hardcoded
+       literal — in production that is /etc/3x-ui/sub_templates/row-template. */
+    assert.match(r.out, /Enter exactly\s+\S+\/rt\b/, `${oc} tells the operator the exact directory to enter`);
+  }
+});
+
+test('activation degrades honestly to manual guidance when sqlite3/DB is unavailable', () => {
+  const r = sh('printf "0.9.0-dev\\n" > "$RT_VERSION_FILE"; RT_XUI_DB="" rt_manager_activate </dev/null');
+  assert.equal(r.code, 0, 'it returns to the caller instead of crashing');
+  const all = r.out + '\n' + r.err;
+  assert.match(all, /Sub Theme Directory/i, 'it explains the manual panel step');
+  assert.match(all, /Enter exactly\s+\S+\/rt\b/, 'and gives the exact directory to enter');
+});
+
+
+
+
+
+
+
+
+

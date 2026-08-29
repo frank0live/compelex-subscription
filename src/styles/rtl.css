@@ -1,0 +1,28 @@
+/* Direction-specific rules. The layout itself needs none: every offset in
+   this stylesheet is a logical property, so setting dir on <html> is enough.
+   What remains are the two glyphs that carry a direction of their own, and
+   the typographic details that do not survive being mirrored. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+/* Negative tracking is a Latin display trick; it closes Arabic joins. The
+   traffic figure is exempt: its digits and unit ladder are Latin in every
+   language, so it keeps the display tracking and leading it was cut for. */
+[lang="fa"] .brand-name,
+[lang="ar"] .brand-name {
+  letter-spacing: normal;
+}
+
+/* Persian and Arabic ascenders and descenders need the extra leading that
+   the tighter Latin display line-height would clip. */
+[lang="fa"] .value,
+[lang="ar"] .value,
+[lang="fa"] .section-title,
+[lang="ar"] .section-title,
+[lang="fa"] .brand-name,
+[lang="ar"] .brand-name {
+  line-height: 1.4;
+}

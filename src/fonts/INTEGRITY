@@ -1,0 +1,34 @@
+Vazirmatn — Arabic-script subset, embedded in the built page
+============================================================
+
+vazirmatn-arabic-subset.woff2 is not an upstream file. It is produced from a
+pinned upstream release by tools/subset-font.sh, which verifies the archive
+digest before touching it, so this binary is reproducible rather than trusted.
+
+  upstream         https://github.com/rastikerdar/vazirmatn
+  release          v33.003  (npm vazirmatn@33.0.3)
+  source font      misc/Non-Latin/fonts/variable/Vazirmatn-NL[wght].ttf
+  archive sha512   fbjNc0CMjazZpIegWzz9OHGzI1APFboT+x7ZecXlUCtDe/nkyx7gtCTZnWS/+eeXG7fbfXymCPKJI8EsnM3iqw==
+  licence          SIL Open Font License 1.1 — OFL.txt in this directory
+
+  wght axis        pinned to 400:700
+  unicodes         U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                   U+FE70-FEFF, U+00A0, U+00AB, U+00BB, U+2013, U+2014, U+2026
+  features         calt ccmp fina init liga locl medi rlig ss01 tnum
+                   kern mark mkmk
+
+  result           530 glyphs, 363 cmap entries
+  woff2 bytes      31944
+  base64 bytes     42592
+  sha256           349d2f32c68726ced46a0344214a58d98bfa1d49e633a2fd2369daed01e745c7
+
+Rebuild and confirm the digest is unchanged:
+
+  bash tools/subset-font.sh
+  sha256sum src/fonts/vazirmatn-arabic-subset.woff2
+
+The Non-Latin build is deliberate: the system UI stack already renders Latin,
+Cyrillic and CJK better than a subset would, and a Latin-bearing build costs
+90 KB of base64 instead of 42 KB. The @font-face declaration carries the same
+unicode-range, so the face is never applied to Latin text even when the
+interface language is Persian or Arabic.
