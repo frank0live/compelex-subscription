@@ -647,6 +647,174 @@
   opacity: 1;
   transform: none;
 }
+
+/* Configurations explorer. One card, one row per usable configuration: a flag
+   or monogram badge, the server's name and protocol, and the two actions. The
+   list is a premium roster, not a raw dump, so the credential never appears
+   here — only in the dialog a row opens. */
+.explorer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.explorer-head .section-title { flex: 1; }
+
+.cfg-count {
+  flex: none;
+  min-inline-size: 24px;
+  padding-inline: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  text-align: center;
+}
+
+.cfg-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-inline: var(--sp-3);
+  min-block-size: var(--tap);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--subtle);
+}
+
+.cfg-search:focus-within { border-color: var(--border-strong); }
+.cfg-search .icon { flex: none; }
+
+.cfg-search input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+}
+
+.cfg-search input:focus { outline: none; }
+
+.cfg-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.cfg {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-block: var(--sp-3);
+  border-block-start: 1px solid var(--hairline);
+}
+
+.cfg:first-child { border-block-start: 0; }
+.cfg[hidden] { display: none; }
+
+.cfg-flag {
+  flex: none;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--r-mark);
+  font-size: 20px;
+  line-height: 32px;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Monogram fallback when a configuration has no country flag: the first
+   letter of its name on the neutral surface, never an empty circle. */
+.cfg-flag[data-mono] {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--subtle);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.cfg-body {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cfg-name {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-proto {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.cfg-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* The empty-state line shown when a search matches nothing. */
+.cfg-empty {
+  margin-block-start: var(--sp-3);
+  text-align: center;
+}
+
+/* Config dialog. It reuses the .dialog / .qr-body / .qr-frame / .url-field
+   shell (so the bottom-sheet media query below applies unchanged); only the
+   canvas size and the protocol-specific extras are new. */
+#config-canvas {
+  display: block;
+  inline-size: min(240px, 64vw);
+  block-size: auto;
+  image-rendering: pixelated;
+}
+
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.cfg-conf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.conf-text {
+  inline-size: 100%;
+  box-sizing: border-box;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  resize: none;
+}
+
+.conf-text:focus { outline: none; border-color: var(--border-strong); }
+
+
+
 /* Hover is a pointer affordance, so it lives behind the capability query; the
    press and focus states above do not, because a thumb needs them too. Every
    rule here moves a surface as well as a colour. */

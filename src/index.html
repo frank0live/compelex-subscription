@@ -24,6 +24,7 @@
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.2 14.6A8.6 8.6 0 0 1 9.4 3.8a8.6 8.6 0 1 0 10.8 10.8z"/></symbol>
 <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path fill="currentColor" stroke="none" d="M12 3.6a8.4 8.4 0 0 1 0 16.8z"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="m5.5 12.5 4.5 4.5 8.5-9.5"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 4.5 4.5"/></symbol>
 </defs></svg>
 
 <div id="sub-data" hidden
@@ -43,6 +44,8 @@
 ></div>
 
 <div id="announce-source" hidden>{{ .announce }}</div>
+
+<div id="links-source" hidden>{{ range .links }}<span>{{ . }}</span>{{ end }}</div>
 
 <header class="site-header">
   <div class="brand">
@@ -115,6 +118,20 @@
     <p class="caption" id="connect-hint"></p>
   </section>
 
+  <section class="card explorer js-only" id="explorer" hidden aria-labelledby="explorer-title">
+    <div class="explorer-head">
+      <h2 class="section-title" id="explorer-title">Configurations</h2>
+      <span class="cfg-count" id="explorer-count" aria-hidden="true"></span>
+    </div>
+    <p class="caption" id="explorer-hint"></p>
+    <div class="cfg-search" id="explorer-search-wrap" hidden>
+      <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+      <input type="search" id="explorer-search" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="cfg-list" id="config-list"></div>
+    <p class="caption cfg-empty" id="explorer-empty" role="status" hidden></p>
+  </section>
+
   <span id="announce-slot"></span>
   <span id="support-slot">{{ if .subSupportUrl }}<section class="support"><a class="btn btn-outline support-cta" id="support-link" href="{{ .subSupportUrl }}" target="_blank" rel="noopener noreferrer" aria-label="Contact support, opens in a new tab"><span id="support-label">Contact support</span><svg class="icon icon-external" aria-hidden="true"><use href="#i-external"/></svg></a></section>{{ end }}</span>
 
@@ -139,6 +156,29 @@
 </dialog>
 
 <div class="toast" id="toast" hidden></div>
+
+<dialog class="dialog js-only" id="config-dialog" aria-labelledby="config-title">
+  <div class="dialog-head">
+    <h2 class="dialog-title" id="config-title"></h2>
+    <button type="button" class="ctl ctl-icon" id="config-close">
+      <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
+  </div>
+  <div class="qr-body">
+    <div class="qr-frame" id="config-frame"><canvas id="config-canvas" role="img"></canvas></div>
+    <p class="caption" id="config-hint"></p>
+    <div class="url-field">
+      <input type="text" id="config-url" readonly dir="ltr" spellcheck="false" autocomplete="off">
+      <button type="button" class="btn btn-outline" id="config-copy"><span class="btn-swap"><span class="swap-live" id="config-copy-label"></span><span class="swap-done" id="config-copy-done"></span></span></button>
+    </div>
+    <a class="btn btn-outline cfg-open" id="config-open" target="_blank" rel="noopener noreferrer nofollow" hidden><span id="config-open-label"></span><svg class="icon icon-external" aria-hidden="true"><use href="#i-external"/></svg></a>
+    <div class="cfg-conf" id="config-conf" hidden>
+      <label class="caption" id="config-conf-label" for="config-conf-text"></label>
+      <textarea class="conf-text" id="config-conf-text" dir="ltr" readonly spellcheck="false" rows="6"></textarea>
+      <button type="button" class="btn btn-outline btn-sm" id="config-conf-copy"></button>
+    </div>
+  </div>
+</dialog>
 
 <script type="application/json" id="i18n-data">/*__LOCALES__*/</script>
 <script>/*__APP__*/</script>

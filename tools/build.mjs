@@ -19,8 +19,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const STYLES = ['tokens.css', 'base.css', 'layout.css', 'components.css', 'rtl.css'];
 const BOOT = ['detect.js', 'boot.js'];
 const APP = [
-  'model.js', 'format.js', 'url.js', 'i18n.js', 'brand.js', 'clipboard.js',
-  'qr.js', 'clients.js', 'live.js', 'render.js', 'connect.js', 'main.js',
+  'model.js', 'format.js', 'url.js', 'i18n.js', 'brand.js', 'flag.js', 'config.js',
+  'clipboard.js', 'qr.js', 'clients.js', 'live.js', 'render.js', 'connect.js', 'explorer.js', 'main.js',
 ];
 const LOCALES = ['en', 'fa', 'ar', 'ru', 'zh'];
 

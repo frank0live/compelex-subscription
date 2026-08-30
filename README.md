@@ -2,18 +2,49 @@
      numbers, and wallet addresses in this file byte-for-byte identical to the
      translated READMEs. -->
 
-# Row-Template
+<p align="center">
+  <img src="docs/assets/row-template-banner.png" alt="Row-Template" width="900">
+</p>
 
-A polished, self-contained custom subscription page for [3X-UI](https://github.com/MHSanaei/3x-ui) panels — one HTML file, fully white-label, with no third-party CDNs and no external requests from the page your subscribers open.
+<p align="center">
+  A polished, self-contained custom subscription page for <a href="https://github.com/MHSanaei/3x-ui">3X-UI</a> panels — one HTML file, fully white-label, with no third-party CDNs and no external requests from the page your subscribers open.
+</p>
 
-**English** | [فارسی](README.fa.md) | [العربية](README.ar.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
+<p align="center">
+  <strong>English</strong> | <a href="README.fa.md">فارسی</a> | <a href="README.ar.md">العربية</a> | <a href="README.ru.md">Русский</a> | <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-[![License](https://img.shields.io/github/license/frank0live/Row-Template)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver)](https://github.com/frank0live/Row-Template/releases/latest)
-![Panel](https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+<p align="center">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/frank0live/Row-Template"></a>
+  <a href="https://github.com/frank0live/Row-Template/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver"></a>
+  <img alt="Panel" src="https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
+</p>
 
 ---
+
+## Why Row-Template?
+
+- **Private by design.** The page your subscribers open makes no third-party requests. QR codes are generated locally, and your branding is injected as text — never executed, never sent anywhere.
+- **Genuinely white-label.** Your service name, your support link, your logo. Nothing on the served page identifies Row-Template.
+- **One file, no runtime dependencies.** CSS, JavaScript, fonts, and the QR generator are inlined into a single HTML file that installs with standard Linux userland — no Node.js, Python, or database.
+- **Made for your subscribers.** Live usage and expiry, one-tap import into popular apps, and a searchable list of individual configurations for adding a single server by hand.
+- **Safe to operate.** Atomic install with validation and one-command rollback. It never patches 3X-UI and never touches your panel's files.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-dark.png" alt="Row-Template — dark theme"></td>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-light.png" alt="Row-Template — light theme"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Dark theme</sub></td>
+    <td align="center"><sub>Light theme</sub></td>
+  </tr>
+</table>
+
+<sub>Screens use placeholder data; the configuration list and country badges shown are examples.</sub>
 
 ## Quick install
 

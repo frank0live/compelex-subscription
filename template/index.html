@@ -960,6 +960,162 @@ html:not([data-js]) .js-only { display: none !important; }
   opacity: 1;
   transform: none;
 }
+
+.explorer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.explorer-head .section-title { flex: 1; }
+
+.cfg-count {
+  flex: none;
+  min-inline-size: 24px;
+  padding-inline: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  text-align: center;
+}
+
+.cfg-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-inline: var(--sp-3);
+  min-block-size: var(--tap);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--subtle);
+}
+
+.cfg-search:focus-within { border-color: var(--border-strong); }
+.cfg-search .icon { flex: none; }
+
+.cfg-search input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+}
+
+.cfg-search input:focus { outline: none; }
+
+.cfg-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.cfg {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-block: var(--sp-3);
+  border-block-start: 1px solid var(--hairline);
+}
+
+.cfg:first-child { border-block-start: 0; }
+.cfg[hidden] { display: none; }
+
+.cfg-flag {
+  flex: none;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--r-mark);
+  font-size: 20px;
+  line-height: 32px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.cfg-flag[data-mono] {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--subtle);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.cfg-body {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cfg-name {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-proto {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.cfg-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.cfg-empty {
+  margin-block-start: var(--sp-3);
+  text-align: center;
+}
+
+#config-canvas {
+  display: block;
+  inline-size: min(240px, 64vw);
+  block-size: auto;
+  image-rendering: pixelated;
+}
+
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.cfg-conf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.conf-text {
+  inline-size: 100%;
+  box-sizing: border-box;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  resize: none;
+}
+
+.conf-text:focus { outline: none; border-color: var(--border-strong); }
+
 @media (hover: hover) {
   .btn-primary:hover {
     background: var(--accent-hover);
@@ -1197,6 +1353,7 @@ window.__row = {
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.2 14.6A8.6 8.6 0 0 1 9.4 3.8a8.6 8.6 0 1 0 10.8 10.8z"/></symbol>
 <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path fill="currentColor" stroke="none" d="M12 3.6a8.4 8.4 0 0 1 0 16.8z"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="m5.5 12.5 4.5 4.5 8.5-9.5"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 4.5 4.5"/></symbol>
 </defs></svg>
 
 <div id="sub-data" hidden
@@ -1216,6 +1373,8 @@ window.__row = {
 ></div>
 
 <div id="announce-source" hidden>{{ .announce }}</div>
+
+<div id="links-source" hidden>{{ range .links }}<span>{{ . }}</span>{{ end }}</div>
 
 <header class="site-header">
   <div class="brand">
@@ -1288,6 +1447,20 @@ window.__row = {
     <p class="caption" id="connect-hint"></p>
   </section>
 
+  <section class="card explorer js-only" id="explorer" hidden aria-labelledby="explorer-title">
+    <div class="explorer-head">
+      <h2 class="section-title" id="explorer-title">Configurations</h2>
+      <span class="cfg-count" id="explorer-count" aria-hidden="true"></span>
+    </div>
+    <p class="caption" id="explorer-hint"></p>
+    <div class="cfg-search" id="explorer-search-wrap" hidden>
+      <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+      <input type="search" id="explorer-search" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="cfg-list" id="config-list"></div>
+    <p class="caption cfg-empty" id="explorer-empty" role="status" hidden></p>
+  </section>
+
   <span id="announce-slot"></span>
   <span id="support-slot">{{ if .subSupportUrl }}<section class="support"><a class="btn btn-outline support-cta" id="support-link" href="{{ .subSupportUrl }}" target="_blank" rel="noopener noreferrer" aria-label="Contact support, opens in a new tab"><span id="support-label">Contact support</span><svg class="icon icon-external" aria-hidden="true"><use href="#i-external"/></svg></a></section>{{ end }}</span>
 
@@ -1313,7 +1486,30 @@ window.__row = {
 
 <div class="toast" id="toast" hidden></div>
 
-<script type="application/json" id="i18n-data">{"en":{"action.close":"Close","action.copied":"Copied","action.copy":"Copy subscription","action.copy_link":"Copy link","action.copy_short":"Copy","action.import":"Import","action.qr":"QR code","action.refresh":"Try again","action.show_less":"Show less","action.show_more":"Show more","announce.title":"Announcement","app.subscription":"Subscription","client.copy_for":"Copy link for {name}","client.import_for":"Import into {name}","client.opening":"Opening the application…","client.paid":"Paid app","connect.hint":"Import opens the application directly. If nothing happens, copy the link and add it manually.","connect.none":"No application can be set up automatically for this subscription. Copy the link and add it manually.","connect.title":"Connect","copy.done":"Link copied","copy.failed":"Could not copy. Select the link and copy it manually.","copy.manual":"The link is selected — copy it with your keyboard.","expiry.at":"at {time}","expiry.expired":"Expired","expiry.expired_note":"{date} · {ago}","expiry.never":"Never expires","expiry.on":"Expires {date}","expiry.pending":"Starts on first connection","expiry.pending_note":"Valid for {days} after that","expiry.remaining":"{days} remaining","expiry.today":"Expires today","expiry.tomorrow":"Expires tomorrow","expiry.unknown":"Expiry date unavailable","footer.static":"Live updates are not available on this panel","footer.stopped":"Live updates stopped.","footer.updated":"Updated {when}","lang.label":"Language","online.never":"Never connected","online.now":"Online now","online.seen":"Last seen {when}","platform.android":"Android","platform.ios":"iOS","platform.macos":"macOS","platform.windows":"Windows","qr.alt":"QR code for the subscription link","qr.failed":"The QR code could not be generated. Use the link below.","qr.field":"Subscription link","qr.hint":"Scan with your client application","qr.title":"QR code","status.active":"Active","status.disabled":"Disabled","status.expired":"Expired","status.heading":"Subscription status","status.limited":"Traffic limit reached","support.contact":"Contact support","support.newtab":"Contact support, opens in a new tab","theme.dark":"Dark","theme.label":"Theme","theme.light":"Light","theme.system":"System","time.just_now":"just now","traffic.bar":"Traffic used","traffic.limit_unknown":"Limit unavailable","traffic.none_left":"No traffic left","traffic.over":"{size} over the limit","traffic.progress":"{pct}, {used} of {total} used","traffic.remaining":"{size} remaining","traffic.unlimited":"Unlimited","traffic.usage_unknown":"Usage unavailable","traffic.used":"used","traffic.used_of":"used of {total}","unit.day":"days"},"fa":{"action.close":"بستن","action.copied":"کپی شد","action.copy":"کپی لینک اشتراک","action.copy_link":"کپی لینک","action.copy_short":"کپی","action.import":"افزودن","action.qr":"کد QR","action.refresh":"تلاش مجدد","action.show_less":"نمایش کمتر","action.show_more":"نمایش بیشتر","announce.title":"اطلاعیه","app.subscription":"اشتراک","client.copy_for":"کپی لینک برای {name}","client.import_for":"افزودن به {name}","client.opening":"در حال باز کردن برنامه…","client.paid":"برنامه پولی","connect.hint":"«افزودن» برنامه را باز می‌کند. اگر اتفاقی نیفتاد، لینک را کپی کنید و دستی اضافه کنید.","connect.none":"برای این اشتراک هیچ برنامه‌ای به‌صورت خودکار قابل تنظیم نیست. لینک را کپی کنید و دستی اضافه کنید.","connect.title":"اتصال","copy.done":"لینک کپی شد","copy.failed":"کپی انجام نشد. لینک را انتخاب و دستی کپی کنید.","copy.manual":"لینک انتخاب شد؛ با کیبورد آن را کپی کنید.","expiry.at":"ساعت {time}","expiry.expired":"منقضی شده","expiry.expired_note":"{date} · {ago}","expiry.never":"بدون تاریخ انقضا","expiry.on":"انقضا در {date}","expiry.pending":"با نخستین اتصال آغاز می‌شود","expiry.pending_note":"پس از آن {days} اعتبار دارد","expiry.remaining":"{days} باقی مانده","expiry.today":"امروز منقضی می‌شود","expiry.tomorrow":"فردا منقضی می‌شود","expiry.unknown":"تاریخ انقضا در دسترس نیست","footer.static":"به‌روزرسانی زنده در این پنل در دسترس نیست","footer.stopped":"به‌روزرسانی زنده متوقف شد.","footer.updated":"به‌روزرسانی {when}","lang.label":"زبان","online.never":"هرگز متصل نشده","online.now":"آنلاین","online.seen":"آخرین اتصال {when}","platform.android":"اندروید","platform.ios":"iOS","platform.macos":"مک","platform.windows":"ویندوز","qr.alt":"کد QR لینک اشتراک","qr.failed":"ساخت کد QR ممکن نشد. از لینک زیر استفاده کنید.","qr.field":"لینک اشتراک","qr.hint":"با برنامه خود اسکن کنید","qr.title":"کد QR","status.active":"فعال","status.disabled":"غیرفعال","status.expired":"منقضی شده","status.heading":"وضعیت اشتراک","status.limited":"حجم به پایان رسیده","support.contact":"تماس با پشتیبانی","support.newtab":"تماس با پشتیبانی، در زبانه‌ای جدید باز می‌شود","theme.dark":"تیره","theme.label":"پوسته","theme.light":"روشن","theme.system":"سیستم","time.just_now":"همین حالا","traffic.bar":"ترافیک مصرف‌شده","traffic.limit_unknown":"حجم کل در دسترس نیست","traffic.none_left":"حجمی باقی نمانده","traffic.over":"{size} بیش از حد مجاز","traffic.progress":"{pct}، {used} از {total} مصرف شده","traffic.remaining":"{size} باقی مانده","traffic.unlimited":"نامحدود","traffic.usage_unknown":"میزان مصرف در دسترس نیست","traffic.used":"مصرف شده","traffic.used_of":"مصرف از {total}","unit.day":"روز"},"ar":{"action.close":"إغلاق","action.copied":"تم النسخ","action.copy":"نسخ رابط الاشتراك","action.copy_link":"نسخ الرابط","action.copy_short":"نسخ","action.import":"إضافة","action.qr":"رمز QR","action.refresh":"إعادة المحاولة","action.show_less":"عرض أقل","action.show_more":"عرض المزيد","announce.title":"إعلان","app.subscription":"الاشتراك","client.copy_for":"نسخ الرابط لـ {name}","client.import_for":"استيراد إلى {name}","client.opening":"يتم فتح التطبيق…","client.paid":"تطبيق مدفوع","connect.hint":"«إضافة» يفتح التطبيق مباشرة. إذا لم يحدث شيء، انسخ الرابط وأضفه يدويًا.","connect.none":"لا يمكن إعداد أي تطبيق تلقائيًا لهذا الاشتراك. انسخ الرابط وأضفه يدويًا.","connect.title":"الاتصال","copy.done":"تم نسخ الرابط","copy.failed":"تعذّر النسخ. حدد الرابط وانسخه يدويًا.","copy.manual":"تم تحديد الرابط، انسخه من لوحة المفاتيح.","expiry.at":"الساعة {time}","expiry.expired":"منتهي","expiry.expired_note":"{date} · {ago}","expiry.never":"بلا تاريخ انتهاء","expiry.on":"ينتهي في {date}","expiry.pending":"يبدأ عند أول اتصال","expiry.pending_note":"صالح {days} بعد ذلك","expiry.remaining":"بقي {days}","expiry.today":"ينتهي اليوم","expiry.tomorrow":"ينتهي غدًا","expiry.unknown":"تاريخ الانتهاء غير متاح","footer.static":"التحديث المباشر غير متاح في هذه اللوحة","footer.stopped":"توقف التحديث المباشر.","footer.updated":"آخر تحديث {when}","lang.label":"اللغة","online.never":"لم يتصل قط","online.now":"متصل الآن","online.seen":"آخر ظهور {when}","platform.android":"أندرويد","platform.ios":"iOS","platform.macos":"ماك","platform.windows":"ويندوز","qr.alt":"رمز QR لرابط الاشتراك","qr.failed":"تعذّر إنشاء رمز QR. استخدم الرابط أدناه.","qr.field":"رابط الاشتراك","qr.hint":"امسحه بتطبيقك","qr.title":"رمز QR","status.active":"نشط","status.disabled":"معطّل","status.expired":"منتهي","status.heading":"حالة الاشتراك","status.limited":"انتهت البيانات","support.contact":"تواصل مع الدعم","support.newtab":"تواصل مع الدعم، يفتح في تبويب جديد","theme.dark":"داكن","theme.label":"المظهر","theme.light":"فاتح","theme.system":"النظام","time.just_now":"الآن","traffic.bar":"حجم البيانات المستخدم","traffic.limit_unknown":"الحد غير متاح","traffic.none_left":"لا توجد بيانات متبقية","traffic.over":"{size} فوق الحد","traffic.progress":"{pct}، استُخدم {used} من {total}","traffic.remaining":"{size} متبقية","traffic.unlimited":"غير محدود","traffic.usage_unknown":"الاستخدام غير متاح","traffic.used":"مستخدم","traffic.used_of":"مستخدم من {total}","unit.day":"أيام"},"ru":{"action.close":"Закрыть","action.copied":"Скопировано","action.copy":"Копировать подписку","action.copy_link":"Копировать ссылку","action.copy_short":"Копировать","action.import":"Добавить","action.qr":"QR-код","action.refresh":"Повторить","action.show_less":"Свернуть","action.show_more":"Показать полностью","announce.title":"Объявление","app.subscription":"Подписка","client.copy_for":"Скопировать ссылку для {name}","client.import_for":"Импортировать в {name}","client.opening":"Открываем приложение…","client.paid":"Платное приложение","connect.hint":"«Добавить» открывает приложение. Если ничего не произошло, скопируйте ссылку и добавьте её вручную.","connect.none":"Для этой подписки нет приложения с автоматической настройкой. Скопируйте ссылку и добавьте её вручную.","connect.title":"Подключение","copy.done":"Ссылка скопирована","copy.failed":"Не удалось скопировать. Выделите ссылку и скопируйте вручную.","copy.manual":"Ссылка выделена — скопируйте её с клавиатуры.","expiry.at":"в {time}","expiry.expired":"Истекла","expiry.expired_note":"{date} · {ago}","expiry.never":"Без срока действия","expiry.on":"Истекает {date}","expiry.pending":"Начнётся при первом подключении","expiry.pending_note":"Затем действует {days}","expiry.remaining":"осталось {days}","expiry.today":"Истекает сегодня","expiry.tomorrow":"Истекает завтра","expiry.unknown":"Срок действия недоступен","footer.static":"Обновление в реальном времени недоступно на этой панели","footer.stopped":"Обновление остановлено.","footer.updated":"Обновлено {when}","lang.label":"Язык","online.never":"Ни разу не подключался","online.now":"В сети","online.seen":"Был в сети {when}","platform.android":"Android","platform.ios":"iOS","platform.macos":"macOS","platform.windows":"Windows","qr.alt":"QR-код ссылки на подписку","qr.failed":"Не удалось создать QR-код. Используйте ссылку ниже.","qr.field":"Ссылка на подписку","qr.hint":"Отсканируйте в своём приложении","qr.title":"QR-код","status.active":"Активна","status.disabled":"Отключена","status.expired":"Истекла","status.heading":"Состояние подписки","status.limited":"Трафик исчерпан","support.contact":"Связаться с поддержкой","support.newtab":"Связаться с поддержкой, откроется в новой вкладке","theme.dark":"Тёмная","theme.label":"Тема","theme.light":"Светлая","theme.system":"Системная","time.just_now":"только что","traffic.bar":"Использованный трафик","traffic.limit_unknown":"Лимит недоступен","traffic.none_left":"Трафик закончился","traffic.over":"{size} сверх лимита","traffic.progress":"{pct}, использовано {used} из {total}","traffic.remaining":"осталось {size}","traffic.unlimited":"Без ограничений","traffic.usage_unknown":"Расход недоступен","traffic.used":"использовано","traffic.used_of":"использовано из {total}","unit.day":"дней"},"zh":{"action.close":"关闭","action.copied":"已复制","action.copy":"复制订阅链接","action.copy_link":"复制链接","action.copy_short":"复制","action.import":"导入","action.qr":"二维码","action.refresh":"重试","action.show_less":"收起","action.show_more":"展开","announce.title":"公告","app.subscription":"订阅","client.copy_for":"复制 {name} 的链接","client.import_for":"导入到 {name}","client.opening":"正在打开应用…","client.paid":"付费应用","connect.hint":"“导入”会直接打开应用。如果没有反应，请复制链接手动添加。","connect.none":"该订阅暂无可自动配置的客户端，请复制链接手动添加。","connect.title":"连接","copy.done":"链接已复制","copy.failed":"复制失败，请选中链接手动复制。","copy.manual":"链接已选中，请用键盘复制。","expiry.at":"{time}","expiry.expired":"已过期","expiry.expired_note":"{date} · {ago}","expiry.never":"永不过期","expiry.on":"{date} 到期","expiry.pending":"首次连接后开始计算","expiry.pending_note":"之后有效期 {days}","expiry.remaining":"剩余 {days}","expiry.today":"今天到期","expiry.tomorrow":"明天到期","expiry.unknown":"到期时间不可用","footer.static":"此面板不支持实时更新","footer.stopped":"实时更新已停止。","footer.updated":"更新于 {when}","lang.label":"语言","online.never":"从未连接","online.now":"在线","online.seen":"最后在线 {when}","platform.android":"Android","platform.ios":"iOS","platform.macos":"macOS","platform.windows":"Windows","qr.alt":"订阅链接二维码","qr.failed":"无法生成二维码，请使用下方链接。","qr.field":"订阅链接","qr.hint":"用你的客户端扫描","qr.title":"二维码","status.active":"正常","status.disabled":"已停用","status.expired":"已过期","status.heading":"订阅状态","status.limited":"流量已用完","support.contact":"联系客服","support.newtab":"联系客服，在新标签页中打开","theme.dark":"深色","theme.label":"主题","theme.light":"浅色","theme.system":"跟随系统","time.just_now":"刚刚","traffic.bar":"已用流量","traffic.limit_unknown":"总量不可用","traffic.none_left":"流量已用完","traffic.over":"超出 {size}","traffic.progress":"{pct}，已使用 {used}，共 {total}","traffic.remaining":"剩余 {size}","traffic.unlimited":"不限量","traffic.usage_unknown":"用量不可用","traffic.used":"已使用","traffic.used_of":"已使用，共 {total}","unit.day":"天"}}</script>
+<dialog class="dialog js-only" id="config-dialog" aria-labelledby="config-title">
+  <div class="dialog-head">
+    <h2 class="dialog-title" id="config-title"></h2>
+    <button type="button" class="ctl ctl-icon" id="config-close">
+      <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
+  </div>
+  <div class="qr-body">
+    <div class="qr-frame" id="config-frame"><canvas id="config-canvas" role="img"></canvas></div>
+    <p class="caption" id="config-hint"></p>
+    <div class="url-field">
+      <input type="text" id="config-url" readonly dir="ltr" spellcheck="false" autocomplete="off">
+      <button type="button" class="btn btn-outline" id="config-copy"><span class="btn-swap"><span class="swap-live" id="config-copy-label"></span><span class="swap-done" id="config-copy-done"></span></span></button>
+    </div>
+    <a class="btn btn-outline cfg-open" id="config-open" target="_blank" rel="noopener noreferrer nofollow" hidden><span id="config-open-label"></span><svg class="icon icon-external" aria-hidden="true"><use href="#i-external"/></svg></a>
+    <div class="cfg-conf" id="config-conf" hidden>
+      <label class="caption" id="config-conf-label" for="config-conf-text"></label>
+      <textarea class="conf-text" id="config-conf-text" dir="ltr" readonly spellcheck="false" rows="6"></textarea>
+      <button type="button" class="btn btn-outline btn-sm" id="config-conf-copy"></button>
+    </div>
+  </div>
+</dialog>
+
+<script type="application/json" id="i18n-data">{"en":{"action.close":"Close","action.copied":"Copied","action.copy":"Copy subscription","action.copy_link":"Copy link","action.copy_short":"Copy","action.import":"Import","action.qr":"QR code","action.refresh":"Try again","action.show_less":"Show less","action.show_more":"Show more","announce.title":"Announcement","app.subscription":"Subscription","client.copy_for":"Copy link for {name}","client.import_for":"Import into {name}","client.opening":"Opening the application…","client.paid":"Paid app","config.alt":"QR code for this configuration","config.awg_hint":"Import the link into the Amnezia app, or copy the configuration file below for a WireGuard client.","config.conf_label":"Configuration file","config.hint":"Scan the code, or copy the link into your client.","config.link_label":"Configuration link","config.open":"Open in Telegram","config.telegram_hint":"Open in Telegram for one-tap setup, or copy the link to add it by hand.","config.wg_hint":"WireGuard has no import link — copy the link for a compatible client, or scan the code.","connect.hint":"Import opens the application directly. If nothing happens, copy the link and add it manually.","connect.none":"No application can be set up automatically for this subscription. Copy the link and add it manually.","connect.title":"Connect","copy.done":"Link copied","copy.failed":"Could not copy. Select the link and copy it manually.","copy.manual":"The link is selected — copy it with your keyboard.","expiry.at":"at {time}","expiry.expired":"Expired","expiry.expired_note":"{date} · {ago}","expiry.never":"Never expires","expiry.on":"Expires {date}","expiry.pending":"Starts on first connection","expiry.pending_note":"Valid for {days} after that","expiry.remaining":"{days} remaining","expiry.today":"Expires today","expiry.tomorrow":"Expires tomorrow","expiry.unknown":"Expiry date unavailable","explorer.copy_for":"Copy {name}","explorer.empty":"No configurations match your search.","explorer.hint":"Import a single server, or copy one to add it by hand.","explorer.search":"Search configurations","explorer.title":"Configurations","explorer.unnamed":"Configuration {n}","explorer.view":"View","explorer.view_for":"View {name}","footer.static":"Live updates are not available on this panel","footer.stopped":"Live updates stopped.","footer.updated":"Updated {when}","lang.label":"Language","online.never":"Never connected","online.now":"Online now","online.seen":"Last seen {when}","platform.android":"Android","platform.ios":"iOS","platform.macos":"macOS","platform.windows":"Windows","qr.alt":"QR code for the subscription link","qr.failed":"The QR code could not be generated. Use the link below.","qr.field":"Subscription link","qr.hint":"Scan with your client application","qr.title":"QR code","status.active":"Active","status.disabled":"Disabled","status.expired":"Expired","status.heading":"Subscription status","status.limited":"Traffic limit reached","support.contact":"Contact support","support.newtab":"Contact support, opens in a new tab","theme.dark":"Dark","theme.label":"Theme","theme.light":"Light","theme.system":"System","time.just_now":"just now","traffic.bar":"Traffic used","traffic.limit_unknown":"Limit unavailable","traffic.none_left":"No traffic left","traffic.over":"{size} over the limit","traffic.progress":"{pct}, {used} of {total} used","traffic.remaining":"{size} remaining","traffic.unlimited":"Unlimited","traffic.usage_unknown":"Usage unavailable","traffic.used":"used","traffic.used_of":"used of {total}","unit.day":"days"},"fa":{"action.close":"بستن","action.copied":"کپی شد","action.copy":"کپی لینک اشتراک","action.copy_link":"کپی لینک","action.copy_short":"کپی","action.import":"افزودن","action.qr":"کد QR","action.refresh":"تلاش مجدد","action.show_less":"نمایش کمتر","action.show_more":"نمایش بیشتر","announce.title":"اطلاعیه","app.subscription":"اشتراک","client.copy_for":"کپی لینک برای {name}","client.import_for":"افزودن به {name}","client.opening":"در حال باز کردن برنامه…","client.paid":"برنامه پولی","config.alt":"کد QR این پیکربندی","config.awg_hint":"لینک را در برنامه Amnezia وارد کنید، یا فایل پیکربندی زیر را برای یک کلاینت WireGuard کپی کنید.","config.conf_label":"فایل پیکربندی","config.hint":"کد را اسکن کنید، یا لینک را در برنامه خود کپی کنید.","config.link_label":"لینک پیکربندی","config.open":"باز کردن در تلگرام","config.telegram_hint":"برای تنظیم با یک ضربه در تلگرام باز کنید، یا لینک را برای افزودن دستی کپی کنید.","config.wg_hint":"WireGuard لینک ورود ندارد؛ لینک را برای یک کلاینت سازگار کپی کنید، یا کد را اسکن کنید.","connect.hint":"«افزودن» برنامه را باز می‌کند. اگر اتفاقی نیفتاد، لینک را کپی کنید و دستی اضافه کنید.","connect.none":"برای این اشتراک هیچ برنامه‌ای به‌صورت خودکار قابل تنظیم نیست. لینک را کپی کنید و دستی اضافه کنید.","connect.title":"اتصال","copy.done":"لینک کپی شد","copy.failed":"کپی انجام نشد. لینک را انتخاب و دستی کپی کنید.","copy.manual":"لینک انتخاب شد؛ با کیبورد آن را کپی کنید.","expiry.at":"ساعت {time}","expiry.expired":"منقضی شده","expiry.expired_note":"{date} · {ago}","expiry.never":"بدون تاریخ انقضا","expiry.on":"انقضا در {date}","expiry.pending":"با نخستین اتصال آغاز می‌شود","expiry.pending_note":"پس از آن {days} اعتبار دارد","expiry.remaining":"{days} باقی مانده","expiry.today":"امروز منقضی می‌شود","expiry.tomorrow":"فردا منقضی می‌شود","expiry.unknown":"تاریخ انقضا در دسترس نیست","explorer.copy_for":"کپی {name}","explorer.empty":"هیچ پیکربندی با جستجوی شما مطابقت ندارد.","explorer.hint":"یک سرور را وارد کنید، یا برای افزودن دستی آن را کپی کنید.","explorer.search":"جستجوی پیکربندی","explorer.title":"فهرست پیکربندی","explorer.unnamed":"پیکربندی {n}","explorer.view":"نمایش","explorer.view_for":"نمایش {name}","footer.static":"به‌روزرسانی زنده در این پنل در دسترس نیست","footer.stopped":"به‌روزرسانی زنده متوقف شد.","footer.updated":"به‌روزرسانی {when}","lang.label":"زبان","online.never":"هرگز متصل نشده","online.now":"آنلاین","online.seen":"آخرین اتصال {when}","platform.android":"اندروید","platform.ios":"iOS","platform.macos":"مک","platform.windows":"ویندوز","qr.alt":"کد QR لینک اشتراک","qr.failed":"ساخت کد QR ممکن نشد. از لینک زیر استفاده کنید.","qr.field":"لینک اشتراک","qr.hint":"با برنامه خود اسکن کنید","qr.title":"کد QR","status.active":"فعال","status.disabled":"غیرفعال","status.expired":"منقضی شده","status.heading":"وضعیت اشتراک","status.limited":"حجم به پایان رسیده","support.contact":"تماس با پشتیبانی","support.newtab":"تماس با پشتیبانی، در زبانه‌ای جدید باز می‌شود","theme.dark":"تیره","theme.label":"پوسته","theme.light":"روشن","theme.system":"سیستم","time.just_now":"همین حالا","traffic.bar":"ترافیک مصرف‌شده","traffic.limit_unknown":"حجم کل در دسترس نیست","traffic.none_left":"حجمی باقی نمانده","traffic.over":"{size} بیش از حد مجاز","traffic.progress":"{pct}، {used} از {total} مصرف شده","traffic.remaining":"{size} باقی مانده","traffic.unlimited":"نامحدود","traffic.usage_unknown":"میزان مصرف در دسترس نیست","traffic.used":"مصرف شده","traffic.used_of":"مصرف از {total}","unit.day":"روز"},"ar":{"action.close":"إغلاق","action.copied":"تم النسخ","action.copy":"نسخ رابط الاشتراك","action.copy_link":"نسخ الرابط","action.copy_short":"نسخ","action.import":"إضافة","action.qr":"رمز QR","action.refresh":"إعادة المحاولة","action.show_less":"عرض أقل","action.show_more":"عرض المزيد","announce.title":"إعلان","app.subscription":"الاشتراك","client.copy_for":"نسخ الرابط لـ {name}","client.import_for":"استيراد إلى {name}","client.opening":"يتم فتح التطبيق…","client.paid":"تطبيق مدفوع","config.alt":"رمز QR لهذا التكوين","config.awg_hint":"استورد الرابط إلى تطبيق Amnezia، أو انسخ ملف الإعداد أدناه لعميل WireGuard.","config.conf_label":"ملف الإعداد","config.hint":"امسح الرمز، أو انسخ الرابط إلى تطبيقك.","config.link_label":"رابط التكوين","config.open":"فتح في تيليجرام","config.telegram_hint":"افتحه في تيليجرام للإعداد بنقرة واحدة، أو انسخ الرابط لإضافته يدويًا.","config.wg_hint":"لا يملك WireGuard رابط استيراد — انسخ الرابط لعميل متوافق، أو امسح الرمز.","connect.hint":"«إضافة» يفتح التطبيق مباشرة. إذا لم يحدث شيء، انسخ الرابط وأضفه يدويًا.","connect.none":"لا يمكن إعداد أي تطبيق تلقائيًا لهذا الاشتراك. انسخ الرابط وأضفه يدويًا.","connect.title":"الاتصال","copy.done":"تم نسخ الرابط","copy.failed":"تعذّر النسخ. حدد الرابط وانسخه يدويًا.","copy.manual":"تم تحديد الرابط، انسخه من لوحة المفاتيح.","expiry.at":"الساعة {time}","expiry.expired":"منتهي","expiry.expired_note":"{date} · {ago}","expiry.never":"بلا تاريخ انتهاء","expiry.on":"ينتهي في {date}","expiry.pending":"يبدأ عند أول اتصال","expiry.pending_note":"صالح {days} بعد ذلك","expiry.remaining":"بقي {days}","expiry.today":"ينتهي اليوم","expiry.tomorrow":"ينتهي غدًا","expiry.unknown":"تاريخ الانتهاء غير متاح","explorer.copy_for":"نسخ {name}","explorer.empty":"لا توجد تكوينات تطابق بحثك.","explorer.hint":"استورد خادمًا واحدًا، أو انسخه لإضافته يدويًا.","explorer.search":"ابحث في التكوينات","explorer.title":"التكوينات","explorer.unnamed":"التكوين {n}","explorer.view":"عرض","explorer.view_for":"عرض {name}","footer.static":"التحديث المباشر غير متاح في هذه اللوحة","footer.stopped":"توقف التحديث المباشر.","footer.updated":"آخر تحديث {when}","lang.label":"اللغة","online.never":"لم يتصل قط","online.now":"متصل الآن","online.seen":"آخر ظهور {when}","platform.android":"أندرويد","platform.ios":"iOS","platform.macos":"ماك","platform.windows":"ويندوز","qr.alt":"رمز QR لرابط الاشتراك","qr.failed":"تعذّر إنشاء رمز QR. استخدم الرابط أدناه.","qr.field":"رابط الاشتراك","qr.hint":"امسحه بتطبيقك","qr.title":"رمز QR","status.active":"نشط","status.disabled":"معطّل","status.expired":"منتهي","status.heading":"حالة الاشتراك","status.limited":"انتهت البيانات","support.contact":"تواصل مع الدعم","support.newtab":"تواصل مع الدعم، يفتح في تبويب جديد","theme.dark":"داكن","theme.label":"المظهر","theme.light":"فاتح","theme.system":"النظام","time.just_now":"الآن","traffic.bar":"حجم البيانات المستخدم","traffic.limit_unknown":"الحد غير متاح","traffic.none_left":"لا توجد بيانات متبقية","traffic.over":"{size} فوق الحد","traffic.progress":"{pct}، استُخدم {used} من {total}","traffic.remaining":"{size} متبقية","traffic.unlimited":"غير محدود","traffic.usage_unknown":"الاستخدام غير متاح","traffic.used":"مستخدم","traffic.used_of":"مستخدم من {total}","unit.day":"أيام"},"ru":{"action.close":"Закрыть","action.copied":"Скопировано","action.copy":"Копировать подписку","action.copy_link":"Копировать ссылку","action.copy_short":"Копировать","action.import":"Добавить","action.qr":"QR-код","action.refresh":"Повторить","action.show_less":"Свернуть","action.show_more":"Показать полностью","announce.title":"Объявление","app.subscription":"Подписка","client.copy_for":"Скопировать ссылку для {name}","client.import_for":"Импортировать в {name}","client.opening":"Открываем приложение…","client.paid":"Платное приложение","config.alt":"QR-код этой конфигурации","config.awg_hint":"Импортируйте ссылку в приложение Amnezia или скопируйте файл конфигурации ниже для клиента WireGuard.","config.conf_label":"Файл конфигурации","config.hint":"Отсканируйте код или скопируйте ссылку в своё приложение.","config.link_label":"Ссылка на конфигурацию","config.open":"Открыть в Telegram","config.telegram_hint":"Откройте в Telegram для настройки в одно касание или скопируйте ссылку, чтобы добавить вручную.","config.wg_hint":"У WireGuard нет ссылки для импорта — скопируйте ссылку для совместимого клиента или отсканируйте код.","connect.hint":"«Добавить» открывает приложение. Если ничего не произошло, скопируйте ссылку и добавьте её вручную.","connect.none":"Для этой подписки нет приложения с автоматической настройкой. Скопируйте ссылку и добавьте её вручную.","connect.title":"Подключение","copy.done":"Ссылка скопирована","copy.failed":"Не удалось скопировать. Выделите ссылку и скопируйте вручную.","copy.manual":"Ссылка выделена — скопируйте её с клавиатуры.","expiry.at":"в {time}","expiry.expired":"Истекла","expiry.expired_note":"{date} · {ago}","expiry.never":"Без срока действия","expiry.on":"Истекает {date}","expiry.pending":"Начнётся при первом подключении","expiry.pending_note":"Затем действует {days}","expiry.remaining":"осталось {days}","expiry.today":"Истекает сегодня","expiry.tomorrow":"Истекает завтра","expiry.unknown":"Срок действия недоступен","explorer.copy_for":"Скопировать {name}","explorer.empty":"Нет конфигураций, соответствующих запросу.","explorer.hint":"Импортируйте один сервер или скопируйте его, чтобы добавить вручную.","explorer.search":"Поиск по конфигурациям","explorer.title":"Конфигурации","explorer.unnamed":"Конфигурация {n}","explorer.view":"Просмотр","explorer.view_for":"Просмотр {name}","footer.static":"Обновление в реальном времени недоступно на этой панели","footer.stopped":"Обновление остановлено.","footer.updated":"Обновлено {when}","lang.label":"Язык","online.never":"Ни разу не подключался","online.now":"В сети","online.seen":"Был в сети {when}","platform.android":"Android","platform.ios":"iOS","platform.macos":"macOS","platform.windows":"Windows","qr.alt":"QR-код ссылки на подписку","qr.failed":"Не удалось создать QR-код. Используйте ссылку ниже.","qr.field":"Ссылка на подписку","qr.hint":"Отсканируйте в своём приложении","qr.title":"QR-код","status.active":"Активна","status.disabled":"Отключена","status.expired":"Истекла","status.heading":"Состояние подписки","status.limited":"Трафик исчерпан","support.contact":"Связаться с поддержкой","support.newtab":"Связаться с поддержкой, откроется в новой вкладке","theme.dark":"Тёмная","theme.label":"Тема","theme.light":"Светлая","theme.system":"Системная","time.just_now":"только что","traffic.bar":"Использованный трафик","traffic.limit_unknown":"Лимит недоступен","traffic.none_left":"Трафик закончился","traffic.over":"{size} сверх лимита","traffic.progress":"{pct}, использовано {used} из {total}","traffic.remaining":"осталось {size}","traffic.unlimited":"Без ограничений","traffic.usage_unknown":"Расход недоступен","traffic.used":"использовано","traffic.used_of":"использовано из {total}","unit.day":"дней"},"zh":{"action.close":"关闭","action.copied":"已复制","action.copy":"复制订阅链接","action.copy_link":"复制链接","action.copy_short":"复制","action.import":"导入","action.qr":"二维码","action.refresh":"重试","action.show_less":"收起","action.show_more":"展开","announce.title":"公告","app.subscription":"订阅","client.copy_for":"复制 {name} 的链接","client.import_for":"导入到 {name}","client.opening":"正在打开应用…","client.paid":"付费应用","config.alt":"此配置的二维码","config.awg_hint":"将链接导入 Amnezia 应用，或复制下方的配置文件用于 WireGuard 客户端。","config.conf_label":"配置文件","config.hint":"扫描二维码，或将链接复制到你的客户端。","config.link_label":"配置链接","config.open":"在 Telegram 中打开","config.telegram_hint":"在 Telegram 中打开即可一键设置，或复制链接以手动添加。","config.wg_hint":"WireGuard 没有导入链接 —— 请复制链接用于兼容的客户端，或扫描二维码。","connect.hint":"“导入”会直接打开应用。如果没有反应，请复制链接手动添加。","connect.none":"该订阅暂无可自动配置的客户端，请复制链接手动添加。","connect.title":"连接","copy.done":"链接已复制","copy.failed":"复制失败，请选中链接手动复制。","copy.manual":"链接已选中，请用键盘复制。","expiry.at":"{time}","expiry.expired":"已过期","expiry.expired_note":"{date} · {ago}","expiry.never":"永不过期","expiry.on":"{date} 到期","expiry.pending":"首次连接后开始计算","expiry.pending_note":"之后有效期 {days}","expiry.remaining":"剩余 {days}","expiry.today":"今天到期","expiry.tomorrow":"明天到期","expiry.unknown":"到期时间不可用","explorer.copy_for":"复制 {name}","explorer.empty":"没有与搜索匹配的配置。","explorer.hint":"导入单个服务器，或复制以手动添加。","explorer.search":"搜索配置","explorer.title":"配置","explorer.unnamed":"配置 {n}","explorer.view":"查看","explorer.view_for":"查看 {name}","footer.static":"此面板不支持实时更新","footer.stopped":"实时更新已停止。","footer.updated":"更新于 {when}","lang.label":"语言","online.never":"从未连接","online.now":"在线","online.seen":"最后在线 {when}","platform.android":"Android","platform.ios":"iOS","platform.macos":"macOS","platform.windows":"Windows","qr.alt":"订阅链接二维码","qr.failed":"无法生成二维码，请使用下方链接。","qr.field":"订阅链接","qr.hint":"用你的客户端扫描","qr.title":"二维码","status.active":"正常","status.disabled":"已停用","status.expired":"已过期","status.heading":"订阅状态","status.limited":"流量已用完","support.contact":"联系客服","support.newtab":"联系客服，在新标签页中打开","theme.dark":"深色","theme.label":"主题","theme.light":"浅色","theme.system":"跟随系统","time.just_now":"刚刚","traffic.bar":"已用流量","traffic.limit_unknown":"总量不可用","traffic.none_left":"流量已用完","traffic.over":"超出 {size}","traffic.progress":"{pct}，已使用 {used}，共 {total}","traffic.remaining":"剩余 {size}","traffic.unlimited":"不限量","traffic.usage_unknown":"用量不可用","traffic.used":"已使用","traffic.used_of":"已使用，共 {total}","unit.day":"天"}}</script>
 <script>(function () {
 'use strict';
 
@@ -2496,6 +2692,203 @@ function displayName(branding, model, word) {
   return model.title !== '' ? model.title : word;
 }
 
+/* ---- scripts/flag.js ---- */
+
+const RI_FIRST = 0x1f1e6;
+const RI_LAST = 0x1f1ff;
+
+const CODES = new Set((
+  'AC AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ ' +
+  'BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
+  'CA CC CD CF CG CH CI CK CL CM CN CO CP CR CU CV CW CX CY CZ ' +
+  'DE DG DJ DK DM DO DZ EA EC EE EG EH ER ES ET EU ' +
+  'FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY ' +
+  'HK HM HN HR HT HU IC ID IE IL IM IN IO IQ IR IS IT ' +
+  'JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ ' +
+  'LA LB LC LI LK LR LS LT LU LV LY ' +
+  'MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ ' +
+  'NA NC NE NF NG NI NL NO NP NR NU NZ OM ' +
+  'PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
+  'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ ' +
+  'TA TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ ' +
+  'UA UG UK UM UN US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'
+).split(' '));
+
+function isIndicator(cp) {
+  return cp >= RI_FIRST && cp <= RI_LAST;
+}
+
+function letter(cp) {
+  return String.fromCharCode(65 + (cp - RI_FIRST));
+}
+
+function flagOf(text) {
+  const points = Array.from(String(text === null || text === undefined ? '' : text), (ch) => ch.codePointAt(0));
+  let i = 0;
+  while (i < points.length) {
+    if (isIndicator(points[i]) && i + 1 < points.length && isIndicator(points[i + 1])) {
+      const code = letter(points[i]) + letter(points[i + 1]);
+      if (CODES.has(code)) return String.fromCodePoint(points[i], points[i + 1]);
+      i += 2;
+      continue;
+    }
+    i += 1;
+  }
+  return '';
+}
+
+function cleanName(text) {
+  let out = '';
+  for (const ch of String(text === null || text === undefined ? '' : text)) {
+    if (!isIndicator(ch.codePointAt(0))) out += ch;
+  }
+  return out.replace(/\s+/g, ' ').replace(/^[\s|/_+\-]+/, '').replace(/[\s|/_+\-]+$/, '').trim();
+}
+
+
+/* ---- scripts/config.js ---- */
+
+
+const MAP = {
+  vmess: { protocol: 'vmess', category: 'uri', specialized: '' },
+  vless: { protocol: 'vless', category: 'uri', specialized: '' },
+  trojan: { protocol: 'trojan', category: 'uri', specialized: '' },
+  ss: { protocol: 'shadowsocks', category: 'uri', specialized: '' },
+  hysteria2: { protocol: 'hysteria2', category: 'uri', specialized: '' },
+  hy2: { protocol: 'hysteria2', category: 'uri', specialized: '' },
+  hysteria: { protocol: 'hysteria', category: 'uri', specialized: '' },
+  wireguard: { protocol: 'wireguard', category: 'specialized', specialized: 'wireguard' },
+  vpn: { protocol: 'amneziawg', category: 'specialized', specialized: 'amneziawg' },
+  tg: { protocol: 'mtproto', category: 'specialized', specialized: 'mtproto' },
+};
+
+const SCHEME = /^([a-zA-Z][a-zA-Z0-9+.\-]*):/;
+
+const HTTPS = 'https:';
+const TME_PROXY = 't.me/proxy';
+
+function schemeOf(raw) {
+  const m = SCHEME.exec(raw);
+  return m ? m[1].toLowerCase() : '';
+}
+
+function b64Bytes(input) {
+  let s = String(input).replace(/-/g, '+').replace(/_/g, '/').replace(/\s+/g, '');
+  const rem = s.length % 4;
+  if (rem === 1) return null;
+  if (rem === 2) s += '==';
+  else if (rem === 3) s += '=';
+  let bin;
+  try {
+    bin = atob(s);
+  } catch (err) {
+    return null;
+  }
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+function b64Utf8(input) {
+  const bytes = b64Bytes(input);
+  if (!bytes) return null;
+  try {
+    return new TextDecoder('utf-8').decode(bytes);
+  } catch (err) {
+    return null;
+  }
+}
+
+function fragmentName(raw) {
+  const hash = raw.indexOf('#');
+  if (hash < 0) return '';
+  const frag = raw.slice(hash + 1);
+  if (frag === '') return '';
+  try {
+    return decodeURIComponent(frag.replace(/\+/g, ' ')).trim();
+  } catch (err) {
+    try {
+      return decodeURIComponent(frag).trim();
+    } catch (err2) {
+      return frag.trim();
+    }
+  }
+}
+
+function vmessName(raw) {
+  const body = raw.replace(/^vmess:\/\//i, '').split('#')[0].split('?')[0];
+  const json = b64Utf8(body);
+  if (!json) return '';
+  try {
+    const obj = JSON.parse(json);
+    return obj && typeof obj.ps === 'string' ? obj.ps.trim() : '';
+  } catch (err) {
+    return '';
+  }
+}
+
+function amneziaConf(raw) {
+  const body = raw.replace(/^vpn:\/\//i, '').split('#')[0].split('?')[0];
+  return b64Utf8(body) || '';
+}
+
+function amneziaName(raw) {
+  const conf = amneziaConf(raw);
+  if (!conf) return '';
+  const m = conf.match(/^[ \t]*#[ \t]*(.+?)[ \t]*$/m);
+  return m ? m[1].trim() : '';
+}
+
+function nameFor(scheme, raw) {
+  if (scheme === 'vmess') return vmessName(raw);
+  if (scheme === 'vpn') return amneziaName(raw);
+  if (scheme === 'tg') return '';
+  return fragmentName(raw);
+}
+
+function mtprotoWebUrl(raw) {
+  if (!/^tg:\/\/proxy/i.test(raw)) return '';
+  const q = raw.indexOf('?');
+  if (q < 0) return '';
+  return HTTPS + '//' + TME_PROXY + raw.slice(q);
+}
+
+function classify(raw) {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  if (value === '') return null;
+  const scheme = schemeOf(value);
+  const def = MAP[scheme];
+  if (!def) return null;
+  const name = nameFor(scheme, value);
+  return {
+    raw: value,
+    scheme: scheme,
+    protocol: def.protocol,
+    category: def.category,
+    specialized: def.specialized,
+    name: name,
+    displayName: cleanName(name),
+    flag: flagOf(name),
+    copyable: true,
+    qr: true,
+  };
+}
+
+function parseAll(list) {
+  const out = [];
+  const seen = {};
+  if (!list || typeof list.length !== 'number') return out;
+  for (let i = 0; i < list.length; i++) {
+    const item = classify(list[i]);
+    if (!item || seen[item.raw]) continue;
+    seen[item.raw] = 1;
+    out.push(item);
+  }
+  return out;
+}
+
+
 /* ---- scripts/clipboard.js ---- */
 
 function copyText(value, doc, win) {
@@ -3491,6 +3884,209 @@ function nextTab(current, key, rtl) {
 }
 
 
+/* ---- scripts/explorer.js ---- */
+
+
+const PROTO_LABEL = {
+  vmess: 'VMess',
+  vless: 'VLESS',
+  trojan: 'Trojan',
+  shadowsocks: 'Shadowsocks',
+  hysteria: 'Hysteria',
+  hysteria2: 'Hysteria2',
+  wireguard: 'WireGuard',
+  amneziawg: 'AmneziaWG',
+  mtproto: 'MTProto',
+};
+
+const SEARCH_THRESHOLD = 5;
+
+function protoLabel(protocol) {
+  return PROTO_LABEL[protocol] || protocol;
+}
+
+function collectExplorer(doc) {
+  const id = function (name) {
+    return doc.getElementById(name);
+  };
+  return {
+    explorer: id('explorer'),
+    explorerTitle: id('explorer-title'),
+    explorerCount: id('explorer-count'),
+    explorerHint: id('explorer-hint'),
+    searchWrap: id('explorer-search-wrap'),
+    search: id('explorer-search'),
+    configList: id('config-list'),
+    explorerEmpty: id('explorer-empty'),
+    configDialog: id('config-dialog'),
+    configTitle: id('config-title'),
+    configClose: id('config-close'),
+    configFrame: id('config-frame'),
+    configCanvas: id('config-canvas'),
+    configHint: id('config-hint'),
+    configUrl: id('config-url'),
+    configCopy: id('config-copy'),
+    configCopyLabel: id('config-copy-label'),
+    configCopyDone: id('config-copy-done'),
+    configOpen: id('config-open'),
+    configOpenLabel: id('config-open-label'),
+    configConf: id('config-conf'),
+    configConfLabel: id('config-conf-label'),
+    configConfText: id('config-conf-text'),
+    configConfCopy: id('config-conf-copy'),
+  };
+}
+
+function readConfigs(doc) {
+  const src = doc.getElementById('links-source');
+  if (!src) return [];
+  const raw = [];
+  const nodes = src.children;
+  for (let i = 0; i < nodes.length; i++) raw.push(nodes[i].textContent || '');
+  return parseAll(raw);
+}
+
+function configName(cfg, index, i18n) {
+  return cfg.displayName || i18n.t('explorer.unnamed', { n: index + 1 });
+}
+
+function monoLetter(cfg) {
+  const base = (cfg.displayName || protoLabel(cfg.protocol)).trim();
+  const first = base ? Array.from(base)[0] : '';
+  return (first || '#').toUpperCase();
+}
+
+function actionButton(doc, index, act, variant, swap) {
+  const button = doc.createElement('button');
+  button.type = 'button';
+  button.className = 'btn btn-sm ' + variant;
+  button.setAttribute('data-index', String(index));
+  button.setAttribute('data-act', act);
+  if (swap) {
+    const wrap = doc.createElement('span');
+    wrap.className = 'btn-swap';
+    const live = doc.createElement('span');
+    live.className = 'swap-live';
+    const done = doc.createElement('span');
+    done.className = 'swap-done';
+    wrap.appendChild(live);
+    wrap.appendChild(done);
+    button.appendChild(wrap);
+  }
+  return button;
+}
+
+function configRow(doc, cfg, index) {
+  const row = doc.createElement('div');
+  row.className = 'cfg';
+
+  const badge = doc.createElement('span');
+  badge.className = 'cfg-flag';
+  badge.setAttribute('aria-hidden', 'true');
+  if (cfg.flag) {
+    badge.textContent = cfg.flag;
+  } else {
+    badge.setAttribute('data-mono', '1');
+    badge.textContent = monoLetter(cfg);
+  }
+  row.appendChild(badge);
+
+  const body = doc.createElement('div');
+  body.className = 'cfg-body';
+  const name = doc.createElement('span');
+  name.className = 'cfg-name';
+  name.setAttribute('dir', 'auto');
+  body.appendChild(name);
+  const proto = doc.createElement('span');
+  proto.className = 'cfg-proto';
+  proto.textContent = protoLabel(cfg.protocol);
+  body.appendChild(proto);
+  row.appendChild(body);
+
+  const actions = doc.createElement('div');
+  actions.className = 'cfg-actions';
+  actions.appendChild(actionButton(doc, index, 'view', 'btn-outline', false));
+  actions.appendChild(actionButton(doc, index, 'copy', 'btn-quiet', true));
+  row.appendChild(actions);
+  return row;
+}
+
+function buildList(el, configs) {
+  const host = el.configList;
+  if (!host || host.firstElementChild) return;
+  const doc = el.doc;
+  for (let i = 0; i < configs.length; i++) host.appendChild(configRow(doc, configs[i], i));
+}
+
+function relabel(el, i18n, configs) {
+  const t = i18n.t;
+  setText(el.explorerTitle, t('explorer.title'));
+  setText(el.explorerHint, t('explorer.hint'));
+  if (el.explorerCount) setText(el.explorerCount, i18n.fmt.number(configs.length, 0));
+  setText(el.explorerEmpty, t('explorer.empty'));
+
+  const rows = el.configList ? el.configList.children : [];
+  for (let i = 0; i < rows.length && i < configs.length; i++) {
+    const cfg = configs[i];
+    const name = configName(cfg, i, i18n);
+    const nameNode = rows[i].querySelector('.cfg-name');
+    setText(nameNode, name);
+    setAttr(rows[i], 'data-search', (name + ' ' + protoLabel(cfg.protocol)).toLowerCase());
+    const buttons = rows[i].querySelectorAll('button');
+    for (let k = 0; k < buttons.length; k++) {
+      if (buttons[k].getAttribute('data-act') === 'view') {
+        setText(buttons[k], t('explorer.view'));
+        setAttr(buttons[k], 'aria-label', t('explorer.view_for', { name: name }));
+      } else {
+        setAttr(buttons[k], 'aria-label', t('explorer.copy_for', { name: name }));
+        const wrap = buttons[k].firstElementChild;
+        if (wrap) {
+          setText(wrap.firstElementChild, t('action.copy_short'));
+          setText(wrap.lastElementChild, t('action.copied'));
+        }
+      }
+    }
+  }
+
+  if (el.search) {
+    setAttr(el.search, 'placeholder', t('explorer.search'));
+    setAttr(el.search, 'aria-label', t('explorer.search'));
+  }
+
+  setText(el.configCopyLabel, t('action.copy_link'));
+  setText(el.configCopyDone, t('action.copied'));
+  setText(el.configOpenLabel, t('config.open'));
+  setText(el.configConfLabel, t('config.conf_label'));
+  setText(el.configConfCopy, t('action.copy_short'));
+  setAttr(el.configClose, 'aria-label', t('action.close'));
+  setAttr(el.configCanvas, 'aria-label', t('config.alt'));
+  setAttr(el.configUrl, 'aria-label', t('config.link_label'));
+}
+
+function renderExplorer(el, i18n, configs) {
+  if (!el.configList) return;
+  const has = configs.length > 0;
+  if (el.explorer) el.explorer.hidden = !has;
+  if (!has) return;
+  buildList(el, configs);
+  relabel(el, i18n, configs);
+  if (el.searchWrap) el.searchWrap.hidden = configs.length <= SEARCH_THRESHOLD;
+}
+
+function filterConfigs(el, query) {
+  if (!el.configList) return;
+  const q = String(query || '').trim().toLowerCase();
+  const rows = el.configList.children;
+  let shown = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const hay = rows[i].getAttribute('data-search') || '';
+    const match = q === '' || hay.indexOf(q) > -1;
+    rows[i].hidden = !match;
+    if (match) shown++;
+  }
+  if (el.explorerEmpty) el.explorerEmpty.hidden = shown !== 0;
+}
+
 /* ---- scripts/main.js ---- */
 
 
@@ -3506,7 +4102,10 @@ const win = window;
 const doc = document;
 const row = win.__row || {};
 const el = collect(doc);
+Object.assign(el, collectExplorer(doc));
 const catalogues = readCatalogues(doc);
+
+const configs = readConfigs(doc);
 
 let model = normalize(readDocument(doc));
 let lang = row.lang || 'en';
@@ -3678,6 +4277,7 @@ function applyLabels() {
   fillMenu(el.langMenu, langItems(), lang);
   fillMenu(el.themeMenu, themeItems(), mode);
   applyBrand();
+  renderExplorer(el, i18n, configs);
 }
 
 function labelPickers() {
@@ -3804,11 +4404,16 @@ function toast(text) {
   say(text);
 }
 
-function copyValue(value, button) {
+function copyValue(value, button, onManual) {
   copyText(value, doc, win).then(function (how) {
     if (how !== 'manual') {
       if (flash(button)) say(i18n.t('copy.done'));
       else toast(i18n.t('copy.done'));
+      return;
+    }
+    if (typeof onManual === 'function') {
+      onManual();
+      toast(i18n.t('copy.manual'));
       return;
     }
     if (canDialog) {
@@ -3830,6 +4435,37 @@ function openQr(select) {
   if (el.qrCanvas) el.qrCanvas.hidden = !ok;
   setText(el.qrHint, i18n.t(ok ? 'qr.hint' : 'qr.failed'));
   if (select) selectField(el.qrUrl);
+}
+
+const CONFIG_HINT = {
+  mtproto: 'config.telegram_hint',
+  amneziawg: 'config.awg_hint',
+  wireguard: 'config.wg_hint',
+};
+
+function openConfig(cfg, index) {
+  if (!canDialog || !el.configDialog || !cfg) return;
+  restoreFocus = doc.activeElement;
+
+  setText(el.configTitle, configName(cfg, index, i18n));
+  if (el.configUrl) el.configUrl.value = cfg.raw;
+
+  const web = cfg.protocol === 'mtproto' ? mtprotoWebUrl(cfg.raw) : '';
+  if (el.configOpen) {
+    setAttr(el.configOpen, 'href', web || null);
+    el.configOpen.hidden = !web;
+  }
+
+  if (el.configConf) {
+    const conf = cfg.protocol === 'amneziawg' ? amneziaConf(cfg.raw) : '';
+    if (el.configConfText) el.configConfText.value = conf;
+    el.configConf.hidden = !conf;
+  }
+
+  el.configDialog.showModal();
+  const ok = drawQr(el.configCanvas, web || cfg.raw, win);
+  if (el.configCanvas) el.configCanvas.hidden = !ok;
+  setText(el.configHint, i18n.t(ok ? (CONFIG_HINT[cfg.protocol] || 'config.hint') : 'qr.failed'));
 }
 
 function selectPlatform(next) {
@@ -3926,6 +4562,64 @@ function wire() {
   if (el.clients) {
     el.clients.addEventListener('click', onClientClick);
   }
+
+  if (el.configList) {
+    el.configList.addEventListener('click', onConfigClick);
+  }
+  if (el.search) {
+    el.search.addEventListener('input', function () {
+      filterConfigs(el, el.search.value);
+    });
+  }
+  if (el.configClose) {
+    el.configClose.addEventListener('click', function () {
+      el.configDialog.close();
+    });
+  }
+  if (el.configCopy) {
+    el.configCopy.addEventListener('click', function () {
+      copyValue(el.configUrl ? el.configUrl.value : '', el.configCopy, function () {
+        selectField(el.configUrl);
+      });
+    });
+  }
+  if (el.configConfCopy) {
+    el.configConfCopy.addEventListener('click', function () {
+      copyValue(el.configConfText ? el.configConfText.value : '', el.configConfCopy, function () {
+        selectField(el.configConfText);
+      });
+    });
+  }
+  if (el.configUrl) {
+    el.configUrl.addEventListener('focus', function () {
+      selectField(el.configUrl);
+    });
+  }
+  if (canDialog && el.configDialog) {
+    el.configDialog.addEventListener('click', function (event) {
+      if (event.target === el.configDialog) el.configDialog.close();
+    });
+    el.configDialog.addEventListener('close', function () {
+      if (restoreFocus && typeof restoreFocus.focus === 'function') restoreFocus.focus();
+      restoreFocus = null;
+    });
+  }
+}
+
+function onConfigClick(event) {
+  const button = event.target.closest ? event.target.closest('[data-act]') : null;
+  if (!button) return;
+  const index = Number(button.getAttribute('data-index'));
+  const cfg = configs[index];
+  if (!cfg) return;
+  if (button.getAttribute('data-act') === 'view') {
+    openConfig(cfg, index);
+    return;
+  }
+  copyValue(cfg.raw, button, function () {
+    openConfig(cfg, index);
+    selectField(el.configUrl);
+  });
 }
 
 function onClientClick(event) {

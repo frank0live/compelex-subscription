@@ -2,18 +2,49 @@
      نشانی های کیف پول را در این فایل دقیقاً بایت به بایت مانند فایل های
      README ترجمه شده نگه دارید. -->
 
-# Row-Template
+<p align="center">
+  <img src="docs/assets/row-template-banner.png" alt="Row-Template" width="900">
+</p>
 
-یک صفحهٔ اشتراک سفارشی، شکیل و خودبسنده برای پنل های [3X-UI](https://github.com/MHSanaei/3x-ui) — یک فایل HTML، کاملاً وایت لیبل، بدون هیچ CDN شخص ثالثی و بدون هیچ درخواست بیرونی از صفحه ای که مشترکان شما باز می کنند.
+<p align="center">
+  یک صفحهٔ اشتراک سفارشی، شکیل و خودبسنده برای پنل های <a href="https://github.com/MHSanaei/3x-ui">3X-UI</a> — یک فایل HTML، کاملاً وایت لیبل، بدون هیچ CDN شخص ثالثی و بدون هیچ درخواست بیرونی از صفحه ای که مشترکان شما باز می کنند.
+</p>
 
-[English](README.md) | **فارسی** | [العربية](README.ar.md) | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
+<p align="center">
+  <a href="README.md">English</a> | <strong>فارسی</strong> | <a href="README.ar.md">العربية</a> | <a href="README.ru.md">Русский</a> | <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-[![License](https://img.shields.io/github/license/frank0live/Row-Template)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver)](https://github.com/frank0live/Row-Template/releases/latest)
-![Panel](https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+<p align="center">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/frank0live/Row-Template"></a>
+  <a href="https://github.com/frank0live/Row-Template/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver"></a>
+  <img alt="Panel" src="https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
+</p>
 
 ---
+
+## چرا Row-Template؟
+
+- **محرمانه از پایه.** صفحه ای که مشترکان شما باز می کنند هیچ درخواستی به شخص ثالث نمی فرستد. کدهای QR به صورت محلی تولید می شوند و اطلاعات برندسازی شما به صورت متن تزریق می شود — هرگز اجرا نمی شود و هرگز به هیچ جایی فرستاده نمی شود.
+- **واقعاً وایت لیبل.** نام سرویس، پیوند پشتیبانی و لوگوی خودتان. هیچ چیزی روی صفحهٔ ارائه شده معرف Row-Template نیست.
+- **یک فایل، بدون وابستگی زمان اجرا.** CSS، JavaScript، فونت ها و مولد کد QR درون یک فایل HTML یکپارچه گنجانده شده اند که تنها با ابزارهای استاندارد فضای کاربری لینوکس نصب می شود — بدون نیاز به Node.js، Python یا پایگاه داده.
+- **ساخته شده برای مشترکان شما.** نمای زندهٔ مصرف و انقضا، ورود (import) با یک لمس به برنامه های پرکاربرد، و فهرستی قابل جستجو از پیکربندی های جداگانه برای افزودن دستی یک سرور.
+- **ایمن برای بهره برداری.** نصب اتمی همراه با اعتبارسنجی و بازگردانی تک دستوری. هرگز 3X-UI را وصله نمی کند و هرگز به فایل های پنل شما دست نمی زند.
+
+## تصاویر
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-dark.png" alt="Row-Template"></td>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-light.png" alt="Row-Template"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>پوستهٔ تیره</sub></td>
+    <td align="center"><sub>پوستهٔ روشن</sub></td>
+  </tr>
+</table>
+
+<sub>تصاویر از داده های نمونه استفاده می کنند؛ فهرست پیکربندی ها و نشان های کشور نمایش داده شده صرفاً نمونه هستند.</sub>
 
 ## نصب سریع
 
@@ -168,6 +199,7 @@ Row-Template و فایل های آن را حذف می کند. این کار **ب
 ## امنیت
 
 آیا آسیب پذیری یافته اید؟ لطفاً آن را به صورت خصوصی گزارش دهید — [SECURITY.md](SECURITY.md) را ببینید. برای مشکلات امنیتی یک issue عمومی باز نکنید.
+
 ## توسعه
 
 فایل یکپارچهٔ نهایی از منابع خوانای موجود در `src/` ساخته می شود:

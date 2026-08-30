@@ -1,18 +1,49 @@
 <!-- حافظ على هوية المطوّر ورابط المستودع والأوامر والمسارات وأرقام الإصدارات
      وعناوين المحافظ في هذا الملف مطابقة بايتًا ببايت لملفات README المترجمة. -->
 
-# Row-Template
+<p align="center">
+  <img src="docs/assets/row-template-banner.png" alt="Row-Template" width="900">
+</p>
 
-صفحة اشتراك مخصّصة وأنيقة ومكتفية ذاتيًا للوحات [3X-UI](https://github.com/MHSanaei/3x-ui) — ملف HTML واحد، قابل للعلامة البيضاء بالكامل، بلا أي شبكات توزيع محتوى (CDN) خارجية وبلا أي طلبات خارجية من الصفحة التي يفتحها المشتركون لديك.
+<p align="center">
+  صفحة اشتراك مخصّصة وأنيقة ومكتفية ذاتيًا للوحات <a href="https://github.com/MHSanaei/3x-ui">3X-UI</a> — ملف HTML واحد، قابل للعلامة البيضاء بالكامل، بلا أي شبكات توزيع محتوى (CDN) خارجية وبلا أي طلبات خارجية من الصفحة التي يفتحها المشتركون لديك.
+</p>
 
-[English](README.md) | [فارسی](README.fa.md) | **العربية** | [Русский](README.ru.md) | [简体中文](README.zh-CN.md)
+<p align="center">
+  <a href="README.md">English</a> | <a href="README.fa.md">فارسی</a> | <strong>العربية</strong> | <a href="README.ru.md">Русский</a> | <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-[![License](https://img.shields.io/github/license/frank0live/Row-Template)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver)](https://github.com/frank0live/Row-Template/releases/latest)
-![Panel](https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+<p align="center">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/frank0live/Row-Template"></a>
+  <a href="https://github.com/frank0live/Row-Template/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver"></a>
+  <img alt="Panel" src="https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
+</p>
 
 ---
+
+## لماذا Row-Template؟
+
+- **خاصة بحكم التصميم.** الصفحة التي يفتحها المشتركون لديك لا تُجري أي طلبات لطرف خارجي. وتُولَّد رموز QR محليًا، وتُحقَن بيانات علامتك التجارية كنص — لا تُنفَّذ أبدًا ولا تُرسَل إلى أي جهة.
+- **علامة بيضاء حقًّا.** اسم خدمتك ورابط الدعم والشعار الخاص بك. ولا يوجد ما يشير إلى Row-Template على الصفحة المقدَّمة.
+- **ملف واحد، بلا اعتماديات وقت تشغيل.** أكواد CSS وJavaScript والخطوط ومولّد رمز QR مضمّنة داخل ملف HTML واحد يُثبَّت بأدوات Linux القياسية فقط — بلا حاجة إلى Node.js أو Python أو قاعدة بيانات.
+- **مصمّمة لمشتركيك.** عرض مباشر للاستهلاك وتاريخ الانتهاء، واستيراد بلمسة واحدة إلى التطبيقات الشائعة، وقائمة قابلة للبحث بالإعدادات المفردة لإضافة خادم واحد يدويًا.
+- **آمنة في التشغيل.** تثبيت ذرّي مع تحقّق وتراجع بأمر واحد. لا يعدّل 3X-UI إطلاقًا ولا يمسّ ملفات لوحتك.
+
+## لقطات الشاشة
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-dark.png" alt="Row-Template"></td>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-light.png" alt="Row-Template"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>الوضع الداكن</sub></td>
+    <td align="center"><sub>الوضع الفاتح</sub></td>
+  </tr>
+</table>
+
+<sub>تستخدم اللقطات بيانات نموذجية؛ وقائمة الإعدادات وشارات الدول المعروضة هي أمثلة فقط.</sub>
 
 ## التثبيت السريع
 

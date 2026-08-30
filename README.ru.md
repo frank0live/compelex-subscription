@@ -2,18 +2,49 @@
      номера версий и адреса кошельков в этом файле байт-в-байт идентичными
      переведённым файлам README. -->
 
-# Row-Template
+<p align="center">
+  <img src="docs/assets/row-template-banner.png" alt="Row-Template" width="900">
+</p>
 
-Отточенная, полностью автономная страница подписки для панелей [3X-UI](https://github.com/MHSanaei/3x-ui) — один HTML-файл, полностью в формате white-label, без сторонних CDN и без внешних запросов со страницы, которую открывают ваши подписчики.
+<p align="center">
+  Отточенная, полностью автономная страница подписки для панелей <a href="https://github.com/MHSanaei/3x-ui">3X-UI</a> — один HTML-файл, полностью в формате white-label, без сторонних CDN и без внешних запросов со страницы, которую открывают ваши подписчики.
+</p>
 
-[English](README.md) | [فارسی](README.fa.md) | [العربية](README.ar.md) | **Русский** | [简体中文](README.zh-CN.md)
+<p align="center">
+  <a href="README.md">English</a> | <a href="README.fa.md">فارسی</a> | <a href="README.ar.md">العربية</a> | <strong>Русский</strong> | <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-[![License](https://img.shields.io/github/license/frank0live/Row-Template)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver)](https://github.com/frank0live/Row-Template/releases/latest)
-![Panel](https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+<p align="center">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/frank0live/Row-Template"></a>
+  <a href="https://github.com/frank0live/Row-Template/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver"></a>
+  <img alt="Panel" src="https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
+</p>
 
 ---
+
+## Почему Row-Template?
+
+- **Приватность по конструкции.** Страница, которую открывают ваши подписчики, не делает сторонних запросов. QR-коды генерируются локально, а ваше оформление вставляется как текст — никогда не исполняется и никуда не отправляется.
+- **По-настоящему white-label.** Ваше название сервиса, ваша ссылка на поддержку, ваш логотип. На отдаваемой странице ничто не указывает на Row-Template.
+- **Один файл, без зависимостей времени выполнения.** CSS, JavaScript, шрифты и генератор QR-кодов встроены в единственный HTML-файл, который ставится средствами стандартного окружения Linux — без Node.js, Python или базы данных.
+- **Сделано для ваших подписчиков.** Актуальные использование и срок действия, импорт в популярные приложения в одно касание и список отдельных конфигураций с поиском для добавления одного сервера вручную.
+- **Безопасно в эксплуатации.** Атомарная установка с проверкой и откат одной командой. Никогда не патчит 3X-UI и не затрагивает файлы вашей панели.
+
+## Скриншоты
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-dark.png" alt="Row-Template"></td>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-light.png" alt="Row-Template"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Тёмная тема</sub></td>
+    <td align="center"><sub>Светлая тема</sub></td>
+  </tr>
+</table>
+
+<sub>На скриншотах — демонстрационные данные; показанные список конфигураций и значки стран приведены для примера.</sub>
 
 ## Быстрая установка
 
@@ -156,6 +187,7 @@ row-template uninstall
 **English · فارسی · العربية · Русский · 简体中文**
 
 Арабский и персидский отображаются справа налево.
+
 ## Сообщения об ошибках
 
 Пожалуйста, создайте issue: <https://github.com/frank0live/Row-Template/issues>

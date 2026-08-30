@@ -14,6 +14,8 @@ import { copyText, selectField } from './clipboard.js';
 import { drawQr } from './qr.js';
 import { createPoller } from './live.js';
 import { imageSrc } from './url.js';
+import { collectExplorer, readConfigs, renderExplorer, filterConfigs, configName } from './explorer.js';
+import { mtprotoWebUrl, amneziaConf } from './config.js';
 
 /* Each language is offered under its own name, which is the same string in
    every catalogue and therefore not a translatable key. */
@@ -29,7 +31,12 @@ const win = window;
 const doc = document;
 const row = win.__row || {};
 const el = collect(doc);
+Object.assign(el, collectExplorer(doc));
 const catalogues = readCatalogues(doc);
+
+/* The share links the panel emitted, read once from the DOM and classified.
+   They never change after load, so the list is parsed a single time here. */
+const configs = readConfigs(doc);
 
 let model = normalize(readDocument(doc));
 let lang = row.lang || 'en';
@@ -211,6 +218,7 @@ function applyLabels() {
   fillMenu(el.langMenu, langItems(), lang);
   fillMenu(el.themeMenu, themeItems(), mode);
   applyBrand();
+  renderExplorer(el, i18n, configs);
 }
 
 /* Both triggers are value pickers and the theme one is icon-only, so the value
@@ -352,13 +360,19 @@ function toast(text) {
 }
 
 /* Three outcomes. "manual" means the browser refused, so the address is put in
-   front of the reader already selected. */
-function copyValue(value, button) {
+   front of the reader already selected — in the dialog the caller names through
+   onManual, or the subscription dialog when there is none. */
+function copyValue(value, button, onManual) {
   copyText(value, doc, win).then(function (how) {
     if (how !== 'manual') {
       /* The toast is left for what a button cannot say in place. */
       if (flash(button)) say(i18n.t('copy.done'));
       else toast(i18n.t('copy.done'));
+      return;
+    }
+    if (typeof onManual === 'function') {
+      onManual();
+      toast(i18n.t('copy.manual'));
       return;
     }
     if (canDialog) {
@@ -382,6 +396,42 @@ function openQr(select) {
   if (el.qrCanvas) el.qrCanvas.hidden = !ok;
   setText(el.qrHint, i18n.t(ok ? 'qr.hint' : 'qr.failed'));
   if (select) selectField(el.qrUrl);
+}
+
+/* The detail dialog for one configuration. Its raw link is written into the
+   read-only field and drawn as a QR only now, when the reader has asked to see
+   it; the list itself never exposes the credential. A Telegram proxy gets its
+   one-tap web form as the QR and an "Open in Telegram" link; AmneziaWG reveals
+   its decoded .conf so a WireGuard client can use it too. */
+const CONFIG_HINT = {
+  mtproto: 'config.telegram_hint',
+  amneziawg: 'config.awg_hint',
+  wireguard: 'config.wg_hint',
+};
+
+function openConfig(cfg, index) {
+  if (!canDialog || !el.configDialog || !cfg) return;
+  restoreFocus = doc.activeElement;
+
+  setText(el.configTitle, configName(cfg, index, i18n));
+  if (el.configUrl) el.configUrl.value = cfg.raw;
+
+  const web = cfg.protocol === 'mtproto' ? mtprotoWebUrl(cfg.raw) : '';
+  if (el.configOpen) {
+    setAttr(el.configOpen, 'href', web || null);
+    el.configOpen.hidden = !web;
+  }
+
+  if (el.configConf) {
+    const conf = cfg.protocol === 'amneziawg' ? amneziaConf(cfg.raw) : '';
+    if (el.configConfText) el.configConfText.value = conf;
+    el.configConf.hidden = !conf;
+  }
+
+  el.configDialog.showModal();
+  const ok = drawQr(el.configCanvas, web || cfg.raw, win);
+  if (el.configCanvas) el.configCanvas.hidden = !ok;
+  setText(el.configHint, i18n.t(ok ? (CONFIG_HINT[cfg.protocol] || 'config.hint') : 'qr.failed'));
 }
 
 function selectPlatform(next) {
@@ -482,6 +532,66 @@ function wire() {
   if (el.clients) {
     el.clients.addEventListener('click', onClientClick);
   }
+
+  if (el.configList) {
+    el.configList.addEventListener('click', onConfigClick);
+  }
+  if (el.search) {
+    el.search.addEventListener('input', function () {
+      filterConfigs(el, el.search.value);
+    });
+  }
+  if (el.configClose) {
+    el.configClose.addEventListener('click', function () {
+      el.configDialog.close();
+    });
+  }
+  if (el.configCopy) {
+    el.configCopy.addEventListener('click', function () {
+      copyValue(el.configUrl ? el.configUrl.value : '', el.configCopy, function () {
+        selectField(el.configUrl);
+      });
+    });
+  }
+  if (el.configConfCopy) {
+    el.configConfCopy.addEventListener('click', function () {
+      copyValue(el.configConfText ? el.configConfText.value : '', el.configConfCopy, function () {
+        selectField(el.configConfText);
+      });
+    });
+  }
+  if (el.configUrl) {
+    el.configUrl.addEventListener('focus', function () {
+      selectField(el.configUrl);
+    });
+  }
+  if (canDialog && el.configDialog) {
+    el.configDialog.addEventListener('click', function (event) {
+      if (event.target === el.configDialog) el.configDialog.close();
+    });
+    el.configDialog.addEventListener('close', function () {
+      if (restoreFocus && typeof restoreFocus.focus === 'function') restoreFocus.focus();
+      restoreFocus = null;
+    });
+  }
+}
+
+/* View opens the detail dialog; Copy puts the raw link on the clipboard, and if
+   the browser refuses it falls back to the dialog with the link selected. */
+function onConfigClick(event) {
+  const button = event.target.closest ? event.target.closest('[data-act]') : null;
+  if (!button) return;
+  const index = Number(button.getAttribute('data-index'));
+  const cfg = configs[index];
+  if (!cfg) return;
+  if (button.getAttribute('data-act') === 'view') {
+    openConfig(cfg, index);
+    return;
+  }
+  copyValue(cfg.raw, button, function () {
+    openConfig(cfg, index);
+    selectField(el.configUrl);
+  });
 }
 
 /* Import is attempted, and copying is what happens when it cannot be. The

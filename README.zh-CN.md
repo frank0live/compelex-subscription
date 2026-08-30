@@ -1,18 +1,49 @@
 <!-- 请保持本文件中的开发者标识、仓库 URL、命令、路径、版本号以及钱包地址
      与各翻译版 README 逐字节完全一致。 -->
 
-# Row-Template
+<p align="center">
+  <img src="docs/assets/row-template-banner.png" alt="Row-Template" width="900">
+</p>
 
-为 [3X-UI](https://github.com/MHSanaei/3x-ui) 面板打造的精致、自包含的自定义订阅页面——单个 HTML 文件，完全支持白标，不依赖任何第三方 CDN，订阅用户打开的页面也不会发起任何外部请求。
+<p align="center">
+  为 <a href="https://github.com/MHSanaei/3x-ui">3X-UI</a> 面板打造的精致、自包含的自定义订阅页面——单个 HTML 文件，完全支持白标，不依赖任何第三方 CDN，订阅用户打开的页面也不会发起任何外部请求。
+</p>
 
-[English](README.md) | [فارسی](README.fa.md) | [العربية](README.ar.md) | [Русский](README.ru.md) | **简体中文**
+<p align="center">
+  <a href="README.md">English</a> | <a href="README.fa.md">فارسی</a> | <a href="README.ar.md">العربية</a> | <a href="README.ru.md">Русский</a> | <strong>简体中文</strong>
+</p>
 
-[![License](https://img.shields.io/github/license/frank0live/Row-Template)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver)](https://github.com/frank0live/Row-Template/releases/latest)
-![Panel](https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+<p align="center">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/frank0live/Row-Template"></a>
+  <a href="https://github.com/frank0live/Row-Template/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver"></a>
+  <img alt="Panel" src="https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
+</p>
 
 ---
+
+## 为什么选择 Row-Template？
+
+- **设计即隐私。** 订阅用户打开的页面不会发起任何第三方请求。二维码在本地生成，你的品牌信息以文本形式注入——绝不会被执行，也绝不会被发送到任何地方。
+- **真正的白标。** 你自己的服务名称、支持链接和 Logo。对外服务的页面上不会有任何标识 Row-Template 的内容。
+- **单个文件，无运行时依赖。** CSS、JavaScript、字体和二维码生成器都内联到单个 HTML 文件中，仅凭标准的 Linux 用户空间工具即可安装——无需 Node.js、Python 或数据库。
+- **为你的订阅用户而设计。** 实时用量与到期时间、一键导入到常用应用，以及可搜索的单条配置列表，便于手动添加单个服务器。
+- **运行安全。** 原子化安装，带校验与一条命令回滚。绝不修补 3X-UI，也绝不触及面板文件。
+
+## 界面截图
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-dark.png" alt="Row-Template"></td>
+    <td width="50%"><img src="docs/assets/screenshot-mobile-light.png" alt="Row-Template"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>深色主题</sub></td>
+    <td align="center"><sub>浅色主题</sub></td>
+  </tr>
+</table>
+
+<sub>截图使用示例数据；所示的配置列表与国家/地区标识仅为示例。</sub>
 
 ## 快速安装
 
@@ -139,6 +170,7 @@ row-template verify
 ```
 
 报告已安装的产物、面板接线以及服务是否健康。
+
 ## 卸载
 
 ```bash
