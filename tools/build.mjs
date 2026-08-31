@@ -94,6 +94,24 @@ function stripComments(text) {
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
+/* Leading horizontal whitespace is insignificant in CSS, so the generated
+   stylesheet drops it: only the left margin of each line is removed, while
+   newlines, inter-token spacing, and every string are left exactly as written,
+   so the cascade and every declared value are byte-for-byte unchanged. The
+   guards refuse a template literal or a backslash line continuation — neither
+   occurs in the stylesheet today, and either would make blind margin-stripping
+   unsafe — so the transform fails loudly rather than silently if a source ever
+   grows one. */
+function deindent(text, label) {
+  if (text.includes('`')) {
+    throw new Error(`${label}: a template literal blocks de-indentation`);
+  }
+  if (/\\\r?\n/.test(text)) {
+    throw new Error(`${label}: a line continuation blocks de-indentation`);
+  }
+  return text.replace(/^[ \t]+/gm, '');
+}
+
 function buildStyles(withFont) {
   let css = STYLES.map((f) => banner(`styles/${f}`) + read('src', 'styles', f)).join('\n');
 
@@ -109,7 +127,7 @@ function buildStyles(withFont) {
     css = css.slice(0, open) + css.slice(close + FONT_FACE_CLOSE.length);
     if (css.includes('__FONT_BASE64__')) throw new Error('font-face block left a placeholder');
   }
-  return stripComments(css);
+  return deindent(stripComments(css), 'styles');
 }
 
 function buildBoot() {
