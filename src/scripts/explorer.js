@@ -32,6 +32,11 @@ const PROTO_LABEL = {
 /* A short list needs no filter; the search field appears only past this. */
 const SEARCH_THRESHOLD = 5;
 
+/* A list this long or shorter shows every row at once with no expand control;
+   past it the list collapses to its first COLLAPSE_THRESHOLD rows until the
+   reader asks for the rest. Search always overrides the collapse (see applyRows). */
+const COLLAPSE_THRESHOLD = 6;
+
 export function protoLabel(protocol) {
   return PROTO_LABEL[protocol] || protocol;
 }
@@ -68,6 +73,10 @@ export function collectExplorer(doc) {
     configConfLabel: id('config-conf-label'),
     configConfText: id('config-conf-text'),
     configConfCopy: id('config-conf-copy'),
+    configConfDownload: id('config-conf-download'),
+    configConfDownloadLabel: id('config-conf-download-label'),
+    configToggle: id('config-toggle'),
+    configToggleLabel: id('config-toggle-label'),
   };
 }
 
@@ -203,6 +212,7 @@ function relabel(el, i18n, configs) {
   setText(el.configOpenLabel, t('config.open'));
   setText(el.configConfLabel, t('config.conf_label'));
   setText(el.configConfCopy, t('action.copy_short'));
+  setText(el.configConfDownloadLabel, t('action.download'));
   setAttr(el.configClose, 'aria-label', t('action.close'));
   setAttr(el.configCanvas, 'aria-label', t('config.alt'));
   setAttr(el.configUrl, 'aria-label', t('config.link_label'));
@@ -210,29 +220,77 @@ function relabel(el, i18n, configs) {
 
 /* Shows or hides the whole section, builds the rows once, relabels them, and
    reveals the search field only when there are enough rows to warrant it.
-   Idempotent: safe to call at startup and after every language change. */
+   Idempotent: safe to call at startup and after every language change. The
+   expanded/collapsed and query state persist across relabels (page lifecycle
+   only — never stored), so a language switch does not disturb the reader. */
 export function renderExplorer(el, i18n, configs) {
   if (!el.configList) return;
   const has = configs.length > 0;
   if (el.explorer) el.explorer.hidden = !has;
   if (!has) return;
+  el._configs = configs;
+  el._i18n = i18n;
+  el._expanded = el._expanded || false;
+  el._query = el._query || '';
   buildList(el, configs);
   relabel(el, i18n, configs);
   if (el.searchWrap) el.searchWrap.hidden = configs.length <= SEARCH_THRESHOLD;
+  applyRows(el);
 }
 
-/* Case-insensitive substring filter over the rows' own search text. The empty
-   note appears only when a non-empty query matches nothing. */
-export function filterConfigs(el, query) {
+/* The single place a row's visibility is decided, so search and collapse never
+   contradict each other. A non-empty query wins outright: every matching row is
+   shown wherever it sits in the list (so a match past the collapse point is
+   never hidden), and the empty note appears only on a genuine miss. With no
+   query the list shows its first rows until the reader expands it. The query
+   does not change the remembered expanded/collapsed state, so clearing it
+   restores whatever the reader had. */
+function applyRows(el) {
   if (!el.configList) return;
-  const q = String(query || '').trim().toLowerCase();
   const rows = el.configList.children;
+  const q = el._query || '';
+  const searching = q !== '';
   let shown = 0;
   for (let i = 0; i < rows.length; i++) {
-    const hay = rows[i].getAttribute('data-search') || '';
-    const match = q === '' || hay.indexOf(q) > -1;
-    rows[i].hidden = !match;
-    if (match) shown++;
+    let visible;
+    if (searching) {
+      visible = (rows[i].getAttribute('data-search') || '').indexOf(q) > -1;
+    } else {
+      visible = el._expanded || i < COLLAPSE_THRESHOLD;
+    }
+    rows[i].hidden = !visible;
+    if (visible) shown++;
   }
-  if (el.explorerEmpty) el.explorerEmpty.hidden = shown !== 0;
+  if (el.explorerEmpty) el.explorerEmpty.hidden = !(searching && shown === 0);
+
+  /* The expand/collapse control, decided in the same pass: hidden while a search
+     is active or the list is short enough to show whole, otherwise labelled with
+     the number of rows still hidden (interpolated so the count reads naturally in
+     every language). */
+  const toggle = el.configToggle;
+  if (!toggle) return;
+  const show = !searching && rows.length > COLLAPSE_THRESHOLD;
+  toggle.hidden = !show;
+  const expanded = show && !!el._expanded;
+  setAttr(toggle, 'aria-expanded', expanded ? 'true' : 'false');
+  if (show && el._i18n) {
+    setText(el.configToggleLabel, expanded
+      ? el._i18n.t('action.show_less')
+      : el._i18n.t('explorer.show_more', { n: el._i18n.fmt.number(rows.length - COLLAPSE_THRESHOLD, 0) }));
+  }
+}
+
+/* Flips the collapsed/expanded state and repaints. Bound to the toggle's click
+   in main.js; nothing is persisted, so a reload starts collapsed again. */
+export function toggleExplorer(el) {
+  el._expanded = !el._expanded;
+  applyRows(el);
+}
+
+/* Case-insensitive substring filter over the rows' own search text, routed
+   through applyRows so search takes precedence over the collapse. */
+export function filterConfigs(el, query) {
+  if (!el.configList) return;
+  el._query = String(query || '').trim().toLowerCase();
+  applyRows(el);
 }

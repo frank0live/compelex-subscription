@@ -116,6 +116,100 @@ function amneziaName(raw) {
   return m ? m[1].trim() : '';
 }
 
+/* A share link's query string as a lower-cased map, one decode per value, first
+   occurrence winning. QueryEscape wrote a space as "+" and an escaped "+" as
+   "%2B", so "+" is turned back into a space before percent-decoding; a malformed
+   escape keeps the raw value rather than losing the whole field. */
+function queryMap(query) {
+  const out = {};
+  const parts = query.split('&');
+  for (let i = 0; i < parts.length; i++) {
+    const pair = parts[i];
+    if (!pair) continue;
+    const eq = pair.indexOf('=');
+    const key = (eq < 0 ? pair : pair.slice(0, eq)).toLowerCase();
+    if (key === '' || Object.prototype.hasOwnProperty.call(out, key)) continue;
+    const rawVal = eq < 0 ? '' : pair.slice(eq + 1);
+    try {
+      out[key] = decodeURIComponent(rawVal.replace(/\+/g, ' '));
+    } catch (err) {
+      out[key] = rawVal;
+    }
+  }
+  return out;
+}
+
+/* WireGuard has no config file of its own on the wire: the panel emits a
+   wireguard://privkey@host:port?publickey=&address=&… URI, and the official
+   WireGuard app imports only a [Interface]/[Peer] .conf. This rebuilds that
+   .conf from the URI's own fields — the single place the reconstruction lives,
+   shared by the detail dialog and the download — inventing nothing beyond the
+   full-tunnel AllowedIPs a client would otherwise refuse to route. Returns ''
+   for anything that is not a usable wireguard:// link. */
+export function wireguardConf(raw) {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!/^wireguard:\/\//i.test(trimmed)) return '';
+  let body = trimmed.replace(/^wireguard:\/\//i, '');
+  const hash = body.indexOf('#');
+  if (hash > -1) body = body.slice(0, hash);
+  let query = '';
+  const q = body.indexOf('?');
+  if (q > -1) {
+    query = body.slice(q + 1);
+    body = body.slice(0, q);
+  }
+  const at = body.indexOf('@');
+  if (at < 0) return '';
+  const privateKey = body.slice(0, at);
+  const endpoint = body.slice(at + 1);
+  if (!privateKey || !endpoint) return '';
+  const p = queryMap(query);
+  const pick = function () {
+    for (let i = 0; i < arguments.length; i++) {
+      if (p[arguments[i]]) return p[arguments[i]];
+    }
+    return '';
+  };
+  const lines = ['[Interface]', 'PrivateKey = ' + privateKey];
+  const add = function (label, key) {
+    const v = pick(key);
+    if (v) lines.push(label + ' = ' + v);
+  };
+  add('Address', 'address');
+  add('DNS', 'dns');
+  add('MTU', 'mtu');
+  lines.push('', '[Peer]');
+  add('PublicKey', 'publickey');
+  add('PresharedKey', 'presharedkey');
+  lines.push('AllowedIPs = ' + (pick('allowedips') || '0.0.0.0/0, ::/0'));
+  lines.push('Endpoint = ' + endpoint);
+  add('PersistentKeepalive', 'keepalive');
+  return lines.join('\n') + '\n';
+}
+
+/* A filesystem-safe download name from a configuration's display name: country
+   flags and control characters removed, the characters no operating system
+   allows in a name folded to spaces, runs of space collapsed to single hyphens,
+   leading dots and dashes dropped so nothing hides or traverses, and the whole
+   capped in length. Falls back to a fixed name when nothing usable remains. */
+export function confFilename(displayName, fallback) {
+  const source = displayName == null ? '' : String(displayName);
+  const name = source
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/["*:<>?|/\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/ /g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[.\-]+/, '')
+    .replace(/[.\-]+$/, '')
+    .slice(0, 64)
+    .replace(/[.\-]+$/, '');
+  return (name || fallback || 'config') + '.conf';
+}
+
 function nameFor(scheme, raw) {
   if (scheme === 'vmess') return vmessName(raw);
   if (scheme === 'vpn') return amneziaName(raw);

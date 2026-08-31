@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 
-import { classify, parseAll, mtprotoWebUrl, amneziaConf } from '../src/scripts/config.js';
+import { classify, parseAll, mtprotoWebUrl, amneziaConf, wireguardConf, confFilename } from '../src/scripts/config.js';
 
 const vmess = (obj) => 'vmess://' + Buffer.from(JSON.stringify(obj), 'utf8').toString('base64');
 const vpn = (conf) => 'vpn://' + Buffer.from(conf, 'utf8').toString('base64url');
@@ -102,4 +102,73 @@ test('parseAll keeps order, drops unknowns and collapses duplicates', () => {
   assert.deepEqual(parseAll(list).map((c) => c.protocol), ['vless', 'trojan', 'mtproto']);
   assert.equal(parseAll(null).length, 0);
   assert.equal(parseAll('nope').length, 0);
+});
+
+/* WireGuard's app imports a .conf, not the wireguard:// URI the panel emits, so
+   the download rebuilds one from the URI's own fields — the same reconstruction
+   the detail dialog shows, inventing nothing but the full-tunnel AllowedIPs. */
+test('wireguardConf rebuilds a usable [Interface]/[Peer] file from the URI', () => {
+  const raw = 'wireguard://PRIVKEY123@wg.example.com:51820'
+    + '?publickey=PUBKEY456&address=10.0.0.2%2F32&dns=1.1.1.1&mtu=1420'
+    + '&presharedkey=PSK789&keepalive=25#%F0%9F%87%B3%F0%9F%87%B1%20Amsterdam';
+  const conf = wireguardConf(raw);
+  const lines = conf.split('\n');
+  assert.equal(lines[0], '[Interface]');
+  assert.ok(conf.includes('PrivateKey = PRIVKEY123'));
+  assert.ok(conf.includes('Address = 10.0.0.2/32'), 'the %2F is decoded to a slash');
+  assert.ok(conf.includes('DNS = 1.1.1.1'));
+  assert.ok(conf.includes('MTU = 1420'));
+  assert.ok(conf.includes('\n[Peer]'));
+  assert.ok(conf.includes('PublicKey = PUBKEY456'));
+  assert.ok(conf.includes('PresharedKey = PSK789'));
+  assert.ok(conf.includes('Endpoint = wg.example.com:51820'));
+  assert.ok(conf.includes('PersistentKeepalive = 25'));
+  assert.ok(conf.endsWith('\n'), 'ends with a trailing newline');
+  assert.ok(!conf.includes('Amsterdam'), 'the remark is not written into the file');
+});
+
+test('wireguardConf supplies a full-tunnel AllowedIPs only when the URI omits it', () => {
+  const bare = wireguardConf('wireguard://k@h:51820?publickey=p');
+  assert.ok(bare.includes('AllowedIPs = 0.0.0.0/0, ::/0'), 'a default is added');
+  const explicit = wireguardConf('wireguard://k@h:51820?publickey=p&allowedips=10.0.0.0%2F24');
+  assert.ok(explicit.includes('AllowedIPs = 10.0.0.0/24'), 'a given value is kept');
+  assert.ok(!explicit.includes('0.0.0.0/0'), 'and not doubled with the default');
+});
+
+test('wireguardConf returns nothing for a link it cannot use', () => {
+  assert.equal(wireguardConf('wireguard://no-endpoint-here'), '', 'no @ means no endpoint');
+  assert.equal(wireguardConf('wireguard://@h:51820'), '', 'an empty key is refused');
+  assert.equal(wireguardConf('wireguard://k@'), '', 'an empty endpoint is refused');
+  assert.equal(wireguardConf('vless://u@h:443#x'), '', 'a non-wireguard scheme');
+  assert.equal(wireguardConf(''), '');
+  assert.equal(wireguardConf(null), '');
+  assert.equal(wireguardConf(42), '');
+});
+
+/* The download name is derived from the remark, and a remark is attacker-set,
+   so it must never carry a path separator, a reserved character, a control
+   byte, a leading dot, or run unbounded — and when nothing usable is left the
+   fixed fallback stands in. */
+test('confFilename produces a safe, bounded name and never a path', () => {
+  assert.equal(confFilename('🇳🇱 Amsterdam WG', 'wireguard'), 'Amsterdam-WG.conf');
+  assert.equal(confFilename('Frankfurt', 'wireguard'), 'Frankfurt.conf');
+  assert.equal(confFilename('a/b\\c', 'wireguard'), 'a-b-c.conf', 'separators fold to hyphens');
+  assert.equal(confFilename('../../etc/passwd', 'wireguard'), 'etc-passwd.conf', 'no traversal');
+  assert.equal(confFilename('a:b*c?d"e<f>g|h', 'wireguard'), 'a-b-c-d-e-f-g-h.conf', 'reserved chars go');
+  assert.equal(confFilename('...hidden', 'wireguard'), 'hidden.conf', 'a leading dot is dropped');
+  assert.equal(confFilename('name.', 'wireguard'), 'name.conf', 'a trailing dot is dropped');
+  assert.equal(confFilename('中国 节点', 'wireguard'), '中国-节点.conf', 'non-Latin letters survive');
+  const long = confFilename('x'.repeat(200), 'wireguard');
+  assert.ok(long.length <= 64 + '.conf'.length, 'the name is capped');
+});
+
+test('confFilename falls back when the remark yields nothing usable', () => {
+  assert.equal(confFilename('🇩🇪🇫🇷', 'wireguard'), 'wireguard.conf', 'only flags leaves nothing');
+  assert.equal(confFilename('', 'amneziawg'), 'amneziawg.conf');
+  assert.equal(confFilename('///', 'wireguard'), 'wireguard.conf');
+  assert.equal(confFilename(null, 'wireguard'), 'wireguard.conf');
+  assert.equal(confFilename('   ', 'wireguard'), 'wireguard.conf');
+  assert.equal(confFilename('', ''), 'config.conf', 'a blank fallback has its own default');
+  const control = confFilename('a\u0001\u0002\u001f\u007fb', 'wireguard');
+  assert.equal(control, 'ab.conf', 'control bytes are stripped, not folded');
 });

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 import {
   protoLabel, collectExplorer, readConfigs, configName,
-  renderExplorer, filterConfigs,
+  renderExplorer, filterConfigs, toggleExplorer,
 } from '../src/scripts/explorer.js';
 
 /* A document just large enough for the explorer: text is text, elements are
@@ -67,6 +67,7 @@ function makeDoc(links) {
   for (const id of [
     'explorer', 'explorer-title', 'explorer-count', 'explorer-hint',
     'explorer-search-wrap', 'explorer-search', 'config-list', 'explorer-empty',
+    'config-toggle', 'config-toggle-label',
   ]) register(id);
   if (links) {
     const src = register('links-source');
@@ -95,10 +96,13 @@ const CATALOG = {
   'explorer.view': 'View',
   'explorer.view_for': 'View {name}',
   'explorer.copy_for': 'Copy {name}',
+  'explorer.show_more': 'Show {n} more',
   'explorer.search': 'Search configurations',
   'action.copy_short': 'Copy',
   'action.copied': 'Copied',
   'action.copy_link': 'Copy link',
+  'action.show_less': 'Show less',
+  'action.download': 'Download',
   'config.open': 'Open in Telegram',
   'config.conf_label': 'Configuration file',
   'action.close': 'Close',
@@ -226,4 +230,90 @@ test('the filter matches row text and shows the empty note only on a real miss',
   filterConfigs(el, '');
   assert.equal(names(el).length, 6);
   assert.equal(el.explorerEmpty.hidden, true, 'an empty query is not a miss');
+});
+
+/* Build a document holding n vless configs named Srv1..Srvn, with any index in
+   `overrides` (1-based) given a different remark, so a search target can be
+   planted well past the collapse point. */
+function nLinks(n, overrides) {
+  const links = [];
+  for (let i = 1; i <= n; i++) {
+    const name = (overrides && overrides[i]) || ('Srv' + i);
+    links.push('vless://u@h:443#' + encodeURIComponent(name));
+  }
+  return links;
+}
+
+function renderN(n, overrides) {
+  const doc = makeDoc(nLinks(n, overrides));
+  const el = makeEl(doc);
+  renderExplorer(el, i18n, readConfigs(doc));
+  return el;
+}
+
+test('a list at or under the threshold shows every row with no expand control', () => {
+  const el = renderN(6);
+  assert.equal(names(el).length, 6, 'all six are shown');
+  assert.equal(el.configToggle.hidden, true, 'and there is nothing to expand');
+});
+
+test('a longer list collapses to six and labels the hidden remainder', () => {
+  const cases = [
+    [7, 'Show 1 more'],
+    [10, 'Show 4 more'],
+    [25, 'Show 19 more'],
+    [50, 'Show 44 more'],
+    [100, 'Show 94 more'],
+  ];
+  for (const [n, label] of cases) {
+    const el = renderN(n);
+    assert.equal(names(el).length, 6, n + ' collapses to six visible rows');
+    assert.equal(el.configToggle.hidden, false, n + ' shows the control');
+    assert.equal(el.configToggleLabel.textContent, label, n + ' labels the remainder');
+    assert.equal(el.configToggle.getAttribute('aria-expanded'), 'false');
+  }
+});
+
+test('expanding shows the whole list and offers to collapse again', () => {
+  const el = renderN(10);
+  assert.equal(names(el).length, 6);
+  toggleExplorer(el);
+  assert.equal(names(el).length, 10, 'every row is now shown');
+  assert.equal(el.configToggleLabel.textContent, 'Show less');
+  assert.equal(el.configToggle.getAttribute('aria-expanded'), 'true');
+  toggleExplorer(el);
+  assert.equal(names(el).length, 6, 'and it collapses back to six');
+  assert.equal(el.configToggleLabel.textContent, 'Show 4 more');
+  assert.equal(el.configToggle.getAttribute('aria-expanded'), 'false');
+});
+
+test('a search reaches matches past the collapse point and hides the control', () => {
+  const el = renderN(10, { 9: 'Tokyo' });
+  assert.equal(names(el).length, 6, 'collapsed, Tokyo (row 9) is not among the first six');
+  filterConfigs(el, 'tokyo');
+  assert.deepEqual(names(el), ['Tokyo'], 'the search still finds it beyond the collapse');
+  assert.equal(el.configToggle.hidden, true, 'the expand control steps aside for a search');
+  assert.equal(el.explorerEmpty.hidden, true, 'a match is not a miss');
+});
+
+test('clearing a search restores the state the reader had, not a reset', () => {
+  const el = renderN(10, { 9: 'Tokyo' });
+  toggleExplorer(el);
+  assert.equal(names(el).length, 10, 'expanded before searching');
+  filterConfigs(el, 'tokyo');
+  assert.deepEqual(names(el), ['Tokyo']);
+  filterConfigs(el, '');
+  assert.equal(names(el).length, 10, 'cleared: still expanded, collapse was never disturbed');
+});
+
+test('a language change keeps the collapsed state and relabels the control', () => {
+  const doc = makeDoc(nLinks(10));
+  const el = makeEl(doc);
+  const cfgs = readConfigs(doc);
+  renderExplorer(el, i18n, cfgs);
+  toggleExplorer(el);
+  assert.equal(names(el).length, 10, 'expanded');
+  renderExplorer(el, i18n, cfgs);
+  assert.equal(names(el).length, 10, 'still expanded after a relabel');
+  assert.equal(el.configToggleLabel.textContent, 'Show less');
 });

@@ -14,8 +14,8 @@ import { copyText, selectField } from './clipboard.js';
 import { drawQr } from './qr.js';
 import { createPoller } from './live.js';
 import { imageSrc } from './url.js';
-import { collectExplorer, readConfigs, renderExplorer, filterConfigs, configName } from './explorer.js';
-import { mtprotoWebUrl, amneziaConf } from './config.js';
+import { collectExplorer, readConfigs, renderExplorer, filterConfigs, configName, toggleExplorer } from './explorer.js';
+import { mtprotoWebUrl, amneziaConf, wireguardConf, confFilename } from './config.js';
 
 /* Each language is offered under its own name, which is the same string in
    every catalogue and therefore not a translatable key. */
@@ -50,6 +50,7 @@ let spoken = '';
 let lastAt = Date.now();
 let stopped = false;
 let restoreFocus = null;
+let openCfg = null;
 let toastTimer = null;
 let fadeTimer = null;
 let flashNode = null;
@@ -412,6 +413,7 @@ const CONFIG_HINT = {
 function openConfig(cfg, index) {
   if (!canDialog || !el.configDialog || !cfg) return;
   restoreFocus = doc.activeElement;
+  openCfg = cfg;
 
   setText(el.configTitle, configName(cfg, index, i18n));
   if (el.configUrl) el.configUrl.value = cfg.raw;
@@ -423,15 +425,47 @@ function openConfig(cfg, index) {
   }
 
   if (el.configConf) {
-    const conf = cfg.protocol === 'amneziawg' ? amneziaConf(cfg.raw) : '';
+    const conf = cfg.protocol === 'amneziawg' ? amneziaConf(cfg.raw)
+      : cfg.protocol === 'wireguard' ? wireguardConf(cfg.raw) : '';
     if (el.configConfText) el.configConfText.value = conf;
     el.configConf.hidden = !conf;
+    if (el.configConfDownload) {
+      setAttr(el.configConfDownload, 'aria-label',
+        i18n.t(cfg.protocol === 'amneziawg' ? 'config.dl_awg' : 'config.dl_wg'));
+    }
   }
 
   el.configDialog.showModal();
   const ok = drawQr(el.configCanvas, web || cfg.raw, win);
   if (el.configCanvas) el.configCanvas.hidden = !ok;
   setText(el.configHint, i18n.t(ok ? (CONFIG_HINT[cfg.protocol] || 'config.hint') : 'qr.failed'));
+}
+
+/* A reconstructed configuration file saved to the reader's device, entirely on
+   the client: a Blob, a temporary object URL, a synthetic download click, and
+   the URL released again on the next tick. Nothing crosses the network and the
+   configuration text — which carries a private key — is never logged. A browser
+   without Blob or object-URL support simply keeps the Copy button. */
+function saveConf(text, filename) {
+  if (!text) return;
+  let url = '';
+  try {
+    const blob = new win.Blob([text], { type: 'application/octet-stream' });
+    url = win.URL.createObjectURL(blob);
+    const a = doc.createElement('a');
+    a.href = url;
+    a.download = filename;
+    doc.body.appendChild(a);
+    a.click();
+    doc.body.removeChild(a);
+  } catch (err) {
+    /* No download path available; the reader can still copy the text. */
+  }
+  if (url) {
+    win.setTimeout(function () {
+      try { win.URL.revokeObjectURL(url); } catch (err) {}
+    }, 0);
+  }
 }
 
 function selectPlatform(next) {
@@ -558,6 +592,19 @@ function wire() {
       copyValue(el.configConfText ? el.configConfText.value : '', el.configConfCopy, function () {
         selectField(el.configConfText);
       });
+    });
+  }
+  if (el.configConfDownload) {
+    el.configConfDownload.addEventListener('click', function () {
+      if (!openCfg) return;
+      const text = el.configConfText ? el.configConfText.value : '';
+      const fallback = openCfg.protocol === 'amneziawg' ? 'amneziawg' : 'wireguard';
+      saveConf(text, confFilename(openCfg.displayName, fallback));
+    });
+  }
+  if (el.configToggle) {
+    el.configToggle.addEventListener('click', function () {
+      toggleExplorer(el);
     });
   }
   if (el.configUrl) {

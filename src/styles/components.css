@@ -717,12 +717,13 @@
 
 .cfg-flag {
   flex: none;
+  display: grid;
+  place-items: center;
   inline-size: 32px;
   block-size: 32px;
   border-radius: var(--r-mark);
   font-size: 20px;
-  line-height: 32px;
-  text-align: center;
+  line-height: 1;
   overflow: hidden;
 }
 
@@ -734,7 +735,6 @@
   color: var(--subtle);
   font-size: var(--fs-caption);
   font-weight: 600;
-  line-height: 30px;
 }
 
 .cfg-body {
@@ -775,6 +775,30 @@
   text-align: center;
 }
 
+/* The expand/collapse control for a long list: a subtle full-width ghost
+   button, not a primary action — a hairline border, no fill, a centred label
+   and a chevron that turns when the list is open. */
+.cfg-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  margin-block-start: var(--sp-2);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--subtle);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cfg-toggle .icon { flex: none; transition: transform var(--dur) var(--ease); }
+.cfg-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
+
 /* Config dialog. It reuses the .dialog / .qr-body / .qr-frame / .url-field
    shell (so the bottom-sheet media query below applies unchanged); only the
    canvas size and the protocol-specific extras are new. */
@@ -813,6 +837,15 @@
 
 .conf-text:focus { outline: none; border-color: var(--border-strong); }
 
+/* Copy and Download sit side by side under the configuration text, sharing the
+   width so neither reads as the primary action. */
+.conf-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.conf-actions .btn { flex: 1; }
+
 
 
 /* Hover is a pointer affordance, so it lives behind the capability query; the
@@ -840,6 +873,11 @@
   }
 
   .menu-item:hover { background: var(--surface-2); }
+
+  .cfg-toggle:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
 
   .tab:hover:not([aria-selected="true"]) {
     color: var(--text);

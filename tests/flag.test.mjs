@@ -52,3 +52,40 @@ test('a name with no flag is left as it is', () => {
   assert.equal(cleanName(''), '');
   assert.equal(cleanName(null), '');
 });
+
+/* The full slate of names the refinement calls out: a flag leads, trails or
+   sits mid-name; the label is Latin, Persian, Turkish, Chinese, Cyrillic; and
+   the generic emoji that are not countries draw no badge and are left in place. */
+test('every named flag case resolves to the right badge and clean label', () => {
+  const cases = [
+    ['🇩🇪 Frankfurt', '🇩🇪', 'Frankfurt'],
+    ['Frankfurt 🇩🇪', '🇩🇪', 'Frankfurt'],
+    ['Premium 🇩🇪 Frankfurt', '🇩🇪', 'Premium Frankfurt'],
+    ['🇩🇪 Frankfurt 🇫🇮 Backup', '🇩🇪', 'Frankfurt Backup'],
+    ['🇮🇷 ایران', '🇮🇷', 'ایران'],
+    ['🇹🇷 Türkiye', '🇹🇷', 'Türkiye'],
+    ['🇨🇳 中国', '🇨🇳', '中国'],
+    ['🇷🇺 Россия', '🇷🇺', 'Россия'],
+    ['🇦🇪 Dubai', '🇦🇪', 'Dubai'],
+  ];
+  for (const [raw, flag, clean] of cases) {
+    assert.equal(flagOf(raw), flag, 'flag of ' + JSON.stringify(raw));
+    assert.equal(cleanName(raw), clean, 'clean of ' + JSON.stringify(raw));
+  }
+});
+
+test('a generic emoji is never read as a flag and stays in the label', () => {
+  const cases = [
+    ['🔥 Premium', '🔥 Premium'],
+    ['⭐ VIP', '⭐ VIP'],
+    ['🚀 Fast', '🚀 Fast'],
+    ['💎 Diamond', '💎 Diamond'],
+    ['🏳️ Test', '🏳️ Test'],
+    ['🏴 Test', '🏴 Test'],
+    ['No Flag', 'No Flag'],
+  ];
+  for (const [raw, clean] of cases) {
+    assert.equal(flagOf(raw), '', 'no flag for ' + JSON.stringify(raw));
+    assert.equal(cleanName(raw), clean, 'label kept for ' + JSON.stringify(raw));
+  }
+});
