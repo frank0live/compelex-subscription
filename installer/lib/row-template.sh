@@ -280,6 +280,48 @@ rt_template_reconcile() {
   rt_config_set_template "$id"
 }
 
+rt_reconcile_artifact_to_selection() {
+  # make the CANONICAL ARTIFACT agree with the stored selection. Companion to
+  # rt_template_reconcile (which aligns config with a KNOWN id): this one runs
+  # after a branding write, where rt_config_write may have sanitized an invalid
+  # stored id to Row. It resolves the effective template, refuses a store that
+  # cannot supply it (missing artifact or checksum mismatch), and re-stages the
+  # canonical artifact from the store when it does not already match. It only
+  # reads config/store and writes dist + sidecar — no activation, no recursion;
+  # the caller owns activation and the snapshot/restore of the transaction.
+  local tpl want
+  tpl="$(rt_template_effective)" || return 1
+  [ -n "$tpl" ] || return 1
+  rt_template_store_has "$tpl" \
+    || { rt_err "the effective template '$tpl' is missing from the template store"; return 1; }
+  want="$(LC_ALL=C awk '{print $1; exit}' "$RT_TEMPLATE_STORE/$tpl/template.html.sha256" 2>/dev/null)"
+  rt_verify_sha256 "$RT_TEMPLATE_STORE/$tpl/template.html" "$want" \
+    || { rt_err "the effective template '$tpl' failed its store checksum"; return 1; }
+  if [ "$(rt_sha256 "$RT_DIST" 2>/dev/null || true)" = "$(rt_sha256 "$RT_TEMPLATE_STORE/$tpl/template.html" 2>/dev/null || true)" ]; then
+    return 0
+  fi
+  rt_info "aligning the canonical artifact with the stored selection ($tpl)"
+  rt_set_dist "$RT_TEMPLATE_STORE/$tpl/template.html"
+}
+
+rt_restore_snapshot() {
+  # restore CONFIG and the canonical artifact (+ sidecar) from the snapshots
+  # taken before a branding transaction. Empty/absent arguments are skipped.
+  # Used on any post-write failure so config, artifact and live page stay in
+  # their known-good pre-transaction state.
+  local cfgbak="$1" distbak="$2" sumbak="$3"
+  if [ -n "$cfgbak" ] && [ -f "$cfgbak" ]; then
+    cp -f -- "$cfgbak" "$RT_CONFIG" || true
+    chmod 640 "$RT_CONFIG" 2>/dev/null || true
+  fi
+  if [ -n "$distbak" ] && [ -f "$distbak" ]; then
+    rt_atomic_install "$distbak" "$RT_DIST" 644 || true
+    if [ -n "$sumbak" ] && [ -f "$sumbak" ]; then
+      rt_atomic_install "$sumbak" "$RT_DIST_SUM" 644 || true
+    fi
+  fi
+}
+
 # --- template store -----------------------------------------------------------
 # The store is the install's own copy of the release's template payloads: one
 # directory per selectable design, holding the pristine artifact and its
@@ -1477,30 +1519,41 @@ rt_cmd_install() {
 
 # --- high-level flow: config -------------------------------------------------
 # Reconfigure branding. The new template is generated and validated BEFORE the
-# live file is swapped; on any failure the previous config and template are
-# restored so a working install is never left broken.
+# live file is swapped, and the canonical artifact is reconciled to the
+# effective selection first (a branding write may have sanitized an invalid
+# stored selection to Row). On any failure the previous config, artifact and
+# live template are all restored, so a working install is never left in a
+# state where config and artifact disagree.
 
 rt_cmd_config() {
   rt_require_root
   [ -f "$RT_DIST" ] || rt_die "Row-Template is not installed (run the installer first)."
   rt_detect_xui || true
-  local saved=""
+  local saved="" distbak="" sumbak=""
   if [ -f "$RT_CONFIG" ]; then
     saved="$(mktemp)" || rt_die "cannot create a temp file."
     cp -- "$RT_CONFIG" "$saved"
   fi
+  distbak="$(mktemp)" && cp -- "$RT_DIST" "$distbak"
+  [ -f "$RT_DIST_SUM" ] && sumbak="$(mktemp)" && cp -- "$RT_DIST_SUM" "$sumbak"
   rt_section "Reconfigure Row-Template"
   if ! rt_config_interactive; then
-    if [ -n "$saved" ]; then cp -f -- "$saved" "$RT_CONFIG"; chmod 640 "$RT_CONFIG" 2>/dev/null || true; rm -f "$saved"; fi
+    rt_restore_snapshot "$saved" "$distbak" "$sumbak"
+    rm -f "$saved" "$distbak" "$sumbak"
     rt_die "configuration was not changed."
+  fi
+  if ! rt_reconcile_artifact_to_selection; then
+    rt_restore_snapshot "$saved" "$distbak" "$sumbak"
+    rm -f "$saved" "$distbak" "$sumbak"
+    rt_die "the template selection could not be reconciled; the previous state is still in place."
   fi
   if ! rt_activate; then
     rt_err "the new branding failed validation; restoring the previous configuration."
-    if [ -n "$saved" ]; then cp -f -- "$saved" "$RT_CONFIG"; chmod 640 "$RT_CONFIG" 2>/dev/null || true; fi
-    [ -n "$saved" ] && rm -f "$saved"
+    rt_restore_snapshot "$saved" "$distbak" "$sumbak"
+    rm -f "$saved" "$distbak" "$sumbak"
     rt_die "reconfiguration aborted; the previous template is still in place."
   fi
-  [ -n "$saved" ] && rm -f "$saved"
+  rm -f "$saved" "$distbak" "$sumbak"
   rt_ok "Configuration updated and the live template was regenerated."
   rt_render_report
 }
@@ -2069,22 +2122,34 @@ rt_manager_info() {
 
 rt_apply_branding() {
   # NAME URL MIME LOGO_B64 -> write config + regenerate the live template, with
-  # the same snapshot/restore safety as rt_cmd_config: a failed regeneration
-  # leaves the previous config and template exactly in place.
-  local name="$1" url="$2" mime="$3" logo="$4" saved=""
+  # snapshot/restore safety: on any failed step the previous config, canonical
+  # artifact and live page are all restored. A branding write can also
+  # SANITIZE the stored selection (an invalid stored id falls back to Row), so
+  # the canonical artifact is reconciled to the effective template before
+  # activation — config and artifact must never be left disagreeing.
+  local name="$1" url="$2" mime="$3" logo="$4" saved="" distbak="" sumbak=""
   [ -f "$RT_DIST" ] || { rt_err "Row-Template is not installed."; return 1; }
   if [ -f "$RT_CONFIG" ]; then saved="$(mktemp)" && cp -- "$RT_CONFIG" "$saved"; fi
+  distbak="$(mktemp)" && cp -- "$RT_DIST" "$distbak"
+  [ -f "$RT_DIST_SUM" ] && sumbak="$(mktemp)" && cp -- "$RT_DIST_SUM" "$sumbak"
   if ! rt_config_write "$name" "$url" "$mime" "$logo"; then
-    [ -n "$saved" ] && { cp -f -- "$saved" "$RT_CONFIG"; rm -f "$saved"; }
+    rt_restore_snapshot "$saved" "$distbak" "$sumbak"
+    rm -f "$saved" "$distbak" "$sumbak"
     rt_err "could not write the configuration."; return 1
+  fi
+  if ! rt_reconcile_artifact_to_selection; then
+    rt_restore_snapshot "$saved" "$distbak" "$sumbak"
+    rm -f "$saved" "$distbak" "$sumbak"
+    rt_err "could not reconcile the template selection; the previous state was restored."
+    return 1
   fi
   if ! rt_activate; then
     rt_err "the new branding failed validation; restoring the previous configuration."
-    if [ -n "$saved" ]; then cp -f -- "$saved" "$RT_CONFIG"; chmod 640 "$RT_CONFIG" 2>/dev/null || true; fi
-    [ -n "$saved" ] && rm -f "$saved"
+    rt_restore_snapshot "$saved" "$distbak" "$sumbak"
+    rm -f "$saved" "$distbak" "$sumbak"
     return 1
   fi
-  [ -n "$saved" ] && rm -f "$saved"
+  rm -f "$saved" "$distbak" "$sumbak"
   return 0
 }
 rt_reconfig_service_name() {
