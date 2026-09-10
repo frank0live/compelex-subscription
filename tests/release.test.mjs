@@ -1,0 +1,123 @@
+/* The release payload. tools/make-release.sh must ship the committed Row
+   artifact as the top-level template.html — the file an OLDER installed
+   library updates against, so it must stay Row — plus every selectable design
+   of the release under templates/ with its checksum sidecar, and nothing
+   else: a design that is not selectable must not ship. */
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { build } from '../tools/build.mjs';
+import { availableTemplateIds, TEMPLATES } from '../tools/templates.mjs';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+const ROW = readFileSync(join(ROOT, 'template', 'index.html'));
+const EDITORIAL = Buffer.from(build(true, 'editorial').html);
+const RESERVED = Object.keys(TEMPLATES).filter((id) => !TEMPLATES[id].available);
+
+function makeRelease(out) {
+  // cygpath converts the Windows temp path to an MSYS one; on a native POSIX
+  // host cygpath is absent and the path is already usable as-is.
+  return spawnSync(
+    'bash',
+    ['-c', 'out="$(cygpath -u "$1" 2>/dev/null || printf "%s" "$1")"; tools/make-release.sh "$out"',
+      'make-release', out],
+    { cwd: ROOT, encoding: 'utf8' },
+  );
+}
+
+function extractPayload(out) {
+  const version = readFileSync(join(ROOT, 'VERSION'), 'utf8').trim();
+  const name = `row-template-${version}`;
+  // through bash with cygpath: a direct tar argv would hand GNU tar a
+  // "D:\..." path it reads as a remote host
+  const r = spawnSync(
+    'bash',
+    ['-c', 't="$(cygpath -u "$1" 2>/dev/null || printf "%s" "$1")"; d="$(cygpath -u "$2" 2>/dev/null || printf "%s" "$2")"; tar -xzf "$t" -C "$d"',
+      'extract', join(out, `${name}.tar.gz`), out],
+    { encoding: 'utf8' },
+  );
+  assert.equal(r.status, 0, 'the tarball extracts');
+  return join(out, name);
+}
+
+test('the release payload ships Row on top and every selectable design with checksums', () => {
+  const out = mkdtempSync(join(tmpdir(), 'row-rel-'));
+  try {
+    const r = makeRelease(out);
+    assert.equal(r.status, 0, r.stderr);
+    const payload = extractPayload(out);
+
+    // the top-level file an older library updates against is the Row artifact,
+    // byte for byte
+    assert.equal(readFileSync(join(payload, 'template.html')).equals(ROW), true,
+      'top-level template.html must be the committed Row artifact');
+
+    // the store holds exactly the selectable set — no reserved placeholder ids
+    assert.deepEqual(readdirSync(join(payload, 'templates')).sort(), availableTemplateIds().sort(),
+      'templates/ must contain exactly the available ids');
+    for (const reserved of RESERVED) {
+      assert.ok(!readdirSync(join(payload, 'templates')).includes(reserved),
+        `reserved design ${reserved} must not ship`);
+    }
+
+    // every store artifact matches its sidecar and the bytes it claims
+    for (const id of availableTemplateIds()) {
+      const file = readFileSync(join(payload, 'templates', id, 'template.html'));
+      const sha = createHash('sha256').update(file).digest('hex');
+      const sidecar = readFileSync(join(payload, 'templates', id, 'template.html.sha256'), 'utf8');
+      assert.ok(sidecar.startsWith(sha), `${id} sidecar matches its artifact`);
+      if (id === 'row') {
+        assert.equal(file.equals(ROW), true, 'row store artifact equals the top-level file');
+      }
+      if (id === 'editorial') {
+        assert.equal(file.equals(EDITORIAL), true, 'editorial store artifact is the current build');
+        assert.ok(file.length <= 200 * 1024, 'editorial stays inside the hard ceiling');
+      }
+    }
+
+    // the inner SHA256SUMS covers every payload file, correctly. The star is
+    // sha256sum's binary-mode marker on some platforms; strip it like the
+    // installer library does.
+    const sums = readFileSync(join(payload, 'SHA256SUMS'), 'utf8').trim().split('\n');
+    const listed = new Set();
+    for (const line of sums) {
+      const [hex, raw] = line.split(/\s+/).filter(Boolean);
+      const file = raw.replace(/^\*/, '').replace(/^\.\//, '');
+      const bytes = readFileSync(join(payload, file));
+      assert.equal(createHash('sha256').update(bytes).digest('hex'), hex, file);
+      listed.add(file);
+    }
+    const actual = readdirSync(payload, { recursive: true, withFileTypes: true })
+      .filter((e) => e.isFile() && e.name !== 'SHA256SUMS')
+      .map((e) => join(e.parentPath ?? e.path, e.name).slice(payload.length + 1).replace(/\\/g, '/'));
+    for (const f of actual) {
+      assert.ok(listed.has(f), `inner SHA256SUMS lists ${f}`);
+    }
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('the release tarball is byte-deterministic', () => {
+  const a = mkdtempSync(join(tmpdir(), 'row-rel-a-'));
+  const b = mkdtempSync(join(tmpdir(), 'row-rel-b-'));
+  try {
+    assert.equal(makeRelease(a).status, 0);
+    assert.equal(makeRelease(b).status, 0);
+    const version = readFileSync(join(ROOT, 'VERSION'), 'utf8').trim();
+    const ta = readFileSync(join(a, `row-template-${version}.tar.gz`));
+    const tb = readFileSync(join(b, `row-template-${version}.tar.gz`));
+    assert.equal(ta.equals(tb), true, 'two release runs must produce identical tarballs');
+  } finally {
+    rmSync(a, { recursive: true, force: true });
+    rmSync(b, { recursive: true, force: true });
+  }
+});

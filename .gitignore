@@ -1,8 +1,10 @@
 # --- build output / scratch (regenerated; never the source of truth) ---------
 # The published artifact template/index.html IS committed on purpose; these are
-# transient build products only.
+# transient build products only. dist/ holds the non-default templates' build
+# output, which the release tool regenerates with `node tools/build.mjs --all`.
 /build/
 /out/
+/dist/
 /tools/fixtures/out/
 
 # Release bundle produced by tools/make-release.sh. The immutable artifacts live

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Build an immutable Row-Template release: a versioned tarball, a SHA256SUMS
-# file and a manifest. Dependency-free (bash + coreutils + tar). Ships ONLY the
-# runtime files — never node_modules, tests, fixtures, research or dev source.
+# file and a manifest. Dependency-free apart from node, which produces the
+# template artifacts (bash + coreutils + tar + node). Ships ONLY the runtime
+# files — never node_modules, tests, fixtures, research or dev source.
 #
 # Usage: tools/make-release.sh [output-dir]   (default: ./release)
 #
@@ -14,7 +15,12 @@
 #   <out>/install.sh                    # copy, for the curl|bash entry point
 #
 # The tarball expands to a single top-level dir row-template-<version>/ holding:
-#   template.html  VERSION  install.sh  lib/row-template.sh  bin/row-template
+#   template.html                       # the Row artifact — the top-level file
+#                                       # an OLDER installed library updates
+#                                       # against, so it must stay Row
+#   templates/<id>/template.html        # every selectable design of this
+#   templates/<id>/template.html.sha256 # release, each with its checksum
+#   VERSION  install.sh  lib/row-template.sh  bin/row-template
 #   SHA256SUMS                          # inner checksums of the payload files
 
 set -Eeuo pipefail
@@ -28,6 +34,15 @@ sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasu
 VERSION="$(tr -d ' \t\r\n' < "$ROOT/VERSION")"
 [ -n "$VERSION" ] || die "VERSION file is empty."
 
+# Build every selectable template artifact fresh, so the payload can never ship
+# a stale one. The build is deterministic; node is the same requirement the
+# test suite already carries.
+BUILD="$ROOT/tools/build.mjs"
+[ -f "$BUILD" ] || die "missing required file: tools/build.mjs"
+command -v node >/dev/null 2>&1 || die "node is required to build the template artifacts."
+IDS="$(node "$BUILD" --list | tr '\n' ' ')" || die "cannot read the template registry."
+node "$BUILD" --all --quiet || die "template build failed."
+
 # required source files
 ART_HTML="$ROOT/template/index.html"
 LIB="$ROOT/installer/lib/row-template.sh"
@@ -40,7 +55,7 @@ done
 NAME="row-template-$VERSION"
 STAGE="$(mktemp -d)"; trap 'rm -rf -- "$STAGE"' EXIT
 PAY="$STAGE/$NAME"
-mkdir -p "$PAY/lib" "$PAY/bin"
+mkdir -p "$PAY/lib" "$PAY/bin" "$PAY/templates"
 
 cp -- "$ART_HTML" "$PAY/template.html"
 cp -- "$ROOT/VERSION" "$PAY/VERSION"
@@ -48,6 +63,28 @@ cp -- "$BOOT" "$PAY/install.sh"
 cp -- "$LIB" "$PAY/lib/row-template.sh"
 cp -- "$CLI" "$PAY/bin/row-template"
 chmod 755 "$PAY/install.sh" "$PAY/bin/row-template"
+
+# per-template store: one artifact + sidecar checksum per selectable id. Row's
+# artifact lives at the committed top-level path; every other design is built
+# under dist/templates/<id>/.
+for id in $IDS; do
+  case "$id" in
+    row) src="$ART_HTML" ;;
+    *[!a-z0-9]*|"") die "registry produced a non-plain template id: $id" ;;
+    *)  src="$ROOT/dist/templates/$id/template.html" ;;
+  esac
+  [ -f "$src" ] || die "missing artifact for template: $id"
+  mkdir -p "$PAY/templates/$id"
+  cp -- "$src" "$PAY/templates/$id/template.html"
+  ( cd "$PAY" && sha "templates/$id/template.html" > "templates/$id/template.html.sha256" )
+done
+
+# nothing outside the registry may sneak in from stale build output
+for dir in "$ROOT/dist/templates"/*/; do
+  [ -d "$dir" ] || continue
+  id="$(basename "$dir")"
+  case " $IDS " in *" $id "*) : ;; *) die "stale build output for a non-selectable template: $id" ;; esac
+done
 
 # inner SHA256SUMS: checksums of every payload file (paths relative to $NAME/).
 ( cd "$PAY" && find . -type f ! -name SHA256SUMS -print0 \
@@ -80,5 +117,5 @@ cp -- "$BOOT" "$OUT/install.sh"; chmod 755 "$OUT/install.sh"
 
 printf 'Release built: %s\n' "$OUT"
 printf '  %s\n' "$NAME.tar.gz  ($(wc -c < "$TARBALL" | tr -d ' ') bytes)"
+printf '  templates: %s\n' "$(printf '%s ' $IDS)"
 printf '  sha256: %s\n' "$(awk '{print $1}' "$OUT/SHA256SUMS")"
-

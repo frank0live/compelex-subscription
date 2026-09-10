@@ -51,6 +51,7 @@ RT_GITHUB="https://github.com/frank0live/Row-Template"
 RT_LIVE="$RT_ROOT/sub.html"                 # what x-ui serves (generated)
 RT_DIST="$RT_ROOT/dist/template.html"       # canonical pristine artifact
 RT_DIST_SUM="$RT_ROOT/dist/template.html.sha256"
+RT_TEMPLATE_STORE="$RT_ROOT/dist/templates" # one verified artifact per selectable design
 RT_CONFIG="$RT_ROOT/config.env"             # admin branding config (data)
 RT_VERSION_FILE="$RT_ROOT/VERSION"
 RT_LIB_DIR="$RT_ROOT/lib"
@@ -176,15 +177,30 @@ rt_config_get_text() {
 }
 
 rt_config_write() {
-  # args: service_name support_url logo_mime logo_data_b64 — all treated as data.
-  # Written atomically at mode 640 (never world-readable/-writable).
-  local name="$1" url="$2" mime="$3" logo_b64="$4" dir tmp
+  # args: service_name support_url logo_mime logo_data_b64 [template_id] — all
+  # treated as data. Written atomically at mode 640 (never world-readable/-writable).
+  # The template id defaults to the stored value (so branding changes never reset
+  # the choice) and to 'row' for a config that predates template selection; a
+  # stored id this release does not recognise is sanitized to 'row' (with a
+  # warning) rather than allowed to block a branding change, while an explicitly
+  # passed id that is not in the registry fails closed instead of being written.
+  local name="$1" url="$2" mime="$3" logo_b64="$4" template="${5:-}" dir tmp
+  if [ -z "$template" ]; then
+    template="$(rt_config_get_raw TEMPLATE)"
+    if [ -n "$template" ] && ! rt_template_allowed "$template"; then
+      rt_warn "config.env stores an unknown template id (${template}); resetting the selection to Row."
+      template="row"
+    fi
+    [ -n "$template" ] || template="row"
+  fi
+  rt_template_allowed "$template" || { rt_err "unknown template id: $template"; return 1; }
   dir="$(dirname "$RT_CONFIG")"
   tmp="$(mktemp "$dir/.config.XXXXXX")" || return 1
   {
     printf '# Row-Template configuration — generated file. Do NOT source this.\n'
     printf '# Values are base64 data, read with grep+base64 and never executed.\n'
     printf 'RT_CONFIG_VERSION=1\n'
+    printf 'TEMPLATE=%s\n' "$template"
     printf 'SERVICE_NAME_B64=%s\n' "$(printf '%s' "$name" | rt_b64_encode)"
     printf 'SUPPORT_URL_B64=%s\n'  "$(printf '%s' "$url"  | rt_b64_encode)"
     printf 'LOGO_MIME=%s\n' "$mime"
@@ -192,6 +208,231 @@ rt_config_write() {
   } > "$tmp" || { rm -f "$tmp"; return 1; }
   chmod 640 "$tmp" || { rm -f "$tmp"; return 1; }
   mv -f "$tmp" "$RT_CONFIG"
+}
+
+# --- template selection -------------------------------------------------------
+# tools/templates.mjs is the authoritative registry; the two values below are
+# its Bash projection and are held in lockstep with it by tests/registry.test.mjs.
+# A template id is a closed enum, and it is only ever used to index fixed-path
+# directories under RT_TEMPLATE_STORE — never as a free-form filesystem path,
+# a command argument, or anything decoded from operator input.
+
+# The selectable ids of this release, in catalogue order. Row is first and is
+# the default.
+RT_TEMPLATES_AVAILABLE="row editorial"
+
+rt_template_allowed() {
+  local id
+  for id in $RT_TEMPLATES_AVAILABLE; do
+    [ "$1" = "$id" ] && return 0
+  done
+  return 1
+}
+
+rt_template_display_name() {
+  case "${1:-}" in
+    row)       printf 'Row' ;;
+    editorial) printf 'Editorial' ;;
+    *)         printf '%s' "$1" ;;
+  esac
+}
+
+rt_template_effective() {
+  # echo the effective template id. A config that predates template selection
+  # has no TEMPLATE line, which means Row. A stored value this release does not
+  # recognise is reported as a warning and falls back to Row: the operator is
+  # told, the page keeps working, and the selection is re-persisted by the next
+  # reconcile so config.env and the artifact can never silently disagree.
+  local id
+  id="$(rt_config_get_raw TEMPLATE)"
+  if [ -z "$id" ]; then printf '%s' "row"; return 0; fi
+  if rt_template_allowed "$id"; then printf '%s' "$id"; return 0; fi
+  rt_warn "config.env stores an unknown template id (${id}); using Row."
+  printf '%s' "row"
+}
+
+rt_config_set_template() {
+  # persist a new template choice while preserving every branding value. Fails
+  # closed on an id the release does not recognise.
+  local id="$1" name url mime logo_b64
+  rt_template_allowed "$id" || { rt_err "unknown template id: $id"; return 1; }
+  name="$(rt_config_get_text SERVICE_NAME_B64)"
+  url="$(rt_config_get_text SUPPORT_URL_B64)"
+  mime="$(rt_config_get_raw LOGO_MIME)"
+  logo_b64="$(rt_config_get_raw LOGO_DATA_B64)"
+  rt_config_write "$name" "$url" "$mime" "$logo_b64" "$id"
+}
+
+rt_template_reconcile() {
+  # make config.env's TEMPLATE agree with ID, leaving branding untouched. A
+  # missing config.env stays missing when ID is Row (absent already means Row);
+  # anything else is persisted, so the stored selection and the live artifact
+  # can never disagree. Called wherever the artifact's identity is decided:
+  # install, update, rollback and template switching.
+  local id="$1" cur
+  if [ ! -f "$RT_CONFIG" ]; then
+    if [ "$id" = "row" ]; then return 0; fi
+    rt_config_set_template "$id"
+    return
+  fi
+  cur="$(rt_config_get_raw TEMPLATE)"
+  if [ "$cur" = "$id" ]; then return 0; fi
+  rt_config_set_template "$id"
+}
+
+# --- template store -----------------------------------------------------------
+# The store is the install's own copy of the release's template payloads: one
+# directory per selectable design, holding the pristine artifact and its
+# checksum sidecar. Everything in it arrived through the checksum-verified
+# release tarball and is re-verified here before it can ever be activated.
+
+rt_template_store_ids() {
+  # echo the ids present in the installed store, one per line, sorted. Only
+  # plain lowercase ids are read: the directory names decide the store's
+  # contents, so a foreign or hostile name is skipped, never traversed.
+  local d id
+  [ -d "$RT_TEMPLATE_STORE" ] || return 0
+  for d in "$RT_TEMPLATE_STORE"/*/; do
+    [ -d "$d" ] || continue
+    id="$(basename "$d")"
+    case "$id" in
+      *[!a-z0-9]*|"") continue ;;
+    esac
+    printf '%s\n' "$id"
+  done | LC_ALL=C sort
+}
+
+rt_template_offered() {
+  # the ids an operator may choose from right now: the release's selectable
+  # set, filtered down to what is actually installed. Catalogue order.
+  local id
+  for id in $RT_TEMPLATES_AVAILABLE; do
+    if rt_template_store_has "$id"; then printf '%s\n' "$id"; fi
+  done
+  return 0
+}
+
+rt_template_store_has() {
+  # succeed when ID is a registry id whose artifact and sidecar are installed.
+  # The allowlist check comes first, so an arbitrary string can never become a
+  # path component here.
+  rt_template_allowed "$1" || return 1
+  [ -f "$RT_TEMPLATE_STORE/$1/template.html" ] || return 1
+  [ -f "$RT_TEMPLATE_STORE/$1/template.html.sha256" ] || return 1
+  return 0
+}
+
+rt_template_verify_store() {
+  # verify every installed artifact against its sidecar. Silent; callers report.
+  local id want
+  while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    rt_template_allowed "$id" || continue
+    want="$(LC_ALL=C awk '{print $1; exit}' "$RT_TEMPLATE_STORE/$id/template.html.sha256" 2>/dev/null)"
+    rt_verify_sha256 "$RT_TEMPLATE_STORE/$id/template.html" "$want" || return 1
+  done < <(rt_template_store_ids)
+  return 0
+}
+
+rt_template_id_for_artifact() {
+  # echo the store id whose artifact is byte-identical to FILE, or nothing.
+  # Deriving identity from the checksum — rather than from recorded metadata —
+  # is what keeps a restored artifact and the stored selection in agreement
+  # even when the backup predates the current release's store.
+  local file="$1" sum id
+  [ -f "$file" ] || return 0
+  sum="$(rt_sha256 "$file" 2>/dev/null)" || return 0
+  while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    if [ "$(rt_sha256 "$RT_TEMPLATE_STORE/$id/template.html" 2>/dev/null || true)" = "$sum" ]; then
+      printf '%s' "$id"
+      return 0
+    fi
+  done < <(rt_template_store_ids)
+  return 0
+}
+
+rt_stage_template_store() {
+  # install every template the release payload ships into the local store,
+  # verifying each artifact against its sidecar and structurally before
+  # anything is staged. A payload without a templates/ directory (an older
+  # release) simply carries no store; that is the caller's signal to fall back
+  # to the top-level artifact.
+  local payload="$1" dir id want
+  [ -d "$payload/templates" ] || return 0
+  for dir in "$payload"/templates/*/; do
+    [ -d "$dir" ] || continue
+    id="$(basename "$dir")"
+    case "$id" in
+      *[!a-z0-9]*|"") rt_warn "payload template directory is not a plain id: $id (skipped)"; continue ;;
+    esac
+    [ -f "$dir/template.html" ] || { rt_warn "payload template $id has no template.html (skipped)"; continue; }
+    [ -f "$dir/template.html.sha256" ] || { rt_err "payload template $id has no checksum sidecar"; return 1; }
+    want="$(LC_ALL=C awk '{print $1; exit}' "$dir/template.html.sha256")"
+    rt_verify_sha256 "$dir/template.html" "$want" || { rt_err "payload template $id failed its checksum"; return 1; }
+    rt_validate_template "$dir/template.html" || { rt_err "payload template $id failed structural validation"; return 1; }
+    mkdir -p "$RT_TEMPLATE_STORE/$id" || return 1
+    rt_atomic_install "$dir/template.html" "$RT_TEMPLATE_STORE/$id/template.html" 644 || return 1
+    rt_atomic_install "$dir/template.html.sha256" "$RT_TEMPLATE_STORE/$id/template.html.sha256" 644 || return 1
+  done
+  return 0
+}
+
+rt_switch_template() {
+  # switch the active template as one transaction. Ordered so that nothing on
+  # disk changes until the candidate has passed every check, and so that any
+  # failure after the first write rolls back to the snapshotted state. The
+  # invariant maintained throughout: the persisted selection and the canonical
+  # artifact always name the same template.
+  local id="$1" src want backup
+  rt_template_allowed "$id" || { rt_err "unknown template id: $id (available: $RT_TEMPLATES_AVAILABLE)"; return 1; }
+  if ! rt_template_store_has "$id"; then
+    rt_err "template '$id' is not installed; re-run the installer to refresh the template store"
+    return 1
+  fi
+  src="$RT_TEMPLATE_STORE/$id/template.html"
+  want="$(LC_ALL=C awk '{print $1; exit}' "$RT_TEMPLATE_STORE/$id/template.html.sha256")"
+  rt_verify_sha256 "$src" "$want" || { rt_err "template $id failed its checksum; refusing to switch"; return 1; }
+
+  # candidate: generate and validate from the trusted artifact with the current
+  # branding, writing only to a throwaway file. Failure here changes nothing.
+  local staged
+  staged="$(mktemp "$(dirname "$RT_LIVE")/.live.XXXXXX")" || return 1
+  if ! rt_generate "$src" "$staged"; then
+    rm -f "$staged"
+    rt_err "the $id template failed to generate with the current branding"
+    return 1
+  fi
+  rm -f "$staged"
+
+  backup="$(rt_backup_create)" || { rt_err "could not snapshot the current state; aborting"; return 1; }
+
+  if ! rt_set_dist "$src"; then
+    rt_restore_from_backup "$backup" >/dev/null 2>&1 || true
+    rt_err "could not stage the selected template; the previous state was restored"
+    return 1
+  fi
+  if ! rt_template_reconcile "$id"; then
+    rt_restore_from_backup "$backup" >/dev/null 2>&1 && rt_activate >/dev/null 2>&1 \
+      || rt_err "automatic restore failed; run 'row-template rollback'"
+    rt_err "could not persist the template selection; the previous state was restored"
+    return 1
+  fi
+  if ! rt_activate; then
+    rt_restore_from_backup "$backup" >/dev/null 2>&1 && rt_activate >/dev/null 2>&1 \
+      || rt_err "automatic restore failed; run 'row-template rollback'"
+    rt_err "activation of the new template failed; the previous state was restored"
+    return 1
+  fi
+  if ! rt_validate_template "$RT_LIVE" >/dev/null 2>&1; then
+    rt_restore_from_backup "$backup" >/dev/null 2>&1 && rt_activate >/dev/null 2>&1 \
+      || rt_err "automatic restore failed; run 'row-template rollback'"
+    rt_err "the switched template failed post-activation validation; the previous state was restored"
+    return 1
+  fi
+
+  rt_backups_prune 2
+  return 0
 }
 
 # --- logo validation (content signature, not extension) ----------------------
@@ -457,6 +698,12 @@ rt_backup_create() {
   [ -f "$RT_CONFIG" ]       && cp -- "$RT_CONFIG" "$dir/config.env"
   [ -f "$RT_VERSION_FILE" ] && cp -- "$RT_VERSION_FILE" "$dir/VERSION"
   { printf 'created=%s\n' "$ts"; printf 'version=%s\n' "$ver"; } > "$dir/meta"
+  # informational only: the restore path re-derives the template identity from
+  # the artifact's own checksum, so a wrong or stale record here can mislead a
+  # human but never the restore logic.
+  local tpl_id
+  tpl_id="$(rt_template_id_for_artifact "$RT_DIST")"
+  [ -n "$tpl_id" ] && printf 'template=%s\n' "$tpl_id" >> "$dir/meta"
   chmod 700 "$dir" 2>/dev/null || true
   [ -f "$dir/config.env" ] && chmod 640 "$dir/config.env" 2>/dev/null || true
   printf '%s' "$dir"
@@ -706,7 +953,7 @@ rt_render_smoke_vpn() {
 
 rt_layout_ensure() {
   # create the Row-Template tree with conservative permissions. Idempotent.
-  mkdir -p "$RT_ROOT" "$(dirname "$RT_DIST")" "$RT_LIB_DIR" "$RT_BACKUPS" || return 1
+  mkdir -p "$RT_ROOT" "$(dirname "$RT_DIST")" "$RT_TEMPLATE_STORE" "$RT_LIB_DIR" "$RT_BACKUPS" || return 1
   chmod 755 "$RT_ROOT" 2>/dev/null || true
   chmod 700 "$RT_BACKUPS" 2>/dev/null || true
 }
@@ -1026,15 +1273,25 @@ rt_remote_version() {
 
 rt_restore_from_backup() {
   # install the artifact recorded in backup DIR as the canonical artifact and
-  # restore its VERSION. Admin config.env is deliberately left as-is so current
-  # branding is preserved across an update-rollback / rollback.
-  local dir="$1"
+  # restore its VERSION. Admin branding in config.env is deliberately left
+  # as-is so current branding is preserved across an update-rollback / rollback;
+  # the TEMPLATE selection, however, is re-derived from the artifact itself
+  # (checksum match against the template store) and persisted, so the restored
+  # artifact and the stored selection always agree — including when the backup
+  # predates the current release's store.
+  local dir="$1" tpl_id
   rt_backup_validate "$dir" || { rt_err "backup failed validation: $dir"; return 1; }
+  tpl_id="$(rt_template_id_for_artifact "$dir/template.html")"
+  if [ -z "$tpl_id" ]; then
+    rt_err "backup artifact matches no installed template; the template store may be damaged"
+    return 1
+  fi
   rt_set_dist "$dir/template.html" || return 1
   if [ -f "$dir/VERSION" ]; then
     rt_atomic_install "$dir/VERSION" "$RT_VERSION_FILE" 644 \
       || rt_warn "could not restore VERSION from the backup."
   fi
+  rt_template_reconcile "$tpl_id" || { rt_err "could not persist the restored template selection"; return 1; }
   return 0
 }
 
@@ -1061,7 +1318,7 @@ rt_subtheme_clear_sqlite() {
 # panel: the live template is only ever swapped atomically after validation.
 
 rt_cmd_install() {
-  local payload="$1" w
+  local payload="$1" w picked_explicit="" picked source
   rt_require_root
   [ -n "$payload" ] && [ -d "$payload" ] || rt_die "internal: install payload directory missing."
   [ -f "$payload/template.html" ] || rt_die "install payload has no template.html."
@@ -1124,12 +1381,21 @@ rt_cmd_install() {
       || rt_warn "could not install the row-template CLI to $RT_BIN."
   fi
 
+  # template store: every design this release ships, verified before staging.
+  rt_stage_template_store "$payload" \
+    || rt_die "the release template store failed verification; nothing was activated."
+
+  # the fresh-install design chooser (interactive only; defaults to Row).
+  if [ "$interactive" -eq 1 ] && [ "$existing" -eq 0 ]; then
+    picked_explicit="$(rt_install_pick_template)"
+  fi
+
   # branding: a first install prompts; a repair keeps the existing config as-is.
   if [ ! -f "$RT_CONFIG" ]; then
     while true; do
       rt_config_interactive || rt_die "configuration was not completed; the panel was not changed."
       if [ "$interactive" -eq 1 ]; then
-        rt_install_summary_confirm && break
+        rt_install_summary_confirm "$picked_explicit" && break
         rt_info "Let's adjust the settings."
       else
         break
@@ -1138,6 +1404,32 @@ rt_cmd_install() {
   else
     rt_info "Existing branding configuration kept ($RT_CONFIG)."
   fi
+
+  # resolve the template selection: the operator's explicit pick (interactive
+  # chooser or RT_TEMPLATE) wins and is validated strictly — invalid explicit
+  # input fails the install rather than being silently turned into Row; then
+  # comes the stored selection, then Row. The canonical artifact is re-staged
+  # from the store when the selection is not the top-level (Row) artifact, so
+  # the live template and the stored selection can never disagree.
+  if [ -n "$picked_explicit" ]; then
+    picked="$picked_explicit"
+  elif [ -n "${RT_TEMPLATE+x}" ]; then
+    rt_template_allowed "$RT_TEMPLATE" \
+      || rt_die "RT_TEMPLATE='$RT_TEMPLATE' is not a template this release offers (available: $RT_TEMPLATES_AVAILABLE)."
+    picked="$RT_TEMPLATE"
+  else
+    picked="$(rt_template_effective)"
+    if ! rt_template_store_has "$picked"; then
+      rt_warn "selected template '$picked' is not in this release's template store; using Row."
+      picked="row"
+    fi
+  fi
+  rt_template_store_has "$picked" \
+    || rt_die "template '$picked' is not in this release's template store."
+  if [ "$(rt_sha256 "$RT_DIST" 2>/dev/null || true)" != "$(rt_sha256 "$RT_TEMPLATE_STORE/$picked/template.html" 2>/dev/null || true)" ]; then
+    rt_set_dist "$RT_TEMPLATE_STORE/$picked/template.html" || rt_die "could not stage the selected template."
+  fi
+  rt_template_reconcile "$picked" || rt_die "could not persist the template selection."
 
   # generate + validate + atomically swap the live template.
   rt_activate || rt_die "the template failed to generate/validate; the panel was not changed."
@@ -1218,7 +1510,7 @@ rt_cmd_config() {
 # when a hard check fails. Never changes anything and never prints secrets.
 
 rt_cmd_verify() {
-  local fails=0 warns=0 perm cur rc r rv
+  local fails=0 warns=0 perm cur rc r rv sel_id store_n
   rt_section "Row-Template verification"
 
   if [ -d "$RT_ROOT" ] && [ ! -L "$RT_ROOT" ]; then rt_ok "Install root present: $RT_ROOT"
@@ -1230,6 +1522,33 @@ rt_cmd_verify() {
       rt_ok "Canonical artifact integrity verified."
     else rt_err "canonical artifact missing checksum or does not match it."; fails=$((fails + 1)); fi
   else rt_err "canonical artifact missing or unreadable: $RT_DIST"; fails=$((fails + 1)); fi
+
+  # The template store is the release's own copy of every selectable design.
+  # Every artifact in it must match its sidecar, the stored selection must be
+  # present, and the canonical artifact must be the selection's own bytes —
+  # a config.env that names one design while another is live is the one state
+  # this system must never report as healthy.
+  sel_id="$(rt_template_effective)"
+  store_n=0; [ -d "$RT_TEMPLATE_STORE" ] && store_n="$(rt_template_store_ids | grep -c . || true)"
+  if [ "$store_n" -gt 0 ]; then
+    if rt_template_verify_store; then
+      rt_ok "Template store verified ($store_n design(s))."
+    else
+      rt_err "a template in the store does not match its checksum."; fails=$((fails + 1))
+    fi
+    if rt_template_store_has "$sel_id"; then
+      rt_ok "Template: $(rt_template_display_name "$sel_id")"
+      if [ "$(rt_sha256 "$RT_DIST" 2>/dev/null || true)" = "$(rt_sha256 "$RT_TEMPLATE_STORE/$sel_id/template.html" 2>/dev/null || true)" ]; then
+        rt_ok "Canonical artifact matches the selected template."
+      else
+        rt_err "canonical artifact does not match the selected template ($sel_id)."; fails=$((fails + 1))
+      fi
+    else
+      rt_err "selected template '$sel_id' is missing from the template store."; fails=$((fails + 1))
+    fi
+  else
+    rt_err "template store missing or empty; re-run the installer."; fails=$((fails + 1))
+  fi
 
   if [ -f "$RT_LIVE" ] && [ -r "$RT_LIVE" ]; then
     if rt_validate_template "$RT_LIVE" >/dev/null 2>&1; then rt_ok "Live template is structurally valid and readable."
@@ -1371,7 +1690,7 @@ rt_cmd_update() {
   rt_require_root
   [ -f "$RT_DIST" ] || rt_die "Row-Template is not installed; run the installer first."
   rt_detect_xui || true; rt_detect_xui_version >/dev/null 2>&1 || true
-  local work payload newver curver w backup
+  local work payload newver curver w backup picked source
   work="$(rt_mktemp_dir)" || rt_die "cannot create a work directory."
   RT_TMP_TO_CLEAN+=("$work")   # register in THIS shell; rt_mktemp_dir's own append is lost to the $( ) subshell
   payload="$(rt_fetch_release "$work")" || rt_die "could not obtain a verified release."
@@ -1381,6 +1700,27 @@ rt_cmd_update() {
     if [ -n "$w" ]; then rt_verify_sha256 "$payload/template.html" "$w" || rt_die "payload artifact checksum mismatch."; fi
   fi
   rt_validate_template "$payload/template.html" || rt_die "the release artifact failed structural validation."
+
+  # stage the release's template store, then keep the operator's selection when
+  # this release still ships it. The top-level template.html stays the Row
+  # artifact so an OLDER installed library updating against this payload
+  # degrades safely to Row; only the freshly staged library understands the
+  # store, so the selection is resolved from it, never from the top-level file.
+  rt_stage_template_store "$payload" || rt_die "the release template store failed verification."
+  picked="$(rt_template_effective)"
+  if rt_template_store_has "$picked"; then
+    source="$RT_TEMPLATE_STORE/$picked/template.html"
+  else
+    [ "$picked" = "row" ] || rt_warn "template '$picked' is not in this release; falling back to Row."
+    picked="row"
+    if rt_template_store_has "row"; then
+      source="$RT_TEMPLATE_STORE/row/template.html"
+    else
+      source="$payload/template.html"
+    fi
+  fi
+  rt_validate_template "$source" || rt_die "the selected template failed structural validation."
+
   newver="$(rt_trim "$(cat "$payload/VERSION" 2>/dev/null || true)")"
   curver="$(rt_trim "$(cat "$RT_VERSION_FILE" 2>/dev/null || true)")"
   rt_info "Updating Row-Template ${curver:-unknown} -> ${newver:-unknown}"
@@ -1388,7 +1728,7 @@ rt_cmd_update() {
   backup="$(rt_backup_create)" || rt_die "could not back up the current install; aborting."
 
   # stage the new artifact as canonical (live file untouched so far).
-  rt_set_dist "$payload/template.html" || rt_die "failed to stage the new artifact; the running template is unchanged."
+  rt_set_dist "$source" || rt_die "failed to stage the new artifact; the running template is unchanged."
   rt_atomic_install "$payload/VERSION" "$RT_VERSION_FILE" 644 || rt_warn "could not update the VERSION file."
   if [ -f "$payload/lib/row-template.sh" ]; then
     rt_atomic_install "$payload/lib/row-template.sh" "$RT_LIB_DIR/row-template.sh" 644 \
@@ -1398,6 +1738,10 @@ rt_cmd_update() {
     rt_atomic_install "$payload/bin/row-template" "$RT_BIN" 755 \
       || rt_warn "could not update the row-template CLI."
   fi
+
+  # persist the (possibly fallen-back) selection before activation, so the
+  # stored selection and the staged artifact agree no matter how activation goes.
+  rt_template_reconcile "$picked" || rt_die "could not persist the template selection."
 
   if rt_activate; then
     rt_backups_prune 2
@@ -1618,6 +1962,7 @@ rt_manager_dashboard() {
   rt_ui_kv "Version"   "$rtv"
   rt_ui_kv "3X-UI"     "$xuiv"
   rt_ui_kv "Status"    "$(rt_status_label "$st")"
+  rt_ui_kv "Template"  "$(rt_template_display_name "$(rt_template_effective)")"
   rt_ui_kv "Theme"     "$(rt_status_theme_label "$st")"
   rt_ui_kv "Service"   "$(rt_status_service_label)"
   printf '\n'
@@ -1711,6 +2056,7 @@ rt_manager_info() {
   rt_ui_kv "GitHub"       "$RT_GITHUB"
   rt_ui_kv "3X-UI"        "$xuiv"
   rt_ui_kv "Install dir"  "$RT_ROOT"
+  rt_ui_kv "Template"     "$(rt_template_display_name "$(rt_template_effective)")"
   rt_ui_kv "Theme status" "$(rt_status_label "$st")"
   rt_ui_kv "Service"      "$(rt_status_service_label)"
   rt_ui_kv "Custom logo"  "$logo"
@@ -1825,6 +2171,47 @@ rt_reconfig_logo() {
   esac
 }
 
+rt_reconfig_template() {
+  # the manager's template editor. Only designs the installed release actually
+  # ships are offered; nothing is applied until it is confirmed, and the switch
+  # itself is the full snapshot/validate/activate/restore transaction.
+  local list=() id prev cur choice n=0 i
+  cur="$(rt_template_effective)"
+  printf '  %sCurrent template:%s %s\n' "$RT_C_DIM" "$RT_C_RST" "$(rt_template_display_name "$cur")"
+  while IFS= read -r id; do
+    list+=("$id")
+  done < <(rt_template_offered)
+  n="${#list[@]}"
+  if [ "$n" -eq 0 ]; then
+    rt_ui_warn "No templates are installed. Re-run the installer to restore the template store."
+    return 0
+  fi
+
+  i=0
+  for id in "${list[@]}"; do
+    i=$((i + 1))
+    printf '  %s%d%s  %s\n' "$RT_C_BLD" "$i" "$RT_C_RST" "$(rt_template_display_name "$id")"
+  done
+  printf '  %s0%s  Back\n' "$RT_C_BLD" "$RT_C_RST"
+  choice="$(rt_ui_menu_select "$n")"
+  case "$choice" in
+    0) return 0 ;;
+  esac
+  id="${list[$((choice - 1))]}"
+  if [ "$id" = "$cur" ]; then
+    rt_ui_info "Already the active template."
+    return 0
+  fi
+  rt_ui_confirm "Switch the template to $(rt_template_display_name "$id")?" no \
+    || { rt_ui_info "Template unchanged."; return 0; }
+  if rt_switch_template "$id"; then
+    rt_ui_success "Template changed successfully"
+    rt_ui_kv "Previous" "$(rt_template_display_name "$cur")"
+    rt_ui_kv "Current"  "$(rt_template_display_name "$(rt_template_effective)")"
+    rt_ui_kv "Verification" "Passed"
+  fi
+}
+
 rt_reconfig_reset() {
   rt_ui_warn "This clears custom branding (service name, support URL, logo) and"
   rt_ui_info "returns Row-Template to its default look. It does NOT remove Row-Template."
@@ -1834,20 +2221,22 @@ rt_reconfig_reset() {
 rt_manager_reconfigure() {
   local choice
   while true; do
-    rt_ui_section "Reconfigure branding"
+    rt_ui_section "Reconfigure"
     printf '  %s1%s  Service name\n'          "$RT_C_BLD" "$RT_C_RST"
     printf '  %s2%s  Support URL\n'           "$RT_C_BLD" "$RT_C_RST"
     printf '  %s3%s  Logo\n'                  "$RT_C_BLD" "$RT_C_RST"
-    printf '  %s4%s  Reset branding\n'        "$RT_C_BLD" "$RT_C_RST"
-    printf '  %s5%s  Reconfigure everything\n' "$RT_C_BLD" "$RT_C_RST"
+    printf '  %s4%s  Template\n'              "$RT_C_BLD" "$RT_C_RST"
+    printf '  %s5%s  Reset branding\n'        "$RT_C_BLD" "$RT_C_RST"
+    printf '  %s6%s  Reconfigure everything\n' "$RT_C_BLD" "$RT_C_RST"
     printf '  %s0%s  Back\n'                  "$RT_C_BLD" "$RT_C_RST"
-    choice="$(rt_ui_menu_select 5)"
+    choice="$(rt_ui_menu_select 6)"
     case "$choice" in
       1) rt_reconfig_service_name ;;
       2) rt_reconfig_support_url ;;
       3) rt_reconfig_logo ;;
-      4) rt_reconfig_reset ;;
-      5) rt_run_action rt_cmd_config ;;
+      4) rt_reconfig_template ;;
+      5) rt_reconfig_reset ;;
+      6) rt_run_action rt_cmd_config ;;
       0) return 0 ;;
     esac
     rt_ui_pause
@@ -1900,9 +2289,42 @@ rt_install_welcome() {
   rt_ui_confirm "Continue installation?" yes
 }
 
+rt_install_pick_template() {
+  # the fresh-install design chooser. Offers only what the release store ships,
+  # in catalogue order, and echoes the chosen id on stdout. Enter and EOF both
+  # take the default (Row), so a piped caller can never hang here.
+  local list=() id i=0 choice
+  while IFS= read -r id; do
+    list+=("$id")
+  done < <(rt_template_offered)
+  if [ "${#list[@]}" -eq 0 ]; then printf 'row'; return 0; fi
+
+  { rt_ui_section "Choose your Row-Template design"; } >&2
+  for id in "${list[@]}"; do
+    i=$((i + 1))
+    printf '  %s%d%s  %s\n' "$RT_C_BLD" "$i" "$RT_C_RST" "$(rt_template_display_name "$id")" >&2
+  done
+  while true; do
+    printf '  %sSelect%s [1-%s, Enter=Row]: ' "$RT_C_BLD" "$RT_C_RST" "${#list[@]}" >&2
+    IFS= read -r choice || { printf 'row'; return 0; }
+    choice="$(rt_trim "$choice")"
+    if [ -z "$choice" ]; then printf 'row'; return 0; fi
+    case "$choice" in
+      *[!0-9]*) rt_warn "Choose 1-${#list[@]}, or press Enter for Row."; continue ;;
+    esac
+    if [ "$choice" -ge 1 ] && [ "$choice" -le "${#list[@]}" ] 2>/dev/null; then
+      printf '%s' "${list[$((choice - 1))]}"
+      return 0
+    fi
+    rt_warn "Choose 1-${#list[@]}, or press Enter for Row."
+  done
+}
+
 rt_install_summary_confirm() {
   # show the chosen branding + install target, then confirm. 0 = proceed.
-  local name url logo
+  # $1 = the template picked by the chooser (empty on a non-interactive run,
+  # where the stored selection or Row applies).
+  local name url logo picked="${1:-}"
   name="$(rt_config_get_text SERVICE_NAME_B64 2>/dev/null || true)"
   url="$(rt_config_get_text SUPPORT_URL_B64 2>/dev/null || true)"
   [ -n "$(rt_config_get_raw LOGO_DATA_B64 2>/dev/null)" ] && logo="custom image" || logo="generated monogram"
@@ -1910,6 +2332,7 @@ rt_install_summary_confirm() {
   rt_ui_kv "Service name" "${name:-<none> (white-label)}"
   rt_ui_kv "Support URL"  "$([ -n "$url" ] && echo configured || echo none)"
   rt_ui_kv "Logo"         "$logo"
+  rt_ui_kv "Template"     "$(rt_template_display_name "${picked:-$(rt_template_effective)}")"
   rt_ui_kv "Install dir"  "$RT_ROOT"
   printf '\n'
   rt_ui_confirm "Install with these settings?" yes
@@ -1938,9 +2361,10 @@ rt_existing_install_menu() {
 rt_install_success_screen() {
   # $1 = auto | manual | skipped. Never claims "Active" unless activation was
   # verified (auto). Shown on an interactive first install.
-  local outcome="$1" name rtv theme
+  local outcome="$1" name rtv theme tpl
   name="$(rt_config_get_text SERVICE_NAME_B64 2>/dev/null || true)"; [ -n "$name" ] || name="(white-label)"
   rtv="$(rt_trim "$(cat "$RT_VERSION_FILE" 2>/dev/null || true)")"; [ -n "$rtv" ] || rtv="unknown"
+  tpl="$(rt_template_display_name "$(rt_template_effective)")"
   case "$outcome" in
     auto) theme="Active" ;;
     *)    theme="Manual activation required" ;;
@@ -1950,7 +2374,8 @@ rt_install_success_screen() {
   printf '  %s%s installed%s\n' "$RT_C_GRN" "$RT_PROJECT_NAME" "$RT_C_RST"
   rt_ui_kv "Service"  "$name"
   rt_ui_kv "Version"  "$rtv"
-  rt_ui_kv "Template" "$RT_ROOT"
+  rt_ui_kv "Template" "$tpl"
+  rt_ui_kv "Install dir" "$RT_ROOT"
   rt_ui_kv "Theme"    "$theme"
   rt_ui_kv "Manage"   "run: row-template"
   rt_ui_kv "GitHub"   "$RT_GITHUB"

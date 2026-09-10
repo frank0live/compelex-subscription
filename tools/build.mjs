@@ -9,14 +9,17 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { TEMPLATES, DEFAULT_TEMPLATE, resolveTemplate, availableTemplateIds } from './templates.mjs';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/* Concatenation order is explicit rather than discovered, because both the
-   cascade and the shared function scope depend on it. */
-const STYLES = ['tokens.css', 'base.css', 'layout.css', 'components.css', 'rtl.css'];
+/* Concatenation order (for the shared runtime) is explicit rather than
+   discovered, because both the cascade and the shared function scope depend on
+   it. The stylesheet order is per-template and lives in tools/templates.mjs. */
 const BOOT = ['detect.js', 'boot.js'];
 const APP = [
   'model.js', 'format.js', 'url.js', 'i18n.js', 'brand.js', 'flag.js', 'config.js',
@@ -27,6 +30,9 @@ const LOCALES = ['en', 'fa', 'ar', 'ru', 'zh'];
 const FONT = 'fonts/vazirmatn-arabic-subset.woff2';
 const VENDOR_QR = 'vendor/uqr/index.mjs';
 
+/* Size gates: the soft target (185 KiB, a caution) and the hard refusal point
+   (204,800 B). Neither may be raised — a new template that cannot fit must be
+   reduced, not given headroom. */
 const WARN_BYTES = 185 * 1024;
 const FAIL_BYTES = 200 * 1024;
 
@@ -112,8 +118,11 @@ function deindent(text, label) {
   return text.replace(/^[ \t]+/gm, '');
 }
 
-function buildStyles(withFont) {
-  let css = STYLES.map((f) => banner(`styles/${f}`) + read('src', 'styles', f)).join('\n');
+function buildStyles(withFont, styles) {
+  /* styles is a list of [path, banner label] from the template registry. The
+     label is what appears in the artifact, so Row's historical labels are what
+     keep its bytes stable; new templates pick their own. */
+  let css = styles.map(([path, label]) => banner(label) + read(...path.split('/'))).join('\n');
 
   const open = css.indexOf(FONT_FACE_OPEN);
   const close = css.indexOf(FONT_FACE_CLOSE);
@@ -216,8 +225,12 @@ function kib(n) {
   return `${(n / 1024).toFixed(1)} KiB`;
 }
 
-function build(withFont) {
-  const styles = buildStyles(withFont);
+function build(withFont, templateId = DEFAULT_TEMPLATE) {
+  /* templateId comes from the closed registry enum. An unknown or unavailable
+     id throws here (see resolveTemplate), so the build can never produce an
+     artifact whose template it did not intend. */
+  const tpl = resolveTemplate(templateId);
+  const styles = buildStyles(withFont, tpl.styles);
   const boot = buildBoot();
   const app = buildApp();
   const locales = buildLocales();
@@ -230,6 +243,18 @@ function build(withFont) {
   html = substitute(html, '/*__LOCALES__*/', locales);
   html = substitute(html, '/*__APP__*/', app);
 
+  /* Template hook on <html>. Row predates the attribute and must stay
+     byte-identical to the v1.1.0 artifact, so its attribute is removed whole;
+     every other template substitutes its id into it. */
+  if (tpl.emitDataTemplate) {
+    html = substitute(html, '__TEMPLATE_ID__', tpl.id);
+  } else {
+    html = html.replace(' data-template="__TEMPLATE_ID__"', '');
+  }
+  if (html.includes('__TEMPLATE_ID__')) {
+    throw new Error('unsubstituted template id token remains');
+  }
+
   /* Our own markers only. The vendored encoder carries #__PURE__ annotations
      inside its own comments, which are not ours to substitute. */
   const leftover = html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//);
@@ -238,8 +263,14 @@ function build(withFont) {
     throw new Error('branding marker missing from the artifact');
   }
 
+  /* The served page identifies its own design for the manager to verify; Row is
+     the one template that deliberately has no attribute. */
+  const dataTemplate = (html.match(/data-template="([^"]+)"/) || [])[1] || null;
+
   return {
     html,
+    templateId: tpl.id,
+    dataTemplate,
     sizes: [
       ['html shell', shell],
       ['css', Buffer.byteLength(styles, 'utf8')],
@@ -250,36 +281,101 @@ function build(withFont) {
   };
 }
 
-function main(argv) {
-  const withFont = !argv.includes('--no-font');
-  const quiet = argv.includes('--quiet');
-  const outFlag = argv.indexOf('--out');
-  const outPath = outFlag > -1 && argv[outFlag + 1]
-    ? resolve(process.cwd(), argv[outFlag + 1])
-    : join(ROOT, 'template', 'index.html');
+/* The committed artifact for the default template stays at its historical
+   path; any other template's build lands under dist/templates/<id>, which is
+   the release layout the installer ships and verifies against. */
+function defaultOut(templateId) {
+  if (templateId === DEFAULT_TEMPLATE) {
+    return join(ROOT, 'template', 'index.html');
+  }
+  return join(ROOT, 'dist', 'templates', templateId, 'template.html');
+}
 
-  const result = build(withFont);
+/* The two size lines from the directive. A template past the hard ceiling
+   fails the build; past the soft target it only reports, so the growth stays
+   visible without blocking. Neither value may be raised. */
+function budgetStatus(total) {
+  if (total > FAIL_BYTES) return 'FAIL';
+  if (total > WARN_BYTES) return 'WARN';
+  return 'OK';
+}
+
+function sha256(html) {
+  return createHash('sha256').update(html, 'utf8').digest('hex');
+}
+
+function buildOne(withFont, templateId, outPath, quiet) {
+  const result = build(withFont, templateId);
   const total = Buffer.byteLength(result.html, 'utf8');
+  const sha = sha256(result.html);
+  const status = budgetStatus(total);
 
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, result.html);
 
   if (!quiet) {
     const label = withFont ? 'with embedded font' : 'system fonts only';
-    process.stdout.write(`${outPath.replace(ROOT + '\\', '').replace(ROOT + '/', '')}  (${label})\n`);
+    process.stdout.write(`${outPath.replace(ROOT + '\\', '').replace(ROOT + '/', '')}  (${templateId}, ${label})\n`);
     for (const [name, bytes] of result.sizes) {
       process.stdout.write(`  ${name.padEnd(12)}${kib(bytes).padStart(10)}\n`);
     }
     process.stdout.write(`  ${'total'.padEnd(12)}${kib(total).padStart(10)}\n`);
+    process.stdout.write(`  sha256      ${sha}\n`);
+    process.stdout.write(`  budget      ${status} (soft ${kib(WARN_BYTES)}, hard ${kib(FAIL_BYTES)})\n`);
   }
 
-  if (total > FAIL_BYTES) {
-    process.stderr.write(`\nArtifact is ${kib(total)}; the budget is ${kib(FAIL_BYTES)}.\n`);
-    process.exit(1);
+  if (status === 'FAIL') {
+    process.stderr.write(`\nTemplate ${templateId}: artifact is ${kib(total)}; the ceiling is ${kib(FAIL_BYTES)}. It must be reduced.\n`);
   }
-  if (total > WARN_BYTES && !quiet) {
-    process.stderr.write(`\nWarning: ${kib(total)} exceeds the ${kib(WARN_BYTES)} target.\n`);
+
+  return { result, total, sha, status };
+}
+
+function main(argv) {
+  /* The release tooling needs the selectable set as data, without building. */
+  if (argv.includes('--list')) {
+    process.stdout.write(`${availableTemplateIds().join('\n')}\n`);
+    return;
   }
+
+  const withFont = !argv.includes('--no-font');
+  const quiet = argv.includes('--quiet');
+
+  const outFlag = argv.indexOf('--out');
+  const outPath = outFlag > -1 && argv[outFlag + 1]
+    ? resolve(process.cwd(), argv[outFlag + 1])
+    : null;
+
+  /* --template <id> and --template=<id> are both accepted, so a script can
+     choose whichever it finds clearer. */
+  const spaceFlag = argv.indexOf('--template');
+  const eqArg = argv.find((a) => a.startsWith('--template='));
+  const templateId = spaceFlag > -1 ? argv[spaceFlag + 1]
+    : eqArg ? eqArg.slice('--template='.length)
+    : null;
+
+  const matrix = argv.includes('--all');
+
+  if (matrix && templateId) {
+    throw new Error('--all cannot be combined with --template');
+  }
+  if (matrix && outPath) {
+    throw new Error('--all cannot be combined with --out');
+  }
+
+  let ids;
+  if (matrix) ids = availableTemplateIds();
+  else if (templateId) ids = [templateId];
+  else ids = [DEFAULT_TEMPLATE];
+
+  let failed = false;
+  for (const id of ids) {
+    const out = outPath || defaultOut(id);
+    const r = buildOne(withFont, id, out, quiet);
+    if (r.status === 'FAIL') failed = true;
+  }
+
+  if (failed) process.exit(1);
 }
 
 export { build, buildLocales, stripModuleSyntax };

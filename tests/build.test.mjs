@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -121,5 +122,70 @@ test('the committed artifact is not stale', () => {
   assert.ok(
     artifact === withFont.html || artifact === noFont.html,
     'template/index.html differs from the sources: run node tools/build.mjs',
+  );
+});
+
+/* Row is the immutable reference build: it must come out at exactly the
+   committed size and checksum. Any refactor that silently changes the bytes —
+   an added attribute, a moved banner, a reordered file — fails here before it
+   can drift the released v1.1.0 artifact. */
+test('the default (Row) build is byte-locked to the v1.1.0 artifact', () => {
+  const html = build(true).html;
+  const bytes = Buffer.byteLength(html, 'utf8');
+  const sha = createHash('sha256').update(html).digest('hex');
+
+  assert.equal(bytes, 202976, 'Row artifact changed size; byte-lock violated');
+  assert.equal(
+    sha,
+    '2120e116e8f20677a8cdf602131436acecc9493be76da98b0379141a2e751cf6',
+    'Row artifact changed content; byte-lock violated',
+  );
+
+  /* The hook token must never leak into Row's output. */
+  assert.equal(html.includes('__TEMPLATE_ID__'), false, '"__TEMPLATE_ID__" leaked into Row');
+  assert.equal(/\bdata-template\b/.test(html), false, 'Row must not carry a data-template attribute');
+});
+
+/* A template is a stylesheet swap on a fixed runtime: everything outside the
+   one <style> element — shell, boot script, locales, app script — has to be
+   byte-identical between any two templates. If this ever fails, a template
+   has started carrying its own JavaScript or DOM, which the architecture
+   forbids: the shared runtime is what keeps every artifact inside its budget. */
+const editorial = build(true, 'editorial');
+
+function outsideOfStyle(html) {
+  const open = html.indexOf('<style>');
+  const close = html.indexOf('</style>') + '</style>'.length;
+  /* The data-template attribute is the one sanctioned outside difference: it
+     is the hook that names the design on the served page. */
+  return html.slice(0, open).replace(/ data-template="([a-z0-9]+)"/, '') + html.slice(close);
+}
+
+test('the editorial build is deterministic, whole and inside the budget', () => {
+  const html = editorial.html;
+  const bytes = Buffer.byteLength(html, 'utf8');
+
+  assert.equal(build(true, 'editorial').html, html, 'same sources must produce the same bytes');
+  assert.ok(html.startsWith('<!doctype html>'));
+  assert.ok(html.trimEnd().endsWith('</html>'));
+  assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
+  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
+  assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
+  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+});
+
+test('the editorial artifact names its own design and Row names none', () => {
+  const count = (editorial.html.match(/data-template="editorial"/g) || []).length;
+  assert.equal(count, 1, 'exactly one data-template attribute on <html>');
+  assert.equal(editorial.dataTemplate, 'editorial');
+  assert.equal(withFont.dataTemplate, null);
+});
+
+test('a template differs from Row only inside the style element', () => {
+  assert.equal(
+    outsideOfStyle(editorial.html),
+    outsideOfStyle(withFont.html),
+    'boot, locales, app and shell must be shared byte for byte',
   );
 });
