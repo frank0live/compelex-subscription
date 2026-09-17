@@ -8,17 +8,14 @@
   transform: scaleX(-1);
 }
 
-/* Small-caps and tracked running heads are a Latin device: they close Arabic
-   joins and read as a different script. The Arabic face (Vazirmatn, opted in
-   through tokens.css) is already set at a looser leading, so these reset the
-   Latin-only treatment and let the running heads stand as plain capped text. */
+/* Tracked running heads are a Latin device: the tracking closes Arabic joins
+   and reads as a different script. The Arabic face (Vazirmatn, opted in
+   through tokens.css) is already set at a looser leading, so these two reset
+   the Latin-only treatment and let the running heads stand as plain text. */
 [lang="fa"] .section-title,
 [lang="ar"] .section-title,
-[lang="fa"] .brand-name,
-[lang="ar"] .brand-name,
 [lang="fa"] .cfg-proto,
 [lang="ar"] .cfg-proto {
-  font-variant-caps: normal;
   letter-spacing: 0;
 }
 

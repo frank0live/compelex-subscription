@@ -1,5 +1,6 @@
-/* Page skeleton: one centred book column, two landmarks, and the two places
-   where the composition changes with width. */
+/* Page skeleton: a masthead band, then the magazine column. The lede carries
+   the only grid — the feature story and the metadata rail stand side by side
+   above the fold and stack in source order below it. */
 
 .site-header,
 #main {
@@ -9,16 +10,27 @@
 }
 
 /* A masthead rather than a toolbar: the serif wordmark sits on the left, the
-   language and theme controls on the right, and a single hard hairline rule
-   closes the band like the rule under a newspaper title. */
+   language and theme controls on the right, and a thick-thin double rule closes
+   the band the way a broadsheet closes its title. It is the page's one strong
+   rule; everything below it is a hairline, which is what makes it read. */
 .site-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
   padding-block: var(--sp-6) var(--sp-3);
   min-block-size: var(--header-h);
-  border-block-end: 1px solid var(--hairline);
+  border-block-end: 2px solid var(--border-strong);
+}
+
+.site-header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -5px;
+  block-size: 1px;
+  background: var(--hairline);
 }
 
 .brand {
@@ -52,57 +64,49 @@
 #main {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-6);
+  gap: var(--sp-7);
   flex: 1 0 auto;
 }
 
-/* Slots hold optional components. display:contents keeps an empty slot from
-   contributing a row to the flex gap, so an absent section costs nothing. */
-#plan-slot,
-#bar-slot,
-#announce-slot,
-#support-slot {
-  display: contents;
-}
-
-/* Traffic and expiry are one column at every width. A vertical rule splitting
-   the card into two mirrored panels reads as a dashboard widget; a single
-   hairline between two full-width rows reads as one statement. */
-.status-grid {
+.lede {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
 }
 
-.traffic-block {
+/* Source order is the phone's reading order: story, rail, actions. From 720px
+   the rail moves beside the story and the actions stay under it in the left
+   column. Nothing changes place in the document, so nothing here uses order. */
+.lede-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+.feature,
+.rail,
+.actions {
+  grid-column: 1 / -1;
+}
+
+.footnotes {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
-  min-inline-size: 0;
-}
-
-/* Date and remaining time share a baseline and pull apart, so the row fills a
-   wider card without needing a second column, and wraps at 320px. */
-.expiry-block {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 2px var(--sp-4);
-  min-inline-size: 0;
-  padding-block-start: var(--sp-4);
-  border-block-start: 1px solid var(--hairline);
-}
-
-.actions {
-  display: grid;
-  gap: var(--sp-3);
-}
-
-@media (min-width: 480px) {
-  .actions { grid-template-columns: 1fr auto; }
+  gap: var(--sp-4);
 }
 
 @media (min-width: 720px) {
-  body { padding-inline: var(--sp-6); }
+  /* The page widens on the same declaration that turns the grid on: a magazine
+     spread needs room the phone column does not have. The custom property is
+     set here, on body, so it inherits to the masthead and the column and no
+     shared token has to change. */
+  body {
+    --page-max: 1040px;
+    padding-inline: var(--sp-6);
+  }
+
+  .feature { grid-column: 1 / span 8; }
+  .rail { grid-column: 9 / -1; }
+  .actions { grid-column: 1 / span 8; }
 }

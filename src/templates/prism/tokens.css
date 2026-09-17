@@ -1,0 +1,144 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  /* One sans voice, set technically: hierarchy comes from size, weight,
+     tracking and tone, never from a second family. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 2.25rem;
+  --fs-title: 1.0625rem;
+  --fs-section: 0.6875rem;
+  --fs-body: 1rem;
+  --fs-caption: 0.875rem;
+  --fs-micro: 0.75rem;
+
+  --lh-display: 1.1;
+  --lh-tight: 1.35;
+  --lh-body: 1.6;
+  --measure: 60ch;
+  --ls-section: 0.08em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Radii are nearly square on purpose: Prism is machined, edges stay edges,
+     and the only softening is 2-4px so large planes do not feel raw. */
+  --r-panel: 2px;
+  --r-control: 4px;
+  --r-mark: 2px;
+
+  --dur: 160ms;
+  --dur-slow: 260ms;
+  --ease: cubic-bezier(0.2, 0.5, 0.2, 1);
+
+  --page-max: 660px;
+  --tap: 44px;
+
+  --header-h: 58px;
+  --mark: 36px;
+  --card-pad: var(--sp-5);
+  --btn-h: 46px;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Planes separate by tone plus one thin
+   rule; depth comes from structure, not from blur. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0B0F14;
+  --surface: #121820;
+  --surface-2: #19212B;
+  --track: #222C37;
+
+  --hairline: #1E2731;
+  --border: #293441;
+  --border-strong: #3D4B5C;
+  --control-border: #57656F;
+
+  --text: #E6ECF2;
+  --muted: #93A1B0;
+  --subtle: #75828F;
+
+  --accent: #56B8CC;
+  --accent-solid: #3A9BB4;
+  --accent-hover: #6FC8DA;
+  --accent-soft: #12242B;
+  --info-surface: #171E27;
+  --on-accent: #06181E;
+
+  --success: #4CC38A;
+  --warning: #E0B458;
+  --danger: #E5725C;
+  --focus: #7AB1F8;
+
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.55);
+  --scrim: rgb(2 6 10 / 0.66);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #EDF0F3;
+  --surface: #FFFFFF;
+  --surface-2: #F1F4F6;
+  --track: #E0E5EA;
+
+  --hairline: #E3E7EB;
+  --border: #D3DAE1;
+  --border-strong: #B2BDC8;
+  --control-border: #87949F;
+
+  --text: #161D25;
+  --muted: #56626E;
+  --subtle: #6B7883;
+
+  --accent: #0E6E86;
+  --accent-solid: #0E6E86;
+  --accent-hover: #0A5568;
+  --accent-soft: #DFEEF3;
+  --info-surface: #EEF2F7;
+  --on-accent: #FFFFFF;
+
+  --success: #1B7A4E;
+  --warning: #96660D;
+  --danger: #B33A2B;
+  --focus: #2F6BD8;
+
+  --shadow-pop: 0 12px 32px rgb(16 24 32 / 0.16);
+  --scrim: rgb(16 24 32 / 0.42);
+}
+
+@media (min-width: 720px) {
+  :root { --fs-display: 2.5rem; }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.8;
+}

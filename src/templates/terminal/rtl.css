@@ -1,0 +1,37 @@
+/* Direction-specific rules. The layout needs none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> is enough. What
+   remains: the two glyphs that carry a direction of their own, and the
+   Latin-only treatments (tracking, prompt spacing) that Arabic script reads
+   as broken joins. The prompt glyph and the active-tab brackets are bidi
+   neutral characters at the inline start, so mirroring is automatic and the
+   reading order never scrambles. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+[lang="fa"] .section-title,
+[lang="ar"] .section-title,
+[lang="fa"] .pill,
+[lang="ar"] .pill,
+[lang="fa"] .tab,
+[lang="ar"] .tab,
+[lang="fa"] .btn,
+[lang="ar"] .btn,
+[lang="fa"] .menu-label,
+[lang="ar"] .menu-label {
+  letter-spacing: 0;
+}
+
+/* Persian and Arabic ascenders and descenders need the extra leading the
+   tighter Latin display sizes would clip. */
+[lang="fa"] .big-value,
+[lang="ar"] .big-value {
+  line-height: 1.35;
+}
+
+[lang="fa"] .value,
+[lang="ar"] .value {
+  line-height: 1.4;
+}

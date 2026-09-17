@@ -1,0 +1,104 @@
+/* Page skeleton: a ruled session bar, the annotated status sheet, and framed
+   section plates. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* The session bar: a double rule underneath, like the header line of a
+   technical sheet (thin rule over the sheet edge). */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-4) var(--sp-3);
+  min-block-size: var(--header-h);
+  border-block-end: 1px solid var(--border-strong);
+  box-shadow: 0 3px 0 -2px var(--hairline);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+/* One line, with the full value in the title attribute: a name long enough to
+   wrap would push the controls off the first screen. */
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  flex: 1 0 auto;
+  /* The annotation index for section labels starts here. */
+  counter-reset: sheet;
+}
+
+/* Slots hold optional components. display:contents keeps an empty slot from
+   contributing a row to the flex gap, so an absent section costs nothing. */
+#plan-slot,
+#bar-slot,
+#announce-slot,
+#support-slot {
+  display: contents;
+}
+
+/* The status sheet's zones: traffic and expiry read as two regions on one
+   sheet, divided by a ruled line that stops short of the edges (a drawn
+   separator, not a full-width rule). */
+.status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.traffic-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+}
+
+.expiry-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  padding-block-start: var(--sp-3);
+  border-block-start: 1px dotted var(--border-strong);
+}
+
+.actions {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 480px) {
+  .actions { grid-template-columns: 1fr auto; }
+}
+
+@media (min-width: 720px) {
+  body { padding-inline: var(--sp-6); }
+}

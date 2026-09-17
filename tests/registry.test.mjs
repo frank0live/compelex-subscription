@@ -48,11 +48,13 @@ test('the enum is closed and every entry is well-formed', () => {
   }
 });
 
-test('Row is available and emits no data-template; Editorial is available and emits one', () => {
+test('Row is available and emits no data-template; the others emit their own', () => {
   assert.equal(TEMPLATES.row.available, true);
   assert.equal(TEMPLATES.row.emitDataTemplate, false, 'Row predates the attribute and must stay byte-identical');
-  assert.equal(TEMPLATES.editorial.available, true);
-  assert.equal(TEMPLATES.editorial.emitDataTemplate, true);
+  for (const id of ['editorial', 'canvas', 'prism', 'terminal', 'pulse', 'brutal', 'arcade', 'sketch', 'signature', 'saffron', 'pulsenova', 'prismnova']) {
+    assert.equal(TEMPLATES[id].available, true, `${id} availability`);
+    assert.equal(TEMPLATES[id].emitDataTemplate, true, `${id} names its own design`);
+  }
 });
 
 test('the selectable set is exactly the available templates, in order', () => {
@@ -72,7 +74,7 @@ test('resolveTemplate returns a descriptor for an available id', () => {
 test('an unknown id is refused, an unavailable id is refused, and both are distinct errors', () => {
   assert.throws(() => resolveTemplate('does-not-exist'), /unknown template id/);
   /* A reserved id is known to the enum but not selectable this release. */
-  assert.throws(() => resolveTemplate('canvas'), /not available/);
+  assert.equal(resolveTemplate('signature').id, 'signature', 'signature resolves');
   assert.throws(() => resolveTemplate(undefined), /unknown template id/);
 });
 

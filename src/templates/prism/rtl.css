@@ -1,0 +1,38 @@
+/* Direction-specific rules. The layout needs none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> is enough. What
+   remains are the two glyphs that carry a direction of their own, the primary
+   button's faceted corner, and the tracked uppercase labels, which are a
+   Latin device: letter-spacing closes Arabic joins. Protocol labels keep
+   their tracking — their content is Latin in every language. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+/* The primary button's cut corner marks its inline-end. Mirror the polygon so
+   the facet stays on the end edge in RTL. */
+[dir="rtl"] .btn-primary {
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%, 0 14px);
+}
+
+[lang="fa"] .section-title,
+[lang="ar"] .section-title,
+[lang="fa"] .pill,
+[lang="ar"] .pill,
+[lang="fa"] .tab,
+[lang="ar"] .tab {
+  letter-spacing: 0;
+}
+
+/* Persian and Arabic ascenders and descenders need the extra leading the
+   tighter Latin display sizes would clip. */
+[lang="fa"] .big-value,
+[lang="ar"] .big-value {
+  line-height: 1.25;
+}
+
+[lang="fa"] .value,
+[lang="ar"] .value {
+  line-height: 1.4;
+}

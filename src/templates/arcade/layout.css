@@ -1,0 +1,107 @@
+/* Page skeleton: the marquee bar, then the score screen and tiled sections.
+   Sections are framed plates on the cabinet background; the status area is
+   the screen inside its bezel. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* The marquee bar: framed like the top of a cabinet, with the accent rule
+   under it reading as the marquee light strip. */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-4) var(--sp-3);
+  min-block-size: var(--header-h);
+  border: 1px solid var(--border);
+  border-block-end: 2px solid var(--accent-solid);
+  border-radius: var(--r-panel);
+  padding-inline: var(--sp-4);
+  background: var(--surface);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+/* One line, with the full value in the title attribute: a name long enough to
+   wrap would push the controls off the first screen. */
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  flex: 1 0 auto;
+}
+
+/* Slots hold optional components. display:contents keeps an empty slot from
+   contributing a row to the flex gap, so an absent section costs nothing. */
+#plan-slot,
+#bar-slot,
+#announce-slot,
+#support-slot {
+  display: contents;
+}
+
+/* The score screen's sub-zones: the metric block sits inside the bezel, and
+   expiry is a second inset screen row. */
+.status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.traffic-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+}
+
+.expiry-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  padding: var(--sp-3);
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-control);
+}
+
+.actions {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 480px) {
+  .actions { grid-template-columns: 1fr auto; }
+}
+
+@media (min-width: 720px) {
+  body { padding-inline: var(--sp-6); }
+}

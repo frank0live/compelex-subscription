@@ -1,46 +1,45 @@
-/* Components. Nothing here reads a raw colour; every surface, border and
-   accent comes from tokens.css so the two themes stay in step. The whole voice
-   is set by type and by one shared hairline rule: a card is a near-borderless
-   journal section, a row is a ruled index entry, and a section title is a
-   letterspaced small-caps running head. */
+/* Components. Nothing here reads a raw colour; every surface, border and accent
+   comes from tokens.css so the two themes stay in step. The voice is a console:
+   each region is a bordered panel on the page's own ground, every figure is set
+   in the monospace face, and a running head is a tracked micro-label. */
 
 [hidden] { display: none !important; }
 
-/* A region is a ruled magazine section: no box, no fill, no radius. The page's
-   own paper shows through and a single hairline divides one section from the
-   next, which is what lets the type carry the hierarchy instead of chrome. */
-.region {
+.panel {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  padding-block-start: var(--sp-5);
-  border-block-start: 1px solid var(--hairline);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
 }
 
-/* A running head, not a heading: small-capitals, tracked, and one step below
-   the service name so the traffic figure is the only thing competing for the
-   first read. This one rule is the journal's running head everywhere. */
+/* A running head, not a heading: tracked micro-capitals one step below the
+   figures, so the numbers are the only thing competing for the first read.
+   This one rule is the console's running head everywhere. */
 .section-title {
   font-size: var(--fs-section);
   font-weight: 600;
   line-height: 1.2;
-  font-variant-caps: all-small-caps;
+  text-transform: uppercase;
   letter-spacing: var(--ls-section);
   color: var(--muted);
 }
 
-/* A plain ink mark, not a tile: the initial or logo sits on the paper with no
-   box behind it, so the masthead reads as type rather than as a control. */
+/* A tile, not a bare glyph: the mark reads as an app icon in the header. */
 .brand-mark {
   display: grid;
   place-items: center;
   inline-size: var(--mark);
   block-size: var(--mark);
   flex: none;
+  border-radius: var(--r-mark);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   color: var(--accent);
-  font-size: var(--fs-title);
+  font-size: var(--fs-caption);
   font-weight: 700;
-  letter-spacing: 0;
   overflow: hidden;
   user-select: none;
 }
@@ -51,23 +50,23 @@
   object-fit: contain;
 }
 
-/* The hero. The plan name is the page's headline, not a chip above the
-   figures: it is the single element set at display size, which is what gives
-   the composition one dominant thing to read first. */
+/* The hero label under the ring: a heading that names the plan without
+   competing with the state the ring is carrying. */
 #plan-slot:empty { display: none; }
 
 .plan-label {
   display: block;
   max-inline-size: 100%;
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 7vw, 3rem);
-  font-weight: 700;
-  line-height: var(--lh-display);
-  letter-spacing: -0.02em;
+  font-size: clamp(1.25rem, 4.5vw, 1.625rem);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
   color: var(--text);
   overflow-wrap: anywhere;
 }
 
+/* The state pill sits at the centre of the ring. */
 .pill {
   display: inline-flex;
   align-items: center;
@@ -76,12 +75,14 @@
   padding-inline: var(--sp-3);
   border-radius: var(--r-pill);
   background: var(--surface-2);
+  border: 1px solid var(--border);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--text);
 }
 
 .dot {
+  position: relative;
   inline-size: 8px;
   block-size: 8px;
   flex: none;
@@ -93,7 +94,6 @@
 .pill[data-state="active"] .dot { background: var(--success); }
 .pill[data-state="expired"] .dot { background: var(--danger); }
 .pill[data-state="limited"] .dot { background: var(--warning); }
-.pill[data-state="disabled"] .dot { background: var(--subtle); }
 
 .live-state {
   display: inline-flex;
@@ -107,12 +107,37 @@
 .live-state[data-online="1"] { color: var(--text); }
 .live-state[data-online="1"] .dot { background: var(--success); }
 
-/* The hero figure: a single serif headline at display size, set tight. */
+/* The one animated thing on the page, and it runs only while the poller says
+   the connection is up: a halo leaving the status dot. It reports activity,
+   never a measurement, so it cannot mislead when the link is down. */
+.live-state[data-online="1"] .dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--wave);
+  animation: wave 2.4s var(--ease) infinite;
+}
+
+@keyframes wave {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(5);
+    opacity: 0;
+  }
+}
+
+/* The lead figure of the usage panel. */
 .big-value {
+  font-family: var(--font-mono);
   font-size: var(--fs-display);
   font-weight: 700;
   line-height: var(--lh-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
 }
 
 .value {
@@ -140,26 +165,23 @@
   margin-block-start: var(--sp-2);
 }
 
-/* An ink rule, not a progress widget: the track is a flat stroke and the fill
-   is the accent drawn across it, square at both ends. */
+/* A bandwidth channel: a rounded track with the accent drawn across it. The
+   fill is the only gradient on the page, and it encodes nothing but the
+   proportion the label beside it already states. */
 .bar {
   flex: 1;
   min-inline-size: 0;
-  block-size: 6px;
-  border-radius: 0;
+  block-size: 10px;
+  border-radius: var(--r-pill);
   background: var(--track);
   overflow: hidden;
 }
 
-/* The width is already correct when the element is inserted, so the reveal is a
-   one-time animation out of nothing rather than a scripted second paint: it runs
-   once when the bar is created and every later reading is a transition of the
-   same property. The implicit to-keyframe is the width the model asked for. */
 .bar-fill {
   display: block;
   block-size: 100%;
-  border-radius: 0;
-  background: var(--accent);
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
   animation: bar-grow var(--dur-slow) var(--ease);
   transition: inline-size var(--dur-slow) var(--ease),
               background-color var(--dur-slow) var(--ease);
@@ -174,42 +196,17 @@
 
 .bar-pct {
   flex: none;
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
   color: var(--muted);
   min-inline-size: 4ch;
   text-align: end;
 }
 
-/* The feature story: the figure and its rule, held to a reading measure so the
-   line length stays editorial however wide the column grows. */
-.feature {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  min-inline-size: 0;
-  max-inline-size: var(--measure);
-}
-
-/* The rail is the story's margin: metadata set as ruled entries rather than as
-   a second card. Each visible entry is divided from the one above it. */
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  min-inline-size: 0;
-  padding-block-start: var(--sp-4);
-  border-block-start: 1px solid var(--hairline);
-}
-
-.rail > * + * {
-  padding-block-start: var(--sp-3);
-  border-block-start: 1px solid var(--hairline);
-}
-
-/* Freshness closes the rail, after the figures it measures. Empty until the
-   first poll answers, so the seam above it never draws on its own. */
+/* The freshness line: the panel's last reading, and the closest thing this page
+   has to a "last check" clock. Empty until the first poll answers. */
 .stamp {
-  font-size: var(--fs-micro);
+  font-size: var(--fs-caption);
   color: var(--subtle);
 }
 
@@ -217,15 +214,10 @@
 
 .stamp[data-stale] { color: var(--warning); }
 
-/* Once the rail stands beside the story, the rule that divided it from the
-   story above becomes a margin rule down its leading edge instead. */
-@media (min-width: 720px) {
-  .rail {
-    padding-block-start: 0;
-    border-block-start: 0;
-    padding-inline-start: var(--sp-5);
-    border-inline-start: 1px solid var(--hairline);
-  }
+/* The status panel divides its readings with a hairline rather than a box. */
+.status > * + * {
+  padding-block-start: var(--sp-3);
+  border-block-start: 1px solid var(--border);
 }
 
 .btn {
@@ -254,14 +246,13 @@
 }
 
 .btn-outline {
-  background: var(--surface);
+  background: var(--surface-2);
   border-color: var(--border);
-  color: var(--text);
 }
 
-/* Third rank, for the copy a row offers beside its Import: a soft ghost fill
+/* Third rank, for the copy a node offers beside its View: a soft ghost fill
    with no border, so it reads as pressable at rest yet stays quieter than the
-   filled Import and lighter than the outlined copy a copy-only row shows. */
+   outlined copy a copy-only row shows. */
 .btn-quiet {
   background: var(--surface-2);
   color: var(--muted);
@@ -308,9 +299,6 @@
   block-size: 1rem;
 }
 
-/* Pressed states, so a held thumb sees the ink take: the flat variants sink
-   one tint and the filled one returns to its rest colour. No lift, no shadow —
-   the page stays print-flat. */
 .btn-outline:active,
 .btn-quiet:active { background: var(--track); }
 
@@ -321,6 +309,15 @@
 
 /* The page's one filled action is the tallest thing a thumb can hit. */
 .actions .btn-primary { min-block-size: var(--btn-h); }
+
+.actions {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+@media (min-width: 480px) {
+  .actions { grid-template-columns: 1fr auto; }
+}
 
 .support-cta {
   inline-size: 100%;
@@ -337,9 +334,9 @@
   min-block-size: 40px;
   min-inline-size: 40px;
   padding-inline: var(--sp-2);
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--r-control);
-  background: transparent;
+  background: var(--surface-2);
   color: var(--muted);
   font-size: var(--fs-caption);
   font-weight: 600;
@@ -358,12 +355,12 @@
 /* An open menu keeps its trigger lit, which is the only cue that the panel
    below belongs to this control and not to the one beside it. */
 .ctl[aria-expanded="true"] {
-  background: var(--surface-2);
+  background: var(--track);
   color: var(--text);
 }
 
 .ctl:active,
-.menu-item:active { background: var(--surface-2); }
+.menu-item:active { background: var(--track); }
 
 .btn:disabled,
 .ctl:disabled {
@@ -422,34 +419,41 @@
 
 .menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
 
-/* The client picker reads as an index of names rather than a segmented
-   control: no track, no rule beneath it, the chosen name carried in the
-   accent. The container and its buttons belong to the shared runtime, so only
-   the presentation changes here. */
+/* The client picker is a segmented control again: a dashboard switches between
+   scopes, it does not list them. The runtime owns the container and its
+   buttons, so only the presentation lives here. */
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-4);
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
 }
 
 .tab {
-  flex: none;
-  min-block-size: var(--tap);
-  padding-inline: 0;
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 36px;
+  padding-inline: var(--sp-3);
   border: 0;
+  border-radius: var(--r-mark);
   background: transparent;
   color: var(--muted);
-  font-family: var(--font-display);
   font-size: var(--fs-caption);
-  font-weight: 400;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--dur) var(--ease);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
 }
 
 .tab[aria-selected="true"] {
-  color: var(--accent);
-  font-weight: 600;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .clients {
@@ -457,7 +461,7 @@
   flex-direction: column;
 }
 
-/* Rows separated by a hairline instead of enclosed by a border each: the list
+/* Rows divided by a hairline instead of enclosed by a border each: the list
    still scans, and nothing in it looks like a form field. */
 .client {
   display: flex;
@@ -467,14 +471,12 @@
   padding-block: var(--sp-3);
 }
 
-.client + .client { border-block-start: 1px solid var(--hairline); }
+.client + .client { border-block-start: 1px solid var(--border); }
 
 .client:first-child { padding-block-start: var(--sp-1); }
 
 .client:last-child { padding-block-end: 0; }
 
-/* The base size is the name's own width, so a card too narrow for both parts
-   moves the buttons onto their own line instead of squeezing the name away. */
 .client-head {
   display: flex;
   align-items: center;
@@ -524,9 +526,9 @@
   cursor: pointer;
 }
 
-/* Service information, not an alert: a barely-tinted panel defined by a faint
-   hairline, with the rust kept to one accent edge, the icon and the title — so
-   it reads as information without pulling attention off the status card. */
+/* Service information, not an alert: a tinted panel defined by a faint border
+   and one accent edge, so it reads as information without pulling attention
+   off the status the ring is carrying. */
 .announce {
   display: flex;
   flex-direction: column;
@@ -535,7 +537,7 @@
   background: var(--info-surface);
   border: 1px solid var(--info-border);
   border-inline-start: 3px solid var(--accent);
-  border-radius: var(--r-control);
+  border-radius: var(--r-card);
 }
 
 .announce-head {
@@ -550,7 +552,7 @@
   font-weight: 600;
 }
 
-/* Clamped by default; the card carries the open state, because whether the
+/* Clamped by default; the panel carries the open state, because whether the
    toggle is needed at all is measured against this clamp. */
 .announce-text {
   display: -webkit-box;
@@ -599,11 +601,9 @@
   justify-content: space-between;
   gap: var(--sp-3);
   padding: var(--sp-5) var(--sp-5) var(--sp-3);
-  border-block-end: 1px solid var(--hairline);
+  border-block-end: 1px solid var(--border);
 }
 
-/* The close control sits alone in the head, so it carries full ink at rest —
-   muted is for controls that have neighbours. */
 .dialog-head .ctl { color: var(--text); }
 
 .dialog-title {
@@ -652,7 +652,8 @@
   border-radius: var(--r-control);
   background: var(--surface-2);
   color: var(--muted);
-  font-size: var(--fs-caption);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
 }
 
 .url-plain {
@@ -660,7 +661,7 @@
   border-radius: var(--r-control);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   overflow-wrap: anywhere;
   user-select: all;
@@ -694,10 +695,10 @@
   transform: none;
 }
 
-/* Configurations explorer. One card, one row per usable configuration: a flag
-   or monogram badge, the server's name and protocol, and the two actions. The
-   list is a premium roster, not a raw dump, so the credential never appears
-   here — only in the dialog a row opens. */
+/* Nodes. One panel, one row per usable configuration: a country badge, the
+   node's name and protocol, and its two actions. The list is an inventory, not
+   a dump, so the credential never appears here — only in the dialog a row
+   opens. */
 .explorer-head {
   display: flex;
   align-items: center;
@@ -712,7 +713,9 @@
   padding-inline: var(--sp-2);
   border-radius: var(--r-pill);
   background: var(--surface-2);
+  border: 1px solid var(--border);
   color: var(--muted);
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
   font-weight: 600;
   text-align: center;
@@ -730,8 +733,7 @@
   color: var(--subtle);
 }
 
-.cfg-search:focus-within { border-color: var(--border-strong); }
-.cfg-search .icon { flex: none; }
+.cfg-search:focus-within { border-color: var(--accent); }
 
 .cfg-search input {
   flex: 1;
@@ -749,14 +751,15 @@
   flex-direction: column;
 }
 
-/* A ruled index entry: the flag is a plain glyph, the name is the running
-   entry in serif, and a hairline separates it from the row above. */
+/* A node row: the badge is a framed square, the name is the entry, and the
+   protocol sits under it as a tracked micro-label. A hairline separates it
+   from the row above. */
 .cfg {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
   padding-block: var(--sp-3);
-  border-block-start: 1px solid var(--hairline);
+  border-block-start: 1px solid var(--border);
 }
 
 .cfg:first-child { border-block-start: 0; }
@@ -766,24 +769,23 @@
   flex: none;
   display: grid;
   place-items: center;
-  inline-size: 32px;
-  block-size: 32px;
+  inline-size: 34px;
+  block-size: 34px;
+  border-radius: var(--r-mark);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   font-size: 20px;
   line-height: 1;
   overflow: hidden;
 }
 
-/* Monogram fallback when a configuration has no country flag: the first
-   letter of its name in the running-head style, held in a quiet framed square
-   so the placeholder reads as an avatar rather than a stray glyph. Flags stay
-   bare glyphs; only the fallback is framed. */
+/* Monogram fallback when a node carries no country flag: the first letter of
+   its name in the running-head style, so the placeholder reads as an avatar
+   rather than a stray glyph. */
 .cfg-flag[data-mono] {
   color: var(--muted);
   font-size: var(--fs-caption);
   font-weight: 600;
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-mark);
-  background: var(--surface-2);
 }
 
 .cfg-body {
@@ -808,7 +810,7 @@
   margin-block-start: 2px;
   font-size: var(--fs-micro);
   color: var(--muted);
-  font-variant-caps: all-small-caps;
+  text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
@@ -837,7 +839,7 @@
   min-block-size: var(--tap);
   margin-block-start: var(--sp-2);
   padding-inline: var(--sp-3);
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--border);
   border-radius: var(--r-control);
   background: transparent;
   color: var(--subtle);
@@ -846,7 +848,7 @@
   cursor: pointer;
 }
 
-.cfg-toggle .icon { flex: none; transition: transform var(--dur) var(--ease); }
+.cfg-toggle .icon { transition: transform var(--dur) var(--ease); }
 .cfg-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
 
 /* Config dialog. It reuses the .dialog / .qr-body / .qr-frame / .url-field
@@ -879,13 +881,13 @@
   border-radius: var(--r-control);
   background: var(--surface-2);
   color: var(--text);
-  font-family: var(--mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
   line-height: 1.5;
   resize: none;
 }
 
-.conf-text:focus { outline: none; border-color: var(--border-strong); }
+.conf-text:focus { outline: none; border-color: var(--accent); }
 
 /* Copy and Download sit side by side under the configuration text, sharing the
    width so neither reads as the primary action. */
@@ -897,8 +899,7 @@
 .conf-actions .btn { flex: 1; }
 
 /* Hover is a pointer affordance, so it lives behind the capability query; the
-   press and focus states above do not, because a thumb needs them too. Every
-   rule here shifts colour only — never a lift, so the page stays print-flat. */
+   press and focus states above do not, because a thumb needs them too. */
 @media (hover: hover) {
   .btn-primary:hover {
     background: var(--accent-hover);
@@ -906,17 +907,17 @@
   }
 
   .btn-outline:hover {
-    background: var(--surface-2);
+    background: var(--track);
     border-color: var(--border-strong);
   }
 
   .btn-quiet:hover {
-    background: var(--border);
+    background: var(--track);
     color: var(--text);
   }
 
   .ctl:hover {
-    background: var(--surface-2);
+    background: var(--track);
     color: var(--text);
   }
 
@@ -927,9 +928,7 @@
     color: var(--text);
   }
 
-  .tab:hover:not([aria-selected="true"]) {
-    color: var(--text);
-  }
+  .tab:hover:not([aria-selected="true"]) { color: var(--text); }
 
   .text-link:hover { text-decoration: underline; }
 }
@@ -957,20 +956,19 @@
 
 @media (prefers-contrast: more) {
   :root {
-    --hairline: var(--control-border);
     --border: var(--control-border);
     --border-strong: var(--control-border);
     --muted: var(--text);
     --subtle: var(--text);
   }
 
+  .panel,
   .ctl,
-  .btn-quiet { border-color: var(--control-border); }
+  .btn-outline { border-color: var(--control-border); }
 }
 
 @media (forced-colors: active) {
-  .region { border-block-start-color: CanvasText; }
-
+  .panel,
   .menu,
   .announce,
   .dialog { border: 1px solid CanvasText; }
@@ -984,6 +982,6 @@
 
   .tab[aria-selected="true"] {
     color: Highlight;
-    border-block-end-color: Highlight;
+    border: 1px solid Highlight;
   }
 }

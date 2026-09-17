@@ -1,0 +1,143 @@
+/* Page skeleton: the asymmetric console. Desktop divides the width into a
+   primary zone (metric, meter, actions) and an integrated status rail; the
+   working area splits Connect and Configurations into two columns. Mobile
+   collapses to a deliberate single column in DOM order. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* The session bar: quiet, hairline-ruled, no framing box. */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-4) var(--sp-3);
+  min-block-size: var(--header-h);
+  border-block-end: 1px solid var(--hairline);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+/* One line, with the full value in the title attribute: a name long enough to
+   wrap would push the controls off the first screen. */
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  flex: 1 0 auto;
+}
+
+/* Slots hold optional components. display:contents keeps an empty slot from
+   contributing a row to the flex gap, so an absent section costs nothing. */
+#plan-slot,
+#bar-slot,
+#announce-slot,
+#support-slot {
+  display: contents;
+}
+
+/* The console: primary zone and status rail. From 760px the rail becomes a
+   true side rail, divided from the primary by a hairline, top-aligned with
+   it, holding expiry and freshness as quiet read-outs. Below that width the
+   rail stacks under the primary as a tinted group. */
+.sig-console {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.sig-console-primary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.sig-console-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surface-2);
+  border-radius: var(--r-panel);
+}
+
+.sig-rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+@media (min-width: 760px) {
+  .sig-console {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 224px;
+    column-gap: var(--sp-6);
+    align-items: stretch;
+  }
+
+  .sig-console-rail {
+    padding: var(--sp-4);
+    background: transparent;
+    border-inline-start: 1px solid var(--hairline);
+    border-radius: 0;
+  }
+}
+
+/* The working area: Connect and Configurations as two columns from 760px.
+   Below that, stacked plates in DOM order. */
+.sig-work {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+@media (min-width: 760px) {
+  .sig-work {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: var(--sp-5);
+    align-items: start;
+  }
+}
+
+.actions {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 480px) {
+  .actions { grid-template-columns: 1fr auto; }
+}
+
+@media (min-width: 720px) {
+  body { padding-inline: var(--sp-6); }
+}

@@ -1,48 +1,85 @@
-/* Components. Nothing here reads a raw colour; every surface, border and
-   accent comes from tokens.css so the two themes stay in step. The whole voice
-   is set by type and by one shared hairline rule: a card is a near-borderless
-   journal section, a row is a ruled index entry, and a section title is a
-   letterspaced small-caps running head. */
+/* Components. Sections are bands, not cards: full-width surfaces with
+   asymmetric padding, marked by the cadence label and separated by the page
+   rhythm. Colour reads a token from tokens.css everywhere. */
 
 [hidden] { display: none !important; }
 
-/* A region is a ruled magazine section: no box, no fill, no radius. The page's
-   own paper shows through and a single hairline divides one section from the
-   next, which is what lets the type carry the hierarchy instead of chrome. */
-.region {
+.card {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
-  padding-block-start: var(--sp-5);
-  border-block-start: 1px solid var(--hairline);
+  gap: var(--sp-3);
+  padding: var(--card-pad);
+  background: var(--surface);
+  border-radius: var(--r-panel);
 }
 
-/* A running head, not a heading: small-capitals, tracked, and one step below
-   the service name so the traffic figure is the only thing competing for the
-   first read. This one rule is the journal's running head everywhere. */
+/* The status band is the live surface. Its inline-start edge carries the
+   state stripe: a 3px band-edge notch painted by the state chip itself (the
+   only element the runtime tags with data-state), stretched over the full
+   band height through absolute positioning against this relative ancestor.
+   Neutral until a state is known; the colour map follows the state model. */
+.status-card {
+  position: relative;
+}
+
+.pill::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 3px;
+  background: var(--subtle);
+}
+
+.pill[data-state="active"]::before { background: var(--success); }
+
+.pill[data-state="expired"]::before { background: var(--warning); }
+
+.pill[data-state="limited"]::before { background: var(--warning); }
+
+/* The chip keeps its own state notch (approved as-is): squared label, LED,
+   and a 3px start edge that follows the same state map. */
+.pill[data-state="active"] { border-inline-start-color: var(--success); }
+.pill[data-state="expired"],
+.pill[data-state="limited"] { border-inline-start-color: var(--warning); }
+
+/* A running label with its cadence: three beats of decreasing emphasis,
+   printed as one printed strip, the signature every section shares. */
 .section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
   font-size: var(--fs-section);
-  font-weight: 600;
-  line-height: 1.2;
-  font-variant-caps: all-small-caps;
+  font-weight: 700;
+  text-transform: uppercase;
   letter-spacing: var(--ls-section);
   color: var(--muted);
 }
 
-/* A plain ink mark, not a tile: the initial or logo sits on the paper with no
-   box behind it, so the masthead reads as type rather than as a control. */
+.section-title::before {
+  content: "";
+  inline-size: 14px;
+  block-size: 4px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg,
+              var(--accent) 0 4px, var(--track) 4px 9px,
+              var(--track) 9px 14px);
+}
+
+/* A rounded session mark: the monogram or logo on a tone step. */
 .brand-mark {
   display: grid;
   place-items: center;
   inline-size: var(--mark);
   block-size: var(--mark);
   flex: none;
+  border-radius: var(--r-control);
+  background: var(--accent-soft);
   color: var(--accent);
-  font-size: var(--fs-title);
+  font-size: var(--fs-caption);
   font-weight: 700;
-  letter-spacing: 0;
   overflow: hidden;
-  user-select: none;
 }
 
 .brand-mark img {
@@ -51,30 +88,33 @@
   object-fit: contain;
 }
 
-/* The hero. The plan name is the page's headline, not a chip above the
-   figures: it is the single element set at display size, which is what gives
-   the composition one dominant thing to read first. */
-#plan-slot:empty { display: none; }
-
+/* The plan name is context, not a chip: plain muted text. */
 .plan-label {
-  display: block;
   max-inline-size: 100%;
-  font-family: var(--font-display);
-  font-size: clamp(1.75rem, 7vw, 3rem);
-  font-weight: 700;
-  line-height: var(--lh-display);
-  letter-spacing: -0.02em;
-  color: var(--text);
-  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* The state chip: squared label, square LED, plus the state notch on its own
+   start edge that mirrors the band stripe. */
 .pill {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  min-block-size: 28px;
-  padding-inline: var(--sp-3);
-  border-radius: var(--r-pill);
+  padding-inline: var(--sp-2);
+  border-radius: var(--r-mark);
+  border-inline-start: 3px solid var(--subtle);
   background: var(--surface-2);
   font-size: var(--fs-caption);
   font-weight: 600;
@@ -95,34 +135,43 @@
 .pill[data-state="limited"] .dot { background: var(--warning); }
 .pill[data-state="disabled"] .dot { background: var(--subtle); }
 
+/* The live indicator is the pulse marker: a dot inside a static ring. No
+   animation; the ring is the "live" emphasis and it is present only here. */
 .live-state {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-caption);
   color: var(--subtle);
-  transition: color var(--dur) var(--ease);
+}
+
+.live-state .dot {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--subtle);
 }
 
 .live-state[data-online="1"] { color: var(--text); }
-.live-state[data-online="1"] .dot { background: var(--success); }
 
-/* The hero figure: a single serif headline at display size, set tight. */
+.live-state[data-online="1"] .dot {
+  background: var(--success);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--success);
+}
+
+/* The hero figure: strong compact numerals. */
 .big-value {
   font-size: var(--fs-display);
   font-weight: 700;
   line-height: var(--lh-display);
-  letter-spacing: -0.02em;
 }
 
 .value {
   font-size: var(--fs-body);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--lh-tight);
 }
 
-/* Colour repeats what the words already say. "Expires tomorrow" and "Expired"
-   are the signal; the tint only makes the row findable at a glance. */
+/* Colour repeats what the words already say; the tint only makes the row
+   findable at a glance. */
 .value[data-level="warn"] { color: var(--warning); }
 .value[data-level="over"] { color: var(--danger); }
 
@@ -136,33 +185,41 @@
 .bar-row {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   margin-block-start: var(--sp-2);
 }
 
-/* An ink rule, not a progress widget: the track is a flat stroke and the fill
-   is the accent drawn across it, square at both ends. */
+/* The signal strip: a 14px lane where consumption is drawn as wide coral
+   bands separated by 4px gaps (an 18px cadence), the fill edge reading like
+   a signal envelope. Wide rhythm, not a thin progress rail. */
 .bar {
+  position: relative;
   flex: 1;
   min-inline-size: 0;
-  block-size: 6px;
-  border-radius: 0;
+  block-size: 14px;
+  border-radius: var(--r-mark);
   background: var(--track);
   overflow: hidden;
 }
 
-/* The width is already correct when the element is inserted, so the reveal is a
-   one-time animation out of nothing rather than a scripted second paint: it runs
-   once when the bar is created and every later reading is a transition of the
-   same property. The implicit to-keyframe is the width the model asked for. */
+.bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(90deg,
+              transparent 0 14px, var(--bg) 14px 18px);
+}
+
+/* The width is already correct when the element is inserted, so the reveal is
+   a one-time animation out of nothing; every later reading is a transition of
+   the same property. The implicit to-keyframe is the width the model asked. */
 .bar-fill {
   display: block;
   block-size: 100%;
-  border-radius: 0;
   background: var(--accent);
   animation: bar-grow var(--dur-slow) var(--ease);
-  transition: inline-size var(--dur-slow) var(--ease),
-              background-color var(--dur-slow) var(--ease);
+  transition: inline-size var(--dur-slow) var(--ease);
 }
 
 @keyframes bar-grow {
@@ -176,58 +233,25 @@
   flex: none;
   font-size: var(--fs-micro);
   color: var(--muted);
-  min-inline-size: 4ch;
-  text-align: end;
 }
 
-/* The feature story: the figure and its rule, held to a reading measure so the
-   line length stays editorial however wide the column grows. */
-.feature {
+/* Freshness closes the band; quiet metadata under the instruments. Empty
+   until the first poll answers. */
+.card-foot {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  min-inline-size: 0;
-  max-inline-size: var(--measure);
-}
-
-/* The rail is the story's margin: metadata set as ruled entries rather than as
-   a second card. Each visible entry is divided from the one above it. */
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  min-inline-size: 0;
-  padding-block-start: var(--sp-4);
-  border-block-start: 1px solid var(--hairline);
-}
-
-.rail > * + * {
-  padding-block-start: var(--sp-3);
-  border-block-start: 1px solid var(--hairline);
-}
-
-/* Freshness closes the rail, after the figures it measures. Empty until the
-   first poll answers, so the seam above it never draws on its own. */
-.stamp {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
   font-size: var(--fs-micro);
   color: var(--subtle);
 }
 
-.stamp:empty { display: none; }
+.card-foot:empty { display: none; }
 
-.stamp[data-stale] { color: var(--warning); }
+.card-foot[data-stale] { color: var(--warning); }
 
-/* Once the rail stands beside the story, the rule that divided it from the
-   story above becomes a margin rule down its leading edge instead. */
-@media (min-width: 720px) {
-  .rail {
-    padding-block-start: 0;
-    border-block-start: 0;
-    padding-inline-start: var(--sp-5);
-    border-inline-start: 1px solid var(--hairline);
-  }
-}
-
+/* Controls: squared-off soft buttons in the band palette. The primary is the
+   one filled coral surface; the outline is framed; the quiet is bare text. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -255,22 +279,20 @@
 
 .btn-outline {
   background: var(--surface);
-  border-color: var(--border);
+  border-color: var(--border-strong);
   color: var(--text);
 }
 
-/* Third rank, for the copy a row offers beside its Import: a soft ghost fill
-   with no border, so it reads as pressable at rest yet stays quieter than the
-   filled Import and lighter than the outlined copy a copy-only row shows. */
+/* Third rank: a bare verb for the copy a row offers beside its Import. */
 .btn-quiet {
-  background: var(--surface-2);
+  background: transparent;
   color: var(--muted);
 }
 
-/* Both labels of a copy button occupy the same grid cell, so the button is laid
-   out at the width of the longer word and confirming a copy cannot move the
-   buttons beside it. The unused one is hidden rather than removed, which also
-   keeps it out of the accessible name. */
+/* Both labels of a copy button occupy the same grid cell, so the button is
+   laid out at the width of the longer word and confirming a copy cannot move
+   the buttons beside it. The unused one is hidden rather than removed, which
+   also keeps it out of the accessible name. */
 .btn-swap {
   display: grid;
   grid-template-areas: "label";
@@ -292,8 +314,8 @@
 
 .btn[data-flash] .swap-done { visibility: visible; }
 
-/* The filled button confirms with its icon, so only the two flat variants —
-   which have no icon to change — tint the word itself, and only while it is up. */
+/* The filled button confirms with its icon, so only the flat variants —
+   which have no icon to change — tint the word itself, and only while up. */
 .btn-outline[data-flash],
 .btn-quiet[data-flash] { color: var(--success); }
 
@@ -308,18 +330,6 @@
   block-size: 1rem;
 }
 
-/* Pressed states, so a held thumb sees the ink take: the flat variants sink
-   one tint and the filled one returns to its rest colour. No lift, no shadow —
-   the page stays print-flat. */
-.btn-outline:active,
-.btn-quiet:active { background: var(--track); }
-
-.btn-primary:active {
-  background: var(--accent-solid);
-  border-color: var(--accent-solid);
-}
-
-/* The page's one filled action is the tallest thing a thumb can hit. */
 .actions .btn-primary { min-block-size: var(--btn-h); }
 
 .support-cta {
@@ -327,8 +337,7 @@
   min-block-size: var(--btn-h);
 }
 
-.support-cta .icon { color: var(--muted); }
-
+/* Header controls are quiet tone chips. */
 .ctl {
   display: inline-flex;
   align-items: center;
@@ -350,24 +359,21 @@
 
 .ctl-icon { padding-inline: 0; }
 
-.ctl .icon-chevron {
-  inline-size: 1rem;
-  block-size: 1rem;
-}
-
 /* An open menu keeps its trigger lit, which is the only cue that the panel
-   below belongs to this control and not to the one beside it. */
+   below belongs to this control and not the one beside it. */
 .ctl[aria-expanded="true"] {
   background: var(--surface-2);
   color: var(--text);
 }
 
 .ctl:active,
-.menu-item:active { background: var(--surface-2); }
+.menu-item:active,
+.btn-outline:active,
+.btn-quiet:active { background: var(--track); }
 
 .btn:disabled,
 .ctl:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: default;
 }
 
@@ -375,23 +381,16 @@
 
 .menu {
   position: absolute;
-  inset-block-start: calc(100% + var(--sp-2));
+  inset-block-start: calc(100% + var(--sp-1));
   inset-inline-end: 0;
   z-index: 20;
   min-inline-size: 180px;
   padding: var(--sp-1);
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-control);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-panel);
   box-shadow: var(--shadow-pop);
-  animation: menu-in var(--dur) var(--ease);
-}
-
-@keyframes menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-3px);
-  }
+  animation: rise var(--dur) var(--ease);
 }
 
 .menu-item {
@@ -422,34 +421,41 @@
 
 .menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
 
-/* The client picker reads as an index of names rather than a segmented
-   control: no track, no rule beneath it, the chosen name carried in the
-   accent. The container and its buttons belong to the shared runtime, so only
-   the presentation changes here. */
+/* Channel selectors: the platforms are slots along one lane, every slot
+   carrying its own signal bar. Inactive channels show a track-coloured
+   carrier; the tuned channel's bar thickens into the accent and its label
+   reads ink. No track container, no floating thumb. */
 .tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-4);
+  gap: var(--sp-1);
 }
 
 .tab {
-  flex: none;
-  min-block-size: var(--tap);
-  padding-inline: 0;
+  flex: 1 0 auto;
+  min-inline-size: 0;
+  min-block-size: 42px;
+  padding-inline: var(--sp-2);
   border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--muted);
-  font-family: var(--font-display);
   font-size: var(--fs-caption);
-  font-weight: 400;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--dur) var(--ease);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: inset 0 -2px 0 var(--track);
+  transition: color var(--dur) var(--ease),
+              box-shadow var(--dur) var(--ease),
+              background-color var(--dur) var(--ease);
 }
 
 .tab[aria-selected="true"] {
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--text);
+  font-weight: 700;
+  background: var(--accent-soft);
+  box-shadow: inset 0 -4px 0 var(--accent);
 }
 
 .clients {
@@ -457,23 +463,21 @@
   flex-direction: column;
 }
 
-/* Rows separated by a hairline instead of enclosed by a border each: the list
-   still scans, and nothing in it looks like a form field. */
+/* Client rows: line entries with generous touch rows, separated by nothing
+   but rhythm (the explorer below owns the zebra). */
 .client {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-3);
-  padding-block: var(--sp-3);
+  gap: var(--sp-2);
+  padding-block: var(--sp-2);
 }
 
-.client + .client { border-block-start: 1px solid var(--hairline); }
-
-.client:first-child { padding-block-start: var(--sp-1); }
+.client:first-child { padding-block-start: 0; }
 
 .client:last-child { padding-block-end: 0; }
 
-/* The base size is the name's own width, so a card too narrow for both parts
+/* The base size is the name's own width, so a band too narrow for both parts
    moves the buttons onto their own line instead of squeezing the name away. */
 .client-head {
   display: flex;
@@ -505,9 +509,9 @@
   margin-inline-start: auto;
 }
 
-/* The page's two inline controls — the announcement toggle and the retry in a
-   stopped footer — are words rather than buttons, so the padding is what gives
-   them a thumb-sized box without drawing one. */
+/* The page's inline controls — the announcement toggle and the retry in a
+   stopped footer — are words rather than buttons, so the padding gives them a
+   thumb-sized box without drawing one. */
 .text-link {
   display: inline-flex;
   align-items: center;
@@ -524,18 +528,14 @@
   cursor: pointer;
 }
 
-/* Service information, not an alert: a barely-tinted panel defined by a faint
-   hairline, with the rust kept to one accent edge, the icon and the title — so
-   it reads as information without pulling attention off the status card. */
+/* An operator notice on its own soft band. */
 .announce {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
   padding: var(--sp-4);
   background: var(--info-surface);
-  border: 1px solid var(--info-border);
-  border-inline-start: 3px solid var(--accent);
-  border-radius: var(--r-control);
+  border-radius: var(--r-panel);
 }
 
 .announce-head {
@@ -543,11 +543,6 @@
   align-items: center;
   gap: var(--sp-2);
   color: var(--accent);
-}
-
-.announce-head .section-title {
-  font-size: var(--fs-caption);
-  font-weight: 600;
 }
 
 /* Clamped by default; the card carries the open state, because whether the
@@ -569,27 +564,26 @@
   overflow: visible;
 }
 
-.support { margin-block-start: var(--sp-2); }
 
 .dialog {
   padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-panel);
   background: var(--surface);
   color: var(--text);
   inline-size: calc(100% - 2 * var(--sp-4));
-  max-inline-size: 360px;
+  max-inline-size: 380px;
   box-shadow: var(--shadow-pop);
 }
 
 .dialog::backdrop { background: var(--scrim); }
 
-.dialog[open] { animation: pop var(--dur-slow) var(--ease); }
+.dialog[open] { animation: rise var(--dur-slow) var(--ease); }
 
-@keyframes pop {
+@keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(4px) scale(0.99);
+    transform: translateY(4px);
   }
 }
 
@@ -598,18 +592,21 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
-  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
   border-block-end: 1px solid var(--hairline);
 }
 
-/* The close control sits alone in the head, so it carries full ink at rest —
-   muted is for controls that have neighbours. */
-.dialog-head .ctl { color: var(--text); }
-
 .dialog-title {
-  font-family: var(--font-display);
   font-size: var(--fs-title);
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.dialog-head .ctl {
+  min-inline-size: 34px;
+  min-block-size: 34px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .qr-body {
@@ -617,7 +614,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  padding: var(--sp-4);
 }
 
 /* The frame stays white in both themes because the code has to scan, and a
@@ -626,11 +623,11 @@
   padding: var(--sp-3);
   border-radius: var(--r-control);
   background: #FFFFFF;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--hairline);
 }
 
 /* Bounded by the shorter axis as well: a phone held sideways has room for the
-   width but not for the height, and a code the reader has to scroll to is worse
+   width but not the height, and a code the reader has to scroll to is worse
    than a smaller one shown beside the address it encodes. */
 #qr-canvas {
   inline-size: min(280px, 72vw, 36vh);
@@ -659,8 +656,6 @@
   padding: var(--sp-3);
   border-radius: var(--r-control);
   background: var(--surface-2);
-  border: 1px solid var(--border);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--fs-caption);
   overflow-wrap: anywhere;
   user-select: all;
@@ -670,21 +665,20 @@
    failure. Success is reported on the control that was pressed. */
 .toast {
   position: fixed;
-  inset-block-end: var(--sp-5);
+  inset-block-end: var(--sp-4);
   inset-inline: 0;
   z-index: 60;
   inline-size: fit-content;
   max-inline-size: calc(100% - 2 * var(--sp-4));
   margin-inline: auto;
-  padding: var(--sp-3) var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
   background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-control);
+  border-radius: var(--r-pill);
   box-shadow: var(--shadow-pop);
   font-size: var(--fs-caption);
   font-weight: 600;
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(3px);
   transition: opacity var(--dur) var(--ease),
               transform var(--dur) var(--ease);
 }
@@ -694,10 +688,9 @@
   transform: none;
 }
 
-/* Configurations explorer. One card, one row per usable configuration: a flag
-   or monogram badge, the server's name and protocol, and the two actions. The
-   list is a premium roster, not a raw dump, so the credential never appears
-   here — only in the dialog a row opens. */
+/* Configurations explorer: a live inventory on alternating rhythm. Rows are
+   tone bands (no hairlines) with a signal notch on the start edge, so the
+   list reads as a channel list at any length. */
 .explorer-head {
   display: flex;
   align-items: center;
@@ -708,14 +701,12 @@
 
 .cfg-count {
   flex: none;
-  min-inline-size: 24px;
   padding-inline: var(--sp-2);
   border-radius: var(--r-pill);
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: var(--fs-micro);
-  font-weight: 600;
-  text-align: center;
+  font-weight: 700;
 }
 
 .cfg-search {
@@ -724,13 +715,17 @@
   gap: var(--sp-2);
   padding-inline: var(--sp-3);
   min-block-size: var(--tap);
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--r-control);
   background: var(--surface-2);
   color: var(--subtle);
 }
 
-.cfg-search:focus-within { border-color: var(--border-strong); }
+.cfg-search:focus-within {
+  background: var(--surface);
+  border-color: var(--accent);
+}
+
 .cfg-search .icon { flex: none; }
 
 .cfg-search input {
@@ -747,43 +742,47 @@
 .cfg-list {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
-/* A ruled index entry: the flag is a plain glyph, the name is the running
-   entry in serif, and a hairline separates it from the row above. */
+/* An inventory row: a tone band with a signal notch on the start edge. The
+   notch is track-coloured at rest; it carries no state, it aligns the column
+   of entries the way a channel list does. */
 .cfg {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding-block: var(--sp-3);
-  border-block-start: 1px solid var(--hairline);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-control);
+  border-inline-start: 2px solid var(--track);
+  background: var(--surface-2);
 }
+
+.cfg:nth-child(odd) { background: var(--surface); }
 
 .cfg:first-child { border-block-start: 0; }
 .cfg[hidden] { display: none; }
 
+/* Flags and monograms share one rounded badge frame. */
 .cfg-flag {
   flex: none;
   display: grid;
   place-items: center;
   inline-size: 32px;
   block-size: 32px;
-  font-size: 20px;
+  border-radius: var(--r-mark);
+  background: var(--track);
+  font-size: 18px;
   line-height: 1;
   overflow: hidden;
 }
 
 /* Monogram fallback when a configuration has no country flag: the first
-   letter of its name in the running-head style, held in a quiet framed square
-   so the placeholder reads as an avatar rather than a stray glyph. Flags stay
-   bare glyphs; only the fallback is framed. */
+   letter of its name in the accent voice, never an empty box. */
 .cfg-flag[data-mono] {
-  color: var(--muted);
+  color: var(--accent);
   font-size: var(--fs-caption);
-  font-weight: 600;
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-mark);
-  background: var(--surface-2);
+  font-weight: 700;
 }
 
 .cfg-body {
@@ -795,7 +794,6 @@
 
 .cfg-name {
   display: block;
-  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -808,8 +806,8 @@
   margin-block-start: 2px;
   font-size: var(--fs-micro);
   color: var(--muted);
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .cfg-actions {
@@ -820,14 +818,9 @@
 }
 
 /* The empty-state line shown when a search matches nothing. */
-.cfg-empty {
-  margin-block-start: var(--sp-3);
-  text-align: center;
-}
+.cfg-empty { text-align: center; }
 
-/* The expand/collapse control for a long list: a subtle full-width ghost
-   button, not a primary action — a hairline border, no fill, a centred label
-   and a chevron that turns when the list is open. */
+/* The expand/collapse control for a long list: a soft ghost band. */
 .cfg-toggle {
   display: flex;
   align-items: center;
@@ -835,19 +828,17 @@
   gap: var(--sp-2);
   inline-size: 100%;
   min-block-size: var(--tap);
-  margin-block-start: var(--sp-2);
   padding-inline: var(--sp-3);
-  border: 1px solid var(--hairline);
+  border: 0;
   border-radius: var(--r-control);
-  background: transparent;
-  color: var(--subtle);
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: var(--fs-caption);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.cfg-toggle .icon { flex: none; transition: transform var(--dur) var(--ease); }
-.cfg-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
+.cfg-toggle .icon { flex: none; }
 
 /* Config dialog. It reuses the .dialog / .qr-body / .qr-frame / .url-field
    shell (so the bottom-sheet media query below applies unchanged); only the
@@ -859,10 +850,7 @@
   image-rendering: pixelated;
 }
 
-.cfg-open {
-  inline-size: 100%;
-  justify-content: center;
-}
+.cfg-open { inline-size: 100%; }
 
 .cfg-conf {
   display: flex;
@@ -873,22 +861,18 @@
 
 .conf-text {
   inline-size: 100%;
-  box-sizing: border-box;
   padding: var(--sp-3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   border-radius: var(--r-control);
   background: var(--surface-2);
   color: var(--text);
-  font-family: var(--mono, ui-monospace, monospace);
   font-size: var(--fs-micro);
   line-height: 1.5;
   resize: none;
 }
 
-.conf-text:focus { outline: none; border-color: var(--border-strong); }
-
-/* Copy and Download sit side by side under the configuration text, sharing the
-   width so neither reads as the primary action. */
+/* Copy and Download sit side by side under the configuration text, sharing
+   the width so neither reads as the primary action. */
 .conf-actions {
   display: flex;
   gap: var(--sp-2);
@@ -898,7 +882,7 @@
 
 /* Hover is a pointer affordance, so it lives behind the capability query; the
    press and focus states above do not, because a thumb needs them too. Every
-   rule here shifts colour only — never a lift, so the page stays print-flat. */
+   rule here shifts colour only. */
 @media (hover: hover) {
   .btn-primary:hover {
     background: var(--accent-hover);
@@ -907,13 +891,10 @@
 
   .btn-outline:hover {
     background: var(--surface-2);
-    border-color: var(--border-strong);
+    border-color: var(--control-border);
   }
 
-  .btn-quiet:hover {
-    background: var(--border);
-    color: var(--text);
-  }
+  .btn-quiet:hover { color: var(--text); }
 
   .ctl:hover {
     background: var(--surface-2);
@@ -922,13 +903,11 @@
 
   .menu-item:hover { background: var(--surface-2); }
 
-  .cfg-toggle:hover {
-    border-color: var(--border-strong);
-    color: var(--text);
-  }
+  .cfg-toggle:hover { color: var(--text); }
 
   .tab:hover:not([aria-selected="true"]) {
     color: var(--text);
+    box-shadow: inset 0 -2px 0 var(--border-strong);
   }
 
   .text-link:hover { text-decoration: underline; }
@@ -936,22 +915,23 @@
 
 /* Below the phone breakpoint the dialog becomes a bottom sheet: the thumb
    reaches the close button and the copy field without stretching. */
-@media (max-width: 479px) {
+@media (max-width: 340px) {
+  /* Stress width only: the full channel names fit when the cells drop to the
+     micro size and the tightest padding; ellipsis never shows. */
+  .tab {
+    flex: 0 1 auto;
+    padding-inline: var(--sp-1);
+    font-size: var(--fs-micro);
+    letter-spacing: 0;
+  }
+}
+
   .dialog {
     inline-size: 100%;
     max-inline-size: none;
     margin-block: auto 0;
-    border-radius: var(--r-card) var(--r-card) 0 0;
+    border-radius: var(--r-panel) var(--r-panel) 0 0;
     border-block-end: 0;
-  }
-
-  .dialog[open] { animation: sheet-in var(--dur-slow) var(--ease); }
-
-  @keyframes sheet-in {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
   }
 }
 
@@ -962,20 +942,20 @@
     --border-strong: var(--control-border);
     --muted: var(--text);
     --subtle: var(--text);
+    --track: var(--border);
   }
 
-  .ctl,
+  .card,
+  .announce { border: 1px solid var(--control-border); }
+
   .btn-quiet { border-color: var(--control-border); }
 }
 
 @media (forced-colors: active) {
-  .region { border-block-start-color: CanvasText; }
-
+  .card,
   .menu,
   .announce,
   .dialog { border: 1px solid CanvasText; }
-
-  .announce { border-inline-start-width: 3px; }
 
   .bar { box-shadow: inset 0 0 0 1px CanvasText; }
 
@@ -984,6 +964,12 @@
 
   .tab[aria-selected="true"] {
     color: Highlight;
-    border-block-end-color: Highlight;
+    background: ButtonFace;
+    box-shadow: inset 0 -4px 0 Highlight;
   }
+
+  .brand-mark,
+  .cfg-flag,
+  .cfg-count,
+  .cfg { border: 1px solid CanvasText; }
 }

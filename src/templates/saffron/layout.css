@@ -1,0 +1,96 @@
+/* Page skeleton: a floating utility island, a centred hero, and soft rounded
+   cards stacked down a deliberately narrow centred column. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* The floating utility island: brand and controls inside one rounded pill
+   bar that floats above the page instead of ruling its edge. */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  min-block-size: var(--header-h);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-pill);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+/* One line, with the full value in the title attribute: a name long enough to
+   wrap would push the controls off the first screen. */
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  flex: 1 0 auto;
+}
+
+/* Slots hold optional components. display:contents keeps an empty slot from
+   contributing a row to the flex gap, so an absent section costs nothing. */
+#plan-slot,
+#bar-slot,
+#announce-slot,
+#support-slot {
+  display: contents;
+}
+
+/* The hero: Saffron's identity. Everything centred, generous air, the state
+   and the giant usage figure stacked above the meter and expiry. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-4) var(--sp-4) var(--sp-5);
+  text-align: center;
+}
+
+.expiry-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-block-start: var(--sp-2);
+}
+
+.action-band {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 480px) {
+  .action-band { grid-template-columns: 1fr 1fr; }
+}
+
+@media (min-width: 720px) {
+  body { padding-inline: var(--sp-6); }
+}

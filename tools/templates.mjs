@@ -10,8 +10,8 @@
  * set, and tests/registry.test.mjs holds the two in lockstep.
  *
  * Availability is a property of THIS release, not of a design. The reserved
- * ids below (canvas…signature) are placeholder designs that exist so the set is
- * explicitly bounded; they carry no styles and cannot be selected yet.
+ * Every design in the registry is now selectable; the enum stays closed so
+ * unknown ids still fail loudly.
  *
  * `styles` is a list of [absolute-from-root path, banner label]. The label is
  * what the build writes as the per-file banner in the artifact, so Row's labels
@@ -53,15 +53,166 @@ export const TEMPLATES = {
       ['src/templates/editorial/rtl.css', 'templates/editorial/rtl.css'],
     ],
   },
-  /* Reserved designs — known ids, not selectable in v1.2.0. */
-  canvas:    { id: 'canvas',    name: 'Canvas',    order: 3, available: false, emitDataTemplate: true, styles: [] },
-  prism:     { id: 'prism',     name: 'Prism',     order: 4, available: false, emitDataTemplate: true, styles: [] },
-  terminal:  { id: 'terminal',  name: 'Terminal',  order: 5, available: false, emitDataTemplate: true, styles: [] },
-  pulse:     { id: 'pulse',     name: 'Pulse',     order: 6, available: false, emitDataTemplate: true, styles: [] },
-  brutal:    { id: 'brutal',    name: 'Brutal',    order: 7, available: false, emitDataTemplate: true, styles: [] },
-  arcade:    { id: 'arcade',    name: 'Arcade',    order: 8, available: false, emitDataTemplate: true, styles: [] },
-  sketch:    { id: 'sketch',    name: 'Sketch',    order: 9, available: false, emitDataTemplate: true, styles: [] },
-  signature: { id: 'signature', name: 'Signature', order: 10, available: false, emitDataTemplate: true, styles: [] },
+  canvas: {
+    id: 'canvas',
+    name: 'Canvas',
+    order: 3,
+    available: true,
+    emitDataTemplate: true,
+    styles: [
+      ['src/templates/canvas/tokens.css', 'templates/canvas/tokens.css'],
+      ['src/templates/canvas/base.css', 'templates/canvas/base.css'],
+      ['src/templates/canvas/layout.css', 'templates/canvas/layout.css'],
+      ['src/templates/canvas/components.css', 'templates/canvas/components.css'],
+      ['src/templates/canvas/rtl.css', 'templates/canvas/rtl.css'],
+    ],
+  },
+
+/* Reserved designs — known ids, not selectable in v1.2.0. */
+  prism: {
+    id: 'prism',
+    name: 'Prism',
+    order: 4,
+    available: true,
+    emitDataTemplate: true,
+    styles: [
+      ['src/templates/prism/tokens.css', 'templates/prism/tokens.css'],
+      ['src/templates/prism/base.css', 'templates/prism/base.css'],
+      ['src/templates/prism/layout.css', 'templates/prism/layout.css'],
+      ['src/templates/prism/components.css', 'templates/prism/components.css'],
+      ['src/templates/prism/rtl.css', 'templates/prism/rtl.css'],
+    ],
+  },
+  terminal: {
+    id: 'terminal',
+    name: 'Terminal',
+    order: 5,
+    available: true,
+    emitDataTemplate: true,
+    styles: [
+      ['src/templates/terminal/tokens.css', 'templates/terminal/tokens.css'],
+      ['src/templates/terminal/base.css', 'templates/terminal/base.css'],
+      ['src/templates/terminal/layout.css', 'templates/terminal/layout.css'],
+      ['src/templates/terminal/components.css', 'templates/terminal/components.css'],
+      ['src/templates/terminal/rtl.css', 'templates/terminal/rtl.css'],
+    ],
+  },
+  pulse: {
+    id: 'pulse',
+    name: 'Pulse',
+    order: 6,
+    available: true,
+    emitDataTemplate: true,
+    styles: [
+      ['src/templates/pulse/tokens.css', 'templates/pulse/tokens.css'],
+      ['src/templates/pulse/base.css', 'templates/pulse/base.css'],
+      ['src/templates/pulse/layout.css', 'templates/pulse/layout.css'],
+      ['src/templates/pulse/components.css', 'templates/pulse/components.css'],
+      ['src/templates/pulse/rtl.css', 'templates/pulse/rtl.css'],
+    ],
+  },
+  brutal: {
+    id: 'brutal',
+    name: 'Brutal',
+    order: 7,
+    available: true,
+    emitDataTemplate: true,
+    styles: [
+      ['src/templates/brutal/tokens.css', 'templates/brutal/tokens.css'],
+      ['src/templates/brutal/base.css', 'templates/brutal/base.css'],
+      ['src/templates/brutal/layout.css', 'templates/brutal/layout.css'],
+      ['src/templates/brutal/components.css', 'templates/brutal/components.css'],
+      ['src/templates/brutal/rtl.css', 'templates/brutal/rtl.css'],
+    ],
+  },
+  arcade: {
+    id: 'arcade',
+    name: 'Arcade',
+    order: 8,
+    available: true,
+    emitDataTemplate: true,
+    styles: [
+      ['src/templates/arcade/tokens.css', 'templates/arcade/tokens.css'],
+      ['src/templates/arcade/base.css', 'templates/arcade/base.css'],
+      ['src/templates/arcade/layout.css', 'templates/arcade/layout.css'],
+      ['src/templates/arcade/components.css', 'templates/arcade/components.css'],
+      ['src/templates/arcade/rtl.css', 'templates/arcade/rtl.css'],
+    ],
+  },
+  sketch: {
+    id: 'sketch',
+    name: 'Sketch',
+    order: 9,
+    available: true,
+    emitDataTemplate: true,
+    styles: [
+      ['src/templates/sketch/tokens.css', 'templates/sketch/tokens.css'],
+      ['src/templates/sketch/base.css', 'templates/sketch/base.css'],
+      ['src/templates/sketch/layout.css', 'templates/sketch/layout.css'],
+      ['src/templates/sketch/components.css', 'templates/sketch/components.css'],
+      ['src/templates/sketch/rtl.css', 'templates/sketch/rtl.css'],
+    ],
+  },
+  signature: {
+    id: 'signature',
+    name: 'Signature',
+    order: 10,
+    available: true,
+    emitDataTemplate: true,
+    layout: true,
+    styles: [
+      ['src/templates/signature/tokens.css', 'templates/signature/tokens.css'],
+      ['src/templates/signature/base.css', 'templates/signature/base.css'],
+      ['src/templates/signature/layout.css', 'templates/signature/layout.css'],
+      ['src/templates/signature/components.css', 'templates/signature/components.css'],
+      ['src/templates/signature/rtl.css', 'templates/signature/rtl.css'],
+    ],
+  },
+  saffron: {
+    id: 'saffron',
+    name: 'Saffron',
+    order: 11,
+    available: true,
+    emitDataTemplate: true,
+    layout: true,
+    styles: [
+      ['src/templates/saffron/tokens.css', 'templates/saffron/tokens.css'],
+      ['src/templates/saffron/base.css', 'templates/saffron/base.css'],
+      ['src/templates/saffron/layout.css', 'templates/saffron/layout.css'],
+      ['src/templates/saffron/components.css', 'templates/saffron/components.css'],
+      ['src/templates/saffron/rtl.css', 'templates/saffron/rtl.css'],
+    ],
+  },
+  pulsenova: {
+    id: 'pulsenova',
+    name: 'Pulse Nova',
+    order: 12,
+    available: true,
+    emitDataTemplate: true,
+    layout: true,
+    styles: [
+      ['src/templates/pulsenova/tokens.css', 'templates/pulsenova/tokens.css'],
+      ['src/templates/pulsenova/base.css', 'templates/pulsenova/base.css'],
+      ['src/templates/pulsenova/layout.css', 'templates/pulsenova/layout.css'],
+      ['src/templates/pulsenova/components.css', 'templates/pulsenova/components.css'],
+      ['src/templates/pulsenova/rtl.css', 'templates/pulsenova/rtl.css'],
+    ],
+  },
+  prismnova: {
+    id: 'prismnova',
+    name: 'Prism Nova',
+    order: 13,
+    available: true,
+    emitDataTemplate: true,
+    layout: true,
+    styles: [
+      ['src/templates/prismnova/tokens.css', 'templates/prismnova/tokens.css'],
+      ['src/templates/prismnova/base.css', 'templates/prismnova/base.css'],
+      ['src/templates/prismnova/layout.css', 'templates/prismnova/layout.css'],
+      ['src/templates/prismnova/components.css', 'templates/prismnova/components.css'],
+      ['src/templates/prismnova/rtl.css', 'templates/prismnova/rtl.css'],
+    ],
+  },
 };
 
 /* The default template. A missing or legacy selection falls back here. */

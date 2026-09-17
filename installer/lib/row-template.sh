@@ -219,7 +219,7 @@ rt_config_write() {
 
 # The selectable ids of this release, in catalogue order. Row is first and is
 # the default.
-RT_TEMPLATES_AVAILABLE="row editorial"
+RT_TEMPLATES_AVAILABLE="row editorial canvas prism terminal pulse brutal arcade sketch signature saffron pulsenova prismnova"
 
 rt_template_allowed() {
   local id
@@ -233,6 +233,17 @@ rt_template_display_name() {
   case "${1:-}" in
     row)       printf 'Row' ;;
     editorial) printf 'Editorial' ;;
+    canvas)    printf 'Canvas' ;;
+    prism)     printf 'Prism' ;;
+    terminal)  printf 'Terminal' ;;
+    pulse)     printf 'Pulse' ;;
+    brutal)    printf 'Brutal' ;;
+    arcade)    printf 'Arcade' ;;
+    sketch)    printf 'Sketch' ;;
+    signature) printf 'Signature' ;;
+    saffron)   printf 'Saffron' ;;
+    pulsenova) printf 'Pulse Nova' ;;
+    prismnova) printf 'Prism Nova' ;;
     *)         printf '%s' "$1" ;;
   esac
 }

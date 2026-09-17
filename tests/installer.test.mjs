@@ -647,8 +647,26 @@ test('activation degrades honestly to manual guidance when sqlite3/DB is unavail
 
 const ROW_HTML = build(true).html;
 const EDITORIAL_HTML = build(true, 'editorial').html;
+const CANVAS_HTML = build(true, 'canvas').html;
+const PRISM_HTML = build(true, 'prism').html;
+const TERMINAL_HTML = build(true, 'terminal').html;
+const PULSE_HTML = build(true, 'pulse').html;
+const BRUTAL_HTML = build(true, 'brutal').html;
+const ARCADE_HTML = build(true, 'arcade').html;
+const SKETCH_HTML = build(true, 'sketch').html;
+const SIGNATURE_HTML = build(true, 'signature').html;
+const SAFFRON_HTML = build(true, 'saffron').html;
 const ROW_SHA = createHash('sha256').update(ROW_HTML).digest('hex');
 const EDI_SHA = createHash('sha256').update(EDITORIAL_HTML).digest('hex');
+const CANVAS_SHA = createHash('sha256').update(CANVAS_HTML).digest('hex');
+const PRISM_SHA = createHash('sha256').update(PRISM_HTML).digest('hex');
+const TERMINAL_SHA = createHash('sha256').update(TERMINAL_HTML).digest('hex');
+const PULSE_SHA = createHash('sha256').update(PULSE_HTML).digest('hex');
+const BRUTAL_SHA = createHash('sha256').update(BRUTAL_HTML).digest('hex');
+const ARCADE_SHA = createHash('sha256').update(ARCADE_HTML).digest('hex');
+const SKETCH_SHA = createHash('sha256').update(SKETCH_HTML).digest('hex');
+const SIGNATURE_SHA = createHash('sha256').update(SIGNATURE_HTML).digest('hex');
+const SAFFRON_SHA = createHash('sha256').update(SAFFRON_HTML).digest('hex');
 
 function writeArtifact(dir, html, sha) {
   mkdirSync(dir, { recursive: true });
@@ -680,6 +698,15 @@ function prepareInstall(root) {
   const store = join(root, 'dist', 'templates');
   writeArtifact(join(store, 'row'), ROW_HTML, ROW_SHA);
   writeArtifact(join(store, 'editorial'), EDITORIAL_HTML, EDI_SHA);
+  writeArtifact(join(store, 'canvas'), CANVAS_HTML, CANVAS_SHA);
+  writeArtifact(join(store, 'prism'), PRISM_HTML, PRISM_SHA);
+  writeArtifact(join(store, 'terminal'), TERMINAL_HTML, TERMINAL_SHA);
+  writeArtifact(join(store, 'pulse'), PULSE_HTML, PULSE_SHA);
+  writeArtifact(join(store, 'brutal'), BRUTAL_HTML, BRUTAL_SHA);
+  writeArtifact(join(store, 'arcade'), ARCADE_HTML, ARCADE_SHA);
+  writeArtifact(join(store, 'sketch'), SKETCH_HTML, SKETCH_SHA);
+  writeArtifact(join(store, 'signature'), SIGNATURE_HTML, SIGNATURE_SHA);
+  writeArtifact(join(store, 'saffron'), SAFFRON_HTML, SAFFRON_SHA);
   writeArtifact(join(root, 'dist'), ROW_HTML, ROW_SHA);
   writeFileSync(join(root, 'sub.html'), ROW_HTML);
   writeFileSync(join(root, 'VERSION'), '1.1.0\n');
@@ -704,6 +731,15 @@ function writePayload(root, { withStore = true } = {}) {
   if (withStore) {
     writeArtifact(join(p, 'templates', 'row'), ROW_HTML, ROW_SHA);
     writeArtifact(join(p, 'templates', 'editorial'), EDITORIAL_HTML, EDI_SHA);
+    writeArtifact(join(p, 'templates', 'canvas'), CANVAS_HTML, CANVAS_SHA);
+    writeArtifact(join(p, 'templates', 'prism'), PRISM_HTML, PRISM_SHA);
+    writeArtifact(join(p, 'templates', 'terminal'), TERMINAL_HTML, TERMINAL_SHA);
+    writeArtifact(join(p, 'templates', 'pulse'), PULSE_HTML, PULSE_SHA);
+    writeArtifact(join(p, 'templates', 'brutal'), BRUTAL_HTML, BRUTAL_SHA);
+    writeArtifact(join(p, 'templates', 'arcade'), ARCADE_HTML, ARCADE_SHA);
+    writeArtifact(join(p, 'templates', 'sketch'), SKETCH_HTML, SKETCH_SHA);
+    writeArtifact(join(p, 'templates', 'signature'), SIGNATURE_HTML, SIGNATURE_SHA);
+    writeArtifact(join(p, 'templates', 'saffron'), SAFFRON_HTML, SAFFRON_SHA);
   }
 }
 
@@ -761,7 +797,7 @@ test('rt_config_write preserves the selection across branding changes, sanitizes
     'printf "TEMPLATE=banana\\n" >> "$RT_CONFIG"\n' +
     'rt_config_write "C" "https://t.me/c" "" ""\n' +
     'printf "sanitized=%s name=%s\\n" "$(rt_config_get_raw TEMPLATE)" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
-    'if rt_config_write "D" "https://t.me/d" "" "" canvas 2>/dev/null; then echo "EXPLICIT-ACCEPTED"; else echo "EXPLICIT-REJECTED"; fi',
+    'if rt_config_write "D" "https://t.me/d" "" "" does-not-exist 2>/dev/null; then echo "EXPLICIT-ACCEPTED"; else echo "EXPLICIT-REJECTED"; fi',
   );
   assert.equal(r.code, 0);
   assert.match(r.out, /kept=editorial name=B/, 'a branding change must not reset the selection');
@@ -778,7 +814,7 @@ test('rt_stage_template_store stages verified artifacts, skips hostile names, an
     { prepare: (root) => writePayload(root) },
   );
   assert.equal(good.code, 0, good.err);
-  assert.equal(good.out, 'ids=editorial,row,\nbyte-exact');
+  assert.equal(good.out, 'ids=arcade,brutal,canvas,editorial,prism,pulse,row,saffron,signature,sketch,terminal,\nbyte-exact');
 
   const tampered = shRoot(
     'if rt_stage_template_store "$RT_ROOT/payload" 2>/dev/null; then echo "TAMPER-STAGED"; else echo "TAMPER-REFUSED"; fi\n' +
@@ -801,7 +837,7 @@ test('rt_stage_template_store stages verified artifacts, skips hostile names, an
       writeFileSync(join(root, 'payload', 'templates', 'Evil', 'template.html'), 'x');
     } },
   );
-  assert.equal(hostile.out, 'ids=editorial,row,', 'a non-lowercase directory name is skipped');
+  assert.equal(hostile.out, 'ids=arcade,brutal,canvas,editorial,prism,pulse,row,saffron,signature,sketch,terminal,', 'a non-lowercase directory name is skipped');
 });
 
 test('rt_switch_template moves Row -> Editorial -> Row with branding intact, and refuses bad moves', () => {
@@ -814,7 +850,7 @@ test('rt_switch_template moves Row -> Editorial -> Row with branding intact, and
     'rt_switch_template row\n' +
     'printf "tpl2=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
     'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live=row"\n' +
-    'if rt_switch_template canvas 2>/dev/null; then echo "UNAVAILABLE-ACCEPTED"; else echo "canvas-refused"; fi\n' +
+    'if rt_switch_template does-not-exist 2>/dev/null; then echo "UNAVAILABLE-ACCEPTED"; else echo "unknown-refused"; fi\n' +
     'printf "tpl3=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
     'if rt_switch_template ' + bq('../row') + ' 2>/dev/null; then echo "TRAVERSAL-ACCEPTED"; else echo "traversal-refused"; fi\n' +
     'printf "tpl4=%s\\n" "$(rt_config_get_raw TEMPLATE)"',
@@ -827,10 +863,67 @@ test('rt_switch_template moves Row -> Editorial -> Row with branding intact, and
   assert.match(r.out, /canonical=editorial/, 'the canonical artifact is the new design');
   assert.match(r.out, /tpl2=row/, 'and the switch back works');
   assert.match(r.out, /live=row/, 'Row carries no data-template attribute');
-  assert.match(r.out, /canvas-refused/);
+  assert.match(r.out, /unknown-refused/);
   assert.match(r.out, /tpl3=row/, 'a refused switch leaves the selection alone');
   assert.match(r.out, /traversal-refused/);
   assert.match(r.out, /tpl4=row/);
+});
+
+test('Canvas cycles with Row and Editorial, carrying branding and identity the whole way', () => {
+  const r = shRoot(
+    'rt_switch_template canvas\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'printf "dist=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q ' + bq('data-template="canvas"') + ' "$RT_LIVE" && echo "live=canvas"\n' +
+    'rt_switch_template editorial\n' +
+    'printf "dist2=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q ' + bq('data-template="editorial"') + ' "$RT_LIVE" && echo "live2=editorial"\n' +
+    'rt_switch_template row\n' +
+    'printf "tpl3=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "dist3=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live3=row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /tpl=canvas/);
+  assert.match(r.out, /name=Test VPN/, 'branding survives every leg');
+  assert.match(r.out, new RegExp('dist=' + CANVAS_SHA));
+  assert.match(r.out, /live=canvas/);
+  assert.match(r.out, new RegExp('dist2=' + EDI_SHA));
+  assert.match(r.out, /live2=editorial/);
+  assert.match(r.out, /tpl3=row/);
+  assert.match(r.out, new RegExp('dist3=' + ROW_SHA));
+  assert.match(r.out, /live3=row/);
+});
+
+test('Prism cycles through every design with branding and identity intact', () => {
+  const r = shRoot(
+    'rt_switch_template prism\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'printf "dist=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q ' + bq('data-template="prism"') + ' "$RT_LIVE" && echo "live=prism"\n' +
+    'rt_switch_template canvas\n' +
+    'printf "dist2=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'rt_switch_template editorial\n' +
+    'printf "dist3=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'rt_switch_template row\n' +
+    'printf "tpl2=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "dist4=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live=row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /tpl=prism/);
+  assert.match(r.out, /name=Test VPN/, 'branding survives every leg');
+  assert.match(r.out, new RegExp('dist=' + PRISM_SHA));
+  assert.match(r.out, /live=prism/);
+  assert.match(r.out, new RegExp('dist2=' + CANVAS_SHA));
+  assert.match(r.out, new RegExp('dist3=' + EDI_SHA));
+  assert.match(r.out, /tpl2=row/);
+  assert.match(r.out, new RegExp('dist4=' + ROW_SHA));
+  assert.match(r.out, /live=row/);
 });
 
 test('a switch refused on checksum grounds leaves the previous state fully live', () => {
@@ -929,7 +1022,7 @@ test('an update keeps an available selection live across the release', () => {
   assert.match(r.out, /name=Test VPN/, 'branding survives the update');
   assert.match(r.out, /ver=1.2.0/);
   assert.match(r.out, /live=editorial/, 'the updated install serves the selected design');
-  assert.match(r.out, /store=editorial,row/, 'the release store was staged');
+  assert.match(r.out, /store=arcade,brutal,canvas,editorial,prism,pulse,row,saffron,signature,sketch,terminal/, 'the release store was staged');
 });
 
 test('an update against a payload without a store degrades to Row and keeps the invariant', () => {

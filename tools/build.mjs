@@ -8,7 +8,7 @@
  *   node tools/build.mjs [--no-font] [--out path] [--quiet]
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -225,6 +225,61 @@ function kib(n) {
   return `${(n / 1024).toFixed(1)} KiB`;
 }
 
+/* The layout contract. Every template layout must expose exactly one copy of
+   each hook the shared runtime addresses by id; the runtime never learns
+   which layout rendered it. */
+const REQUIRED_HOOKS = [
+  'announce-slot', 'announce-source', 'bar-slot', 'brand-mark', 'brand-name',
+  'client-list', 'config-canvas', 'config-close', 'config-conf',
+  'config-conf-copy', 'config-conf-download', 'config-conf-download-label',
+  'config-conf-label', 'config-conf-text', 'config-copy', 'config-copy-done',
+  'config-copy-label', 'config-dialog', 'config-frame', 'config-hint',
+  'config-list', 'config-open', 'config-open-label', 'config-title',
+  'config-toggle', 'config-toggle-label', 'config-url', 'connect',
+  'connect-hint', 'connect-title', 'copy-btn', 'copy-btn-done',
+  'copy-btn-label', 'expiry-caption', 'expiry-value', 'explorer',
+  'explorer-count', 'explorer-empty', 'explorer-hint', 'explorer-search',
+  'explorer-search-wrap', 'explorer-title', 'i18n-data', 'lang-code',
+  'lang-menu', 'lang-trigger', 'links-source', 'live-region', 'live-state',
+  'meta-theme-color', 'plan-slot', 'platform-tabs', 'qr-btn', 'qr-btn-label',
+  'qr-canvas', 'qr-close', 'qr-copy', 'qr-copy-done', 'qr-copy-label',
+  'qr-dialog', 'qr-frame', 'qr-hint', 'qr-title', 'qr-url', 'state-label',
+  'state-pill', 'status-heading', 'sub-data', 'support-label', 'support-link',
+  'support-slot', 'theme-icon', 'theme-menu', 'theme-trigger', 'toast',
+  'traffic-caption', 'traffic-trailing', 'traffic-value', 'updated-slot',
+];
+
+/* Validate a template-specific layout against the contract. The shared shell
+   is grandfathered: it is frozen output and predates the contract. */
+function validateLayout(html) {
+  const missing = [];
+  const duplicated = [];
+  for (const hook of REQUIRED_HOOKS) {
+    const n = html.split(`id="${hook}"`).length - 1;
+    if (n === 0) missing.push(hook);
+    if (n > 1) duplicated.push(hook);
+  }
+  if (missing.length) {
+    throw new Error(`layout is missing required runtime hooks: ${missing.join(', ')}`);
+  }
+  if (duplicated.length) {
+    throw new Error(`layout duplicates required runtime hooks: ${duplicated.join(', ')}`);
+  }
+}
+
+/* Layout selection: a template may ship its own build-time layout markup
+   (src/templates/<id>/layout.html); everything else uses the shared shell.
+   Selection happens at build time only; the artifact stays self-contained. */
+function loadLayout(templateId) {
+  const templateLayout = join(ROOT, 'src', 'templates', templateId, 'layout.html');
+  if (existsSync(templateLayout)) {
+    const layout = readFileSync(templateLayout, 'utf8');
+    validateLayout(layout);
+    return layout;
+  }
+  return read('src', 'index.html');
+}
+
 function build(withFont, templateId = DEFAULT_TEMPLATE) {
   /* templateId comes from the closed registry enum. An unknown or unavailable
      id throws here (see resolveTemplate), so the build can never produce an
@@ -235,7 +290,7 @@ function build(withFont, templateId = DEFAULT_TEMPLATE) {
   const app = buildApp();
   const locales = buildLocales();
 
-  let html = read('src', 'index.html');
+  let html = loadLayout(templateId);
   const shell = Buffer.byteLength(html, 'utf8');
 
   html = substitute(html, '/*__STYLES__*/', styles);
@@ -378,7 +433,7 @@ function main(argv) {
   if (failed) process.exit(1);
 }
 
-export { build, buildLocales, stripModuleSyntax };
+export { build, buildLocales, stripModuleSyntax, validateLayout, REQUIRED_HOOKS };
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   try {

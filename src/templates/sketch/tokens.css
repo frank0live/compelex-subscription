@@ -1,0 +1,148 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  /* One readable sans voice; the annotation character comes from rules,
+     ticks and notes, never from a novelty face. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 2.25rem;
+  --fs-title: 1.0625rem;
+  --fs-section: 0.8125rem;
+  --fs-body: 1rem;
+  --fs-caption: 0.875rem;
+  --fs-micro: 0.75rem;
+
+  --lh-display: 1.15;
+  --lh-tight: 1.4;
+  --lh-body: 1.6;
+  --measure: 60ch;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Drafted, not machined: a hand-held ruler allows a few degrees of radius. */
+  --r-panel: 4px;
+  --r-control: 3px;
+  --r-mark: 2px;
+  --r-pill: 999px;
+
+  --dur-fast: 100ms;
+  --dur: 160ms;
+  --dur-slow: 220ms;
+  --ease: cubic-bezier(0.25, 0.55, 0.25, 1);
+
+  --page-max: 660px;
+  --tap: 44px;
+
+  --header-h: 56px;
+  --mark: 34px;
+  --card-pad: var(--sp-5);
+  --btn-h: 46px;
+
+  /* Registration marks: the two L-ticks of a sheet corner, as composite
+     background layers. Corners: top inline-start (tl) and bottom inline-end
+     (br). Colour is the accent, applied per theme below. */
+  --reg-tick: linear-gradient(var(--accent), var(--accent));
+  --reg-tl: var(--reg-tick) 0 0 / 14px 2px no-repeat,
+            var(--reg-tick) 0 0 / 2px 14px no-repeat;
+  --reg-br: var(--reg-tick) 100% 100% / 14px 2px no-repeat,
+            var(--reg-tick) 100% 100% / 2px 14px no-repeat;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Charcoal paper, warm off-white ink, and
+   one indigo-pencil accent for the annotated strokes. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #131317;
+  --surface: #1A1A20;
+  --surface-2: #212128;
+  --track: #2A2A33;
+
+  --hairline: #23232B;
+  --border: #2E2E38;
+  --border-strong: #43444F;
+  --control-border: #565765;
+
+  --text: #EAE9E4;
+  --muted: #A3A2AB;
+  --subtle: #84838D;
+
+  --accent: #9D8FFF;
+  --accent-solid: #8677F0;
+  --accent-hover: #B1A6FF;
+  --accent-soft: #1E1C33;
+  --info-surface: #191920;
+  --info-border: #2A2A34;
+  --on-accent: #14131F;
+
+  --success: #58A878;
+  --warning: #D9A94F;
+  --danger: #D96C5F;
+  --focus: #B1A6FF;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F5F4EF;
+  --surface: #FCFBF7;
+  --surface-2: #EFEEE6;
+  --track: #E0DED2;
+
+  --hairline: #E6E4DA;
+  --border: #D8D5C8;
+  --border-strong: #B9B6A5;
+  --control-border: #8D8A7C;
+
+  --text: #1B1A22;
+  --muted: #5F5E66;
+  --subtle: #78777F;
+
+  --accent: #5546C8;
+  --accent-solid: #5546C8;
+  --accent-hover: #43379E;
+  --accent-soft: #E7E4F8;
+  --info-surface: #F2F1EB;
+  --info-border: #E0DED2;
+  --on-accent: #FFFFFF;
+
+  --success: #1B7A4E;
+  --warning: #96660D;
+  --danger: #B33A2B;
+  --focus: #5546C8;
+}
+
+@media (min-width: 480px) {
+  :root { --card-pad: var(--sp-5); }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.8;
+}

@@ -1,0 +1,146 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  /* Monospace is the voice of the console; the sans face is kept only for
+     reading prose (announcement body, connect hint), where mono harms reading. */
+  --font: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+               Arial, sans-serif;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 1.75rem;
+  --fs-title: 1rem;
+  --fs-section: 0.6875rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.6875rem;
+
+  --lh-display: 1.25;
+  --lh-tight: 1.4;
+  --lh-body: 1.55;
+  --measure: 62ch;
+  --ls-section: 0.08em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* The console is square: no radius anywhere except the state LED. Panes and
+     controls are framed by 1px rules instead. */
+  --r-panel: 0px;
+  --r-control: 0px;
+  --r-mark: 0px;
+  --r-pill: 999px;
+
+  --dur-fast: 80ms;
+  --dur: 120ms;
+  --dur-slow: 180ms;
+  --ease: cubic-bezier(0.3, 0.5, 0.2, 1);
+
+  --page-max: 640px;
+  --tap: 44px;
+
+  --header-h: 52px;
+  --mark: 28px;
+  --card-pad: var(--sp-4);
+  --btn-h: 44px;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Amber is the single accent family: one
+   ochre tone for interactive ink, a warmer orange kept for warnings. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0C0E10;
+  --surface: #121519;
+  --surface-2: #191E24;
+  --track: #232A31;
+
+  --hairline: #1C2127;
+  --border: #262D35;
+  --border-strong: #39424C;
+  --control-border: #4E5862;
+
+  --text: #D6DCE3;
+  --muted: #8B97A3;
+  --subtle: #6F7B87;
+
+  --accent: #D9A24B;
+  --accent-solid: #C08A2E;
+  --accent-hover: #E5B45C;
+  --accent-soft: #231B0D;
+  --info-surface: #14181D;
+  --info-border: #232A31;
+  --on-accent: #1B1206;
+
+  --success: #58A878;
+  --warning: #D98E3F;
+  --danger: #D96C5F;
+  --focus: #E0B45C;
+
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.5);
+  --scrim: rgb(0 0 0 / 0.62);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F0F1F3;
+  --surface: #FAFBFC;
+  --surface-2: #E9EBEE;
+  --track: #DEE1E5;
+
+  --hairline: #E4E6E9;
+  --border: #D5D9DE;
+  --border-strong: #B4BBC4;
+  --control-border: #8A939E;
+
+  --text: #1A1F26;
+  --muted: #59636E;
+  --subtle: #6E7883;
+
+  --accent: #8A5F0E;
+  --accent-solid: #8A5F0E;
+  --accent-hover: #6E4B0A;
+  --accent-soft: #F3ECD9;
+  --info-surface: #F1F3F5;
+  --info-border: #DFE3E7;
+  --on-accent: #FFF9EE;
+
+  --success: #1B7A4E;
+  --warning: #96660D;
+  --danger: #B33A2B;
+  --focus: #8A5F0E;
+
+  --shadow-pop: 0 8px 24px rgb(16 20 26 / 0.14);
+  --scrim: rgb(16 20 26 / 0.42);
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face replaces the Latin monospace entirely: monospace
+   fonts do not render Arabic script, so fa/ar read in Vazirmatn with the
+   same layout rules and no faux-mono styling. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.8;
+}

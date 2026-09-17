@@ -1,0 +1,135 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  /* One warm refined sans voice; luxury reads through spacing and softness. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 2.375rem;
+  --fs-title: 1.0625rem;
+  --fs-section: 0.75rem;
+  --fs-body: 1rem;
+  --fs-caption: 0.875rem;
+  --fs-micro: 0.75rem;
+
+  --lh-display: 1.15;
+  --lh-tight: 1.4;
+  --lh-body: 1.65;
+  --measure: 60ch;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Soft premium rounding: cards and controls share one warm radius family. */
+  --r-panel: 12px;
+  --r-control: 9px;
+  --r-mark: 6px;
+  --r-pill: 999px;
+
+  --dur-fast: 100ms;
+  --dur: 180ms;
+  --dur-slow: 260ms;
+  --ease: cubic-bezier(0.25, 0.5, 0.2, 1);
+
+  /* Saffron is the app-like template: a deliberately narrow centred column. */
+  --page-max: 560px;
+  --tap: 44px;
+
+  --header-h: 54px;
+  --mark: 34px;
+  --card-pad: var(--sp-5);
+  --btn-h: 46px;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Espresso planes, cream ink, one copper
+   family for everything live and interactive. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #14100B;
+  --surface: #1D1812;
+  --surface-2: #262019;
+  --track: #322A20;
+
+  --hairline: #262019;
+  --border: #332B21;
+  --border-strong: #4A3F30;
+  --control-border: #5A4F3E;
+
+  --text: #F0E9DD;
+  --muted: #ACA08D;
+  --subtle: #968D7B;
+
+  --accent: #DB924D;
+  --accent-solid: #CB7C36;
+  --accent-hover: #E3A35F;
+  --accent-soft: #2A1F12;
+  --info-surface: #1B1712;
+  --info-border: #2B251C;
+  --on-accent: #1D1206;
+
+  --success: #58A878;
+  --warning: #D9A94F;
+  --danger: #D96C5F;
+  --focus: #E3A35F;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #FAF5EC;
+  --surface: #FFFCF5;
+  --surface-2: #F3EBDD;
+  --track: #E8DFCC;
+
+  --hairline: #EFE7D8;
+  --border: #E0D6C2;
+  --border-strong: #C6B99F;
+  --control-border: #93876F;
+
+  --text: #241C12;
+  --muted: #6E6353;
+  --subtle: #6F6455;
+
+  --accent: #A85F16;
+  --accent-solid: #A85F16;
+  --accent-hover: #8A4D10;
+  --accent-soft: #F5E7D2;
+  --info-surface: #F6F0E3;
+  --info-border: #E6DCC9;
+  --on-accent: #FFF9F0;
+
+  --success: #1B7A4E;
+  --warning: #96660D;
+  --danger: #B33A2B;
+  --focus: #A85F16;
+}
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.8;
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */

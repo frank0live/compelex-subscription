@@ -37,11 +37,17 @@ VERSION="$(tr -d ' \t\r\n' < "$ROOT/VERSION")"
 # Build every selectable template artifact fresh, so the payload can never ship
 # a stale one. The build is deterministic; node is the same requirement the
 # test suite already carries.
-BUILD="$ROOT/tools/build.mjs"
-[ -f "$BUILD" ] || die "missing required file: tools/build.mjs"
+#
+# node is run from $ROOT with a RELATIVE path on purpose. Under Git Bash on
+# Windows pwd yields an MSYS path such as /d/project, which the Windows node
+# binary cannot resolve — it reads the leading /d as a directory on the current
+# drive and dies with MODULE_NOT_FOUND. A relative path is resolved against the
+# process working directory, which every platform translates correctly.
+BUILD="tools/build.mjs"
+[ -f "$ROOT/$BUILD" ] || die "missing required file: tools/build.mjs"
 command -v node >/dev/null 2>&1 || die "node is required to build the template artifacts."
-IDS="$(node "$BUILD" --list | tr '\n' ' ')" || die "cannot read the template registry."
-node "$BUILD" --all --quiet || die "template build failed."
+IDS="$(cd "$ROOT" && node "$BUILD" --list | tr '\n' ' ')" || die "cannot read the template registry."
+(cd "$ROOT" && node "$BUILD" --all --quiet) || die "template build failed."
 
 # required source files
 ART_HTML="$ROOT/template/index.html"

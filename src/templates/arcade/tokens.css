@@ -1,0 +1,148 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  /* One rounded sans voice; the scoreboard character comes from case, weight
+     and alignment, never from a novelty face. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 2.25rem;
+  --fs-title: 1.0625rem;
+  --fs-section: 0.75rem;
+  --fs-body: 1rem;
+  --fs-caption: 0.875rem;
+  --fs-micro: 0.75rem;
+
+  --lh-display: 1.15;
+  --lh-tight: 1.4;
+  --lh-body: 1.6;
+  --measure: 60ch;
+  --ls-section: 0.09em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Compact rounded geometry: tiles and plates, softer than Brutal, tighter
+     than Canvas. */
+  --r-panel: 6px;
+  --r-control: 4px;
+  --r-mark: 3px;
+  --r-pill: 999px;
+
+  --dur-fast: 100ms;
+  --dur: 160ms;
+  --dur-slow: 220ms;
+  --ease: cubic-bezier(0.25, 0.55, 0.25, 1);
+
+  --page-max: 660px;
+  --tap: 44px;
+
+  --header-h: 56px;
+  --mark: 34px;
+  --card-pad: var(--sp-5);
+  --btn-h: 46px;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. The cabinet palette is deep indigo with
+   one electric magenta family; every surface is a flat plane. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #14101E;
+  --surface: #1C1626;
+  --surface-2: #251C33;
+  --track: #322647;
+
+  --hairline: #251D33;
+  --border: #302544;
+  --border-strong: #453560;
+  --control-border: #5C4880;
+
+  --text: #EDE8F6;
+  --muted: #A99CBE;
+  --subtle: #8B7EA6;
+
+  --accent: #D946EF;
+  --accent-solid: #C13BE0;
+  --accent-hover: #E35CF5;
+  --accent-soft: #2B1438;
+  --info-surface: #1A1524;
+  --info-border: #2A2238;
+  --on-accent: #1C0722;
+
+  --success: #58A878;
+  --warning: #D9A94F;
+  --danger: #D96C5F;
+  --focus: #E35CF5;
+
+  --shadow-pop: 0 10px 28px rgb(0 0 0 / 0.5);
+  --scrim: rgb(6 3 12 / 0.64);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F4F1F8;
+  --surface: #FDFBFE;
+  --surface-2: #ECE6F2;
+  --track: #DFD6E9;
+
+  --hairline: #E7E1EE;
+  --border: #D8CFE3;
+  --border-strong: #BBAACD;
+  --control-border: #9384A8;
+
+  --text: #1D1426;
+  --muted: #63566F;
+  --subtle: #7C6F88;
+
+  --accent: #8A1FB8;
+  --accent-solid: #8A1FB8;
+  --accent-hover: #6E1793;
+  --accent-soft: #F2E3FA;
+  --info-surface: #F1EDF5;
+  --info-border: #E0D9E8;
+  --on-accent: #FFFFFF;
+
+  --success: #1B7A4E;
+  --warning: #96660D;
+  --danger: #B33A2B;
+  --focus: #8A1FB8;
+}
+
+@media (min-width: 480px) {
+  :root { --card-pad: var(--sp-5); }
+}
+
+@media (min-width: 720px) {
+  :root { --fs-display: 2.5rem; }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.8;
+}

@@ -1,0 +1,158 @@
+/* Design tokens. Everything a theme can change lives here and nowhere else;
+   the rest of the stylesheet only reads custom properties. */
+
+:root {
+  /* One sans voice, set like instrument engraving: hierarchy comes from weight
+     and tracking, and the display figure is set LIGHTER and wider than the
+     labels around it rather than heavier. The mono face is reserved for
+     machine strings — URLs and configuration text — never for figures. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 1.875rem;
+  --fs-title: 1.0625rem;
+  --fs-section: 0.6875rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.75rem;
+
+  --lh-display: 1.05;
+  --lh-tight: 1.35;
+  --lh-body: 1.55;
+  --measure: 64ch;
+  --ls-section: 0.14em;
+  --ls-display: 0.01em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Sharper than a card system, softer than the machined 2px of the original
+     Prism: the geometry reads as a milled panel, not as a sheet of glass. */
+  --r-cell: 6px;
+  --r-control: 8px;
+  --r-mark: 6px;
+  --r-pill: 999px;
+
+  --dur: 150ms;
+  --dur-slow: 260ms;
+  --ease: cubic-bezier(0.22, 0.6, 0.2, 1);
+
+  --page-max: 1140px;
+  --tap: 44px;
+  --spine: 272px;
+  --mark: 34px;
+  --btn-h: 46px;
+}
+
+/* Dark is the default, so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Planes separate by tone and one hairline;
+   depth is structural, never a blur. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0A0C11;
+  --surface: #131722;
+  --surface-2: #1A1F2C;
+  --track: #232A3A;
+
+  --border: #262C3B;
+  --border-strong: #39415A;
+  --control-border: #6E7794;
+
+  --text: #E8EBF2;
+  --muted: #9AA3B8;
+  --subtle: #737D94;
+
+  --accent: #4C7DFF;
+  --accent-solid: #3D6DF0;
+  --accent-hover: #6A93FF;
+  --on-accent: #05070F;
+  --info-surface: #141A2A;
+  --info-border: #26304A;
+
+  --success: #46E0B0;
+  --warning: #F0B84C;
+  --danger: #FF6B6B;
+  --focus: #7FA6FF;
+
+  /* The one motif, declared once and read wherever dispersion is meant. The
+     vertical twin exists because a 90deg gradient across a 2px strip would
+     show a single stop rather than a ramp. */
+  --spectral: linear-gradient(90deg, #5B4BFF, #4C7DFF 34%, #37C8F0 68%, #46E0B0);
+  --spectral-v: linear-gradient(180deg, #5B4BFF, #4C7DFF 34%, #37C8F0 68%, #46E0B0);
+
+  --shadow-pop: 0 16px 40px rgb(0 0 0 / 0.6);
+  --scrim: rgb(3 5 10 / 0.68);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F4F6FA;
+  --surface: #FFFFFF;
+  --surface-2: #EDF0F6;
+  --track: #DFE4EC;
+
+  --border: #DCE1EA;
+  --border-strong: #B6BECC;
+  --control-border: #858EA0;
+
+  --text: #0E1116;
+  --muted: #4E5766;
+  --subtle: #6B7484;
+
+  --accent: #2456D6;
+  --accent-solid: #2456D6;
+  --accent-hover: #1B45B4;
+  --on-accent: #FFFFFF;
+  --info-surface: #EEF2FB;
+  --info-border: #D6DEF2;
+
+  --success: #12784F;
+  --warning: #8A5A00;
+  --danger: #B32F26;
+  --focus: #2456D6;
+
+  /* The same ramp, darkened until every stop clears 4.5:1 on white: a 1px
+     gradient that fails contrast reads as dirt, not as light. */
+  --spectral: linear-gradient(90deg, #4A38D8, #2456D6 34%, #1E86B4 68%, #12784F);
+  --spectral-v: linear-gradient(180deg, #4A38D8, #2456D6 34%, #1E86B4 68%, #12784F);
+
+  --shadow-pop: 0 16px 40px rgb(14 17 22 / 0.16);
+  --scrim: rgb(14 17 22 / 0.4);
+}
+
+@media (min-width: 1000px) {
+  :root {
+    --fs-display: 2.125rem;
+    --page-max: 1140px;
+  }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face is opted into by language, and its unicode-range keeps
+   it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.75;
+}

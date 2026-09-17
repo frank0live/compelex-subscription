@@ -1,0 +1,199 @@
+/* Page skeleton: the operations board. Desktop uses a two-zone asymmetric
+   dashboard (hero + rail) above a two-column workspace. Mobile stacks in
+   DOM order. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* The header carries the live state inline, like a real ops status bar. */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-3);
+  min-block-size: var(--header-h);
+  border-block-end: 1px solid var(--hairline);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  margin-inline-start: auto;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  flex: 1 0 auto;
+}
+
+#plan-slot,
+#bar-slot,
+#announce-slot,
+#support-slot {
+  display: contents;
+}
+
+/* The operations board: hero and rail side by side on desktop, stacked on
+   mobile. The work area splits Connect and Explorer into two columns. */
+.cx-dash {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.cx-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.cx-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-panel);
+}
+
+.cx-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.cx-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+  margin-block-start: var(--sp-2);
+}
+
+.cx-work {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+@media (min-width: 760px) {
+  .cx-dash {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    column-gap: var(--sp-6);
+    align-items: start;
+  }
+
+  .cx-rail {
+    background: transparent;
+    border: none;
+    border-inline-start: 1px solid var(--hairline);
+    border-radius: 0;
+    padding-inline-start: var(--sp-5);
+  }
+
+  .cx-work {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: var(--sp-5);
+    align-items: start;
+  }
+}
+
+@media (min-width: 720px) {
+  body { padding-inline: var(--sp-6); }
+}
+
+/* Mobile: the state pill and live state drop to a secondary strip below the
+   brand row, freeing inline space for the service name. Actions stack to a
+   single column so the primary CTA label is never truncated. */
+@media (max-width: 479px) {
+  .site-header {
+    flex-wrap: wrap;
+    padding-block: var(--sp-2);
+  }
+
+  .brand {
+    order: 1;
+    flex: 1 1 0;
+    min-inline-size: 0;
+  }
+
+  .header-controls {
+    order: 2;
+  }
+
+  .header-status {
+    order: 3;
+    inline-size: 100%;
+    padding-block-start: var(--sp-2);
+    border-block-start: 1px solid var(--hairline);
+    margin-block-start: var(--sp-2);
+  }
+
+  .cx-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile: the state pill and live state drop to a secondary strip below the
+   brand row, freeing inline space for the service name. */
+@media (max-width: 479px) {
+  .site-header {
+    flex-wrap: wrap;
+    padding-block: var(--sp-2);
+  }
+
+  .brand {
+    order: 1;
+    flex: 1 1 0;
+    min-inline-size: 0;
+  }
+
+  .header-controls {
+    order: 2;
+  }
+
+  .header-status {
+    order: 3;
+    inline-size: 100%;
+    padding-block-start: var(--sp-2);
+    border-block-start: 1px solid var(--hairline);
+    margin-block-start: var(--sp-2);
+  }
+}

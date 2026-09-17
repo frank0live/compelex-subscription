@@ -1,0 +1,147 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  /* One bold grotesk voice: weight does the talking, size does the shouting. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 2.625rem;
+  --fs-title: 1.0625rem;
+  --fs-section: 0.9375rem;
+  --fs-body: 1rem;
+  --fs-caption: 0.875rem;
+  --fs-micro: 0.75rem;
+
+  --lh-display: 1.05;
+  --lh-tight: 1.35;
+  --lh-body: 1.6;
+  --measure: 60ch;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Geometry is square: boards, not bubbles. Depth comes from the offset
+     back-plane, never from rounding. */
+  --r-panel: 0px;
+  --r-control: 0px;
+
+  --dur-fast: 90ms;
+  --dur: 140ms;
+  --dur-slow: 200ms;
+  --ease: cubic-bezier(0.3, 0.5, 0.2, 1);
+
+  --page-max: 680px;
+  --tap: 44px;
+
+  --header-h: 56px;
+  --mark: 34px;
+  --card-pad: var(--sp-5);
+  --btn-h: 46px;
+
+  /* The offset slab: the printed back-plane behind major surfaces. Flat
+     solid colour, never blurred. */
+  --offset: #000000;
+  --offset-size: 4px;
+  --offset-shadow: var(--offset-size) var(--offset-size) 0 var(--offset);
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Acid lime is a printed ink, not a glow:
+   flat, solid, always paired with near-black ink on filled surfaces. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #111110;
+  --surface: #1B1B18;
+  --surface-2: #23231E;
+  --track: #2C2C26;
+
+  --hairline: #262620;
+  --border: #33332B;
+  --border-strong: #47473C;
+  --control-border: #55554A;
+
+  --text: #EFEFE6;
+  --muted: #A6A698;
+  --subtle: #8B8B7E;
+
+  --accent: #CDF14A;
+  --accent-solid: #B5DC2F;
+  --accent-hover: #DBF95E;
+  --accent-soft: #23290C;
+  --info-surface: #191917;
+  --info-border: #2C2C26;
+  --on-accent: #12120A;
+
+  --success: #58A878;
+  --warning: #D9A94F;
+  --danger: #D96C5F;
+  --focus: #CDF14A;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F4F3EE;
+  --surface: #FDFCF9;
+  --surface-2: #ECEAE2;
+  --track: #DEDBD0;
+
+  --hairline: #E5E2D9;
+  --border: #D7D3C7;
+  --border-strong: #B9B5A6;
+  --control-border: #8D8A7C;
+
+  --text: #161613;
+  --muted: #5D5C52;
+  --subtle: #737267;
+
+  --accent: #55700B;
+  --accent-solid: #5F7C0D;
+  --accent-hover: #465C09;
+  --accent-soft: #E8EFD2;
+  --info-surface: #F1F0EA;
+  --info-border: #DFDCD1;
+  --on-accent: #10130A;
+
+  --success: #1B7A4E;
+  --warning: #96660D;
+  --danger: #B33A2B;
+  --focus: #55700B;
+}
+
+@media (min-width: 480px) {
+  :root { --card-pad: var(--sp-5) var(--sp-6); }
+}
+
+@media (min-width: 720px) {
+  :root { --fs-display: 3rem; }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.8;
+}

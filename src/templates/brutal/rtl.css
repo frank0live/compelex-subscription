@@ -1,0 +1,43 @@
+/* Direction-specific rules. The layout needs none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> is enough. What
+   remains: the two glyphs that carry a direction of their own, the offset
+   back-planes (physical depth reads the same in both directions, so the
+   printed slab stays down-and-inline-end and mirrors with the text), and the
+   Latin-only tracking, which closes Arabic joins. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+/* The offset back-plane flips to the inline end in RTL: the slab is printed
+   "behind and after" the front board in both directions. */
+[dir="rtl"] .card,
+[dir="rtl"] .menu,
+[dir="rtl"] .dialog,
+[dir="rtl"] .btn-primary,
+[dir="rtl"] .tab[aria-selected="true"] {
+  box-shadow: calc(-1 * var(--offset-size)) var(--offset-size) 0 var(--offset);
+}
+
+[dir="rtl"] .btn-primary:active {
+  transform: translate(-2px, 2px);
+  box-shadow: -2px 2px 0 var(--offset);
+}
+
+[dir="rtl"] .tab[aria-selected="true"]:active {
+  transform: translate(-2px, 2px);
+  box-shadow: -1px 1px 0 var(--offset);
+}
+
+/* Persian and Arabic ascenders and descenders need the extra leading the
+   tighter Latin display sizes would clip. */
+[lang="fa"] .big-value,
+[lang="ar"] .big-value {
+  line-height: 1.2;
+}
+
+[lang="fa"] .value,
+[lang="ar"] .value {
+  line-height: 1.4;
+}

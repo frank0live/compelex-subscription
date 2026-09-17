@@ -1,0 +1,120 @@
+/* Page skeleton: a slim ruled header, planes on a disciplined column, and
+   the status anchor's metric split. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* One thin precision rule closes the header band; nothing else on the page
+   sits above it. */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-5) var(--sp-3);
+  min-block-size: var(--header-h);
+  border-block-end: 1px solid var(--hairline);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+/* One line, with the full value in the title attribute: a name long enough to
+   wrap would push the controls off the first screen. */
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  flex: 1 0 auto;
+}
+
+/* Slots hold optional components. display:contents keeps an empty slot from
+   contributing a row to the flex gap, so an absent section costs nothing. */
+#plan-slot,
+#bar-slot,
+#announce-slot,
+#support-slot {
+  display: contents;
+}
+
+/* The status anchor's metric split: two instrument regions sharing one plane.
+   On wide phones and up, traffic and expiry are aligned columns divided by a
+   full-height vertical rule; below that they stack on a horizontal rule. The
+   separator is structural ? it marks the boundary between two instruments. */
+.status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.traffic-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+}
+
+.expiry-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  padding-block-start: var(--sp-4);
+  border-block-start: 1px solid var(--hairline);
+}
+
+@media (min-width: 760px) {
+  .status-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    column-gap: var(--sp-5);
+    align-items: stretch;
+  }
+
+  .expiry-block {
+    justify-self: end;
+    text-align: end;
+    padding-block-start: 0;
+    border-block-start: 0;
+    border-inline-start: 1px solid var(--hairline);
+    padding-inline-start: var(--sp-5);
+  }
+}
+
+.actions {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+@media (min-width: 480px) {
+  .actions { grid-template-columns: 1fr auto; }
+}
+
+@media (min-width: 720px) {
+  body { padding-inline: var(--sp-6); }
+}

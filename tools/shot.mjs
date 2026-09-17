@@ -156,6 +156,10 @@ async function navigateShot(name, url, { theme, act, wait }) {
      into the next, so every shot states its theme explicitly. */
   await evaluate(`localStorage.setItem('row.theme', ${JSON.stringify(theme)}); location.reload();`);
   await waitEvent('Page.loadEventFired');
+  /* The fixture server injects its template-picker chrome into every served
+     page. It is development tooling, not product UI, so it comes out before
+     the frame is taken instead of shipping inside review evidence. */
+  await evaluate("document.getElementById('row-dev')?.remove();");
   if (act) await evaluate(act);
   await settle(wait);
   const png = await send('Page.captureScreenshot', { format: 'png' });
@@ -186,17 +190,18 @@ try {
     await pageShot('vps-config-dialog', url, { act: "document.querySelector('.cfg [data-act=view]')?.click()" });
     await pageShot('vps-explorer-expanded', url, { act: "document.getElementById('config-toggle')?.click(); document.getElementById('explorer')?.scrollIntoView();" });
   } else {
-    await shot('editorial-desktop-dark');
-    await shot('editorial-desktop-light', { theme: 'light' });
-    await shot('editorial-mobile-390', { width: 390, height: 844, mobile: true });
-    await shot('editorial-mobile-390-light', { width: 390, height: 844, mobile: true, theme: 'light' });
-    await shot('editorial-persian-rtl-390', { width: 390, height: 844, mobile: true, page: '14-persian', lang: 'fa' });
-    await shot('editorial-arabic-rtl-390', { width: 390, height: 844, mobile: true, page: '15-arabic', lang: 'ar' });
-    await shot('editorial-explorer-expanded', { page: '27-explorer-fifty', act: "document.getElementById('config-toggle').click(); document.getElementById('explorer').scrollIntoView();" });
-    await shot('editorial-config-dialog', { page: '21-explorer-all-protocols', act: "document.querySelector('.cfg [data-act=view]').click()" });
-    await shot('editorial-qr-dialog', { act: "document.getElementById('qr-btn').click()" });
-    await shot('editorial-long-content-390', { width: 390, height: 844, mobile: true, page: '13-long-service-name' });
-    await shot('editorial-explorer-long-390', { width: 390, height: 844, mobile: true, page: '29-explorer-long-names', act: "document.getElementById('explorer').scrollIntoView()" });
+    const p = `${TEMPLATE}-`;
+    await shot(p + 'desktop-dark');
+    await shot(p + 'desktop-light', { theme: 'light' });
+    await shot(p + 'mobile-390', { width: 390, height: 844, mobile: true });
+    await shot(p + 'mobile-390-light', { width: 390, height: 844, mobile: true, theme: 'light' });
+    await shot(p + 'persian-rtl-390', { width: 390, height: 844, mobile: true, page: '14-persian', lang: 'fa' });
+    await shot(p + 'arabic-rtl-390', { width: 390, height: 844, mobile: true, page: '15-arabic', lang: 'ar' });
+    await shot(p + 'explorer-expanded', { page: '27-explorer-fifty', act: "document.getElementById('config-toggle').click(); document.getElementById('explorer').scrollIntoView();" });
+    await shot(p + 'config-dialog', { page: '21-explorer-all-protocols', act: "document.querySelector('.cfg [data-act=view]').click()" });
+    await shot(p + 'qr-dialog', { act: "document.getElementById('qr-btn').click()" });
+    await shot(p + 'long-content-390', { width: 390, height: 844, mobile: true, page: '13-long-service-name' });
+    await shot(p + 'explorer-long-390', { width: 390, height: 844, mobile: true, page: '29-explorer-long-names', act: "document.getElementById('explorer').scrollIntoView()" });
   }
   process.stdout.write(`captured into ${OUT}\n`);
 } finally {
