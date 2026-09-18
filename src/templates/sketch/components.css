@@ -1,154 +1,35 @@
-/* Components. The annotated-sheet vocabulary: 1px drafted frames, offset
-   annotation strokes on the important planes, registration ticks at two
-   corners, numbered running labels, and marker-stroke highlights. Colour
-   reads a token from tokens.css everywhere. */
+/* Components. The sheet vocabulary is annotation: values are set in the mono
+   voice, their explanations sit beside them in a second column, and every
+   record is a ruled line rather than a plate. Nothing here is rounded and
+   nothing here is a card. */
 
-[hidden] { display: none !important; }
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--card-pad);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-panel);
-}
-
-/* The status sheet: the one plane that carries the second annotation stroke
-   (an accent pass drawn slightly off the frame, like a corrected line) and
-   the registration ticks at two corners. Position:relative anchors both. */
-.status-card {
-  position: relative;
-}
-
-.status-card::before {
-  content: "";
-  position: absolute;
-  inset-block-start: -4px;
-  inset-inline-start: -4px;
-  inline-size: 14px;
-  block-size: 14px;
-  pointer-events: none;
-  background: var(--reg-tl);
-}
-
-.status-card::after {
-  content: "";
-  position: absolute;
-  inset-block-end: -4px;
-  inset-inline-end: -4px;
-  inline-size: 14px;
-  block-size: 14px;
-  pointer-events: none;
-  background: var(--reg-br);
-}
-
-/* A running label with its annotation index and two-stroke underline: the
-   sheet number is a generated counter (localization-neutral digits), the
-   underline is an ink rule continued by a shorter accent stroke. */
-.section-title {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
-  font-size: var(--fs-section);
-  font-weight: 800;
-  text-transform: uppercase;
-  color: var(--text);
-}
-
-.section-title::before {
-  content: counter(sheet, decimal-leading-zero);
-  counter-increment: sheet;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
-
-.section-title::after {
-  content: "";
-  align-self: center;
-  inline-size: 40px;
-  block-size: 2px;
-  flex: none;
-  background: var(--accent);
-}
-
-/* A framed mark plate: the monogram or logo on a tone step. The monogram is
-   one indivisible unit (no hyphen wrap), centred, and the plate grows inline
-   if a monogram is ever wider than its minimum. */
-.brand-mark {
-  display: grid;
-  place-items: center;
-  inline-size: auto;
-  min-inline-size: var(--mark);
-  block-size: var(--mark);
-  flex: none;
-  padding-inline: var(--sp-2);
-  white-space: nowrap;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-control);
-  background: var(--surface-2);
-  color: var(--accent);
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  overflow: hidden;
-}
-
-.brand-mark img {
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: contain;
-}
-
-/* The plan name is metadata: plain muted text. */
-.plan-label {
-  max-inline-size: 100%;
-  color: var(--muted);
-  font-size: var(--fs-caption);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.status-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-}
-
-/* The state tag: a boxed annotation label with a square LED. */
 .pill {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  padding-inline: var(--sp-2);
-  border: 1px solid var(--border-strong);
-  border-inline-start: 2px solid var(--accent);
-  background: var(--surface-2);
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 600;
 }
 
 .dot {
-  inline-size: 7px;
-  block-size: 7px;
+  inline-size: 8px;
+  block-size: 8px;
   flex: none;
   border-radius: 50%;
   background: var(--subtle);
+  transition: background-color var(--dur) var(--ease);
 }
 
 .pill[data-state="active"] .dot { background: var(--success); }
 .pill[data-state="expired"] .dot { background: var(--danger); }
 .pill[data-state="limited"] .dot { background: var(--warning); }
-.pill[data-state="disabled"] .dot { background: var(--subtle); }
 
 .live-state {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   color: var(--subtle);
 }
@@ -156,99 +37,121 @@
 .live-state[data-online="1"] { color: var(--text); }
 .live-state[data-online="1"] .dot { background: var(--success); }
 
-/* The hero figure: drafted numerals on the sheet. */
-.big-value {
-  font-size: var(--fs-display);
-  font-weight: 800;
-  line-height: var(--lh-display);
+/* The plan name is an enhancement; the localized field label always names the
+   sheet, so an empty slot removes nothing the region needs. */
+#plan-slot:empty { display: none; }
+
+.plan-label {
+  display: block;
+  max-inline-size: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
-.value {
+/* The annotated readout: each value takes the leading column and its
+   explanation is set against the trailing edge, so the field reads as a
+   measured table rather than a stack of figures. */
+.annotated {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-2) var(--sp-5);
+  align-items: baseline;
+}
+
+#traffic-value { grid-column: 1; }
+#traffic-caption { grid-column: 2; text-align: end; }
+#bar-slot { grid-column: 1 / -1; }
+#traffic-trailing { grid-column: 1 / -1; }
+#expiry-value { grid-column: 1; }
+#expiry-caption { grid-column: 2; text-align: end; }
+#updated-slot { grid-column: 1 / -1; }
+
+.figure {
+  font-family: var(--font-mono);
+  font-size: var(--fs-figure);
+  font-weight: 700;
+  line-height: var(--lh-figure);
+  font-variant-numeric: tabular-nums;
+}
+
+.figure-sm {
+  font-family: var(--font-mono);
   font-size: var(--fs-body);
   font-weight: 700;
   line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Colour repeats what the words already say; the tint only makes the row
-   findable at a glance. */
-.value[data-level="warn"] { color: var(--warning); }
-.value[data-level="over"] { color: var(--danger); }
+/* Colour repeats what the words already say; the words are the signal. */
+.figure-sm[data-level="warn"] { color: var(--warning); }
+.figure-sm[data-level="over"] { color: var(--danger); }
 
 .caption {
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   color: var(--muted);
+  letter-spacing: var(--ls-annot);
 }
 
 .caption:empty { display: none; }
 
-.bar-row {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--sp-2);
-  margin-block-start: var(--sp-2);
-}
-
-/* The measured ruler: a lane with a heavy baseline, minor ticks every 10px
-   and major ticks every 50px, and the consumption drawn as an 8px marker
-   stroke riding the baseline. The percentage sits at the edge as the
-   measurement annotation. Ticks are physical and symmetric; the fill carries
-   the direction. */
-.bar {
-  flex: 1;
-  min-inline-size: 0;
-  block-size: 16px;
-  display: flex;
-  align-items: flex-end;
-  border-block-end: 2px solid var(--border-strong);
-  background:
-    repeating-linear-gradient(90deg,
-      var(--border-strong) 0 1px, transparent 1px 12px) bottom / 100% 6px no-repeat,
-    repeating-linear-gradient(90deg,
-      var(--text) 0 2px, transparent 2px 60px) bottom / 100% 10px no-repeat;
-}
-
-.bar-fill {
-  display: block;
-  block-size: 8px;
-  background: var(--accent);
-  animation: bar-grow var(--dur-slow) var(--ease);
-  transition: inline-size var(--dur-slow) var(--ease);
-}
-
-@keyframes bar-grow {
-  from { inline-size: 0; }
-}
-
-.bar[data-level="warn"] .bar-fill { background: var(--warning); }
-.bar[data-level="over"] .bar-fill { background: var(--danger); }
-
-.bar-pct {
-  flex: none;
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--text);
-}
-
-/* Freshness closes the sheet: a ruled footnote line. Empty until the first
-   poll answers. */
-.card-foot {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding-block-start: var(--sp-3);
-  border-block-start: 1px dotted var(--border-strong);
+.stamp {
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
   color: var(--subtle);
 }
 
-.card-foot:empty { display: none; }
+.stamp:empty { display: none; }
+.stamp[data-stale] { color: var(--warning); }
 
-.card-foot[data-stale] { color: var(--warning); }
+/* The gauge is a measured channel: a ruled track with one solid fill. The
+   figure and the percentage both carry the value, so it never has to
+   communicate on colour alone. */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
 
-/* Actions are marked boxes: an outlined sheet box with the accent highlight
-   and a folded corner cut at the inline end. The outline is the fill; hover
-   deepens the marker. */
+.bar {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 10px;
+  background-color: var(--track);
+  border-block-end: 1px solid var(--rule-strong);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  background-color: var(--ink);
+  animation: grow var(--dur-slow) var(--ease);
+  transition: inline-size var(--dur-slow) var(--ease);
+}
+
+@keyframes grow { from { inline-size: 0; } }
+
+.bar[data-level="warn"] .bar-fill { background-color: var(--warning); }
+.bar[data-level="over"] .bar-fill { background-color: var(--danger); }
+
+.bar-pct {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  min-inline-size: 4ch;
+  text-align: end;
+}
+
+.system-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -256,42 +159,30 @@
   gap: var(--sp-2);
   min-block-size: var(--tap);
   padding-inline: var(--sp-4);
-  border: 2px solid var(--border-strong);
-  border-radius: var(--r-control);
-  font-size: var(--fs-body);
-  font-weight: 700;
+  border: 1px solid transparent;
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
   background: transparent;
-  color: var(--text);
   transition: background-color var(--dur) var(--ease),
-              border-color var(--dur) var(--ease),
-              color var(--dur) var(--ease);
+              border-color var(--dur) var(--ease);
 }
 
+/* The one filled surface on the sheet. */
 .btn-primary {
-  border-color: var(--accent);
-  background:
-    linear-gradient(to bottom left,
-      var(--accent) 7px, transparent 7px) top right / 14px 14px no-repeat,
-    var(--accent-soft);
-  color: var(--text);
+  background: var(--ink-solid);
+  border-color: var(--ink-solid);
+  color: var(--on-ink);
 }
 
-.btn-outline {
-  background: var(--surface);
-}
+.btn-outline { border-color: var(--rule-strong); }
 
-.btn-quiet {
-  background: transparent;
-  border-color: transparent;
-  color: var(--muted);
-}
+.btn-quiet { color: var(--muted); }
 
-/* Both labels of a copy button occupy the same grid cell, so the button is
-   laid out at the width of the longer word and confirming a copy cannot move
-   the buttons beside it. The unused one is hidden rather than removed, which
-   also keeps it out of the accessible name. */
+/* Both labels share one grid cell, so the control is laid out at the width of
+   the longer word and confirming a copy cannot move its neighbours. */
 .btn-swap {
   display: grid;
   grid-template-areas: "label";
@@ -310,66 +201,65 @@
 .btn-swap > .swap-done { visibility: hidden; }
 
 .btn[data-flash] .swap-live { visibility: hidden; }
-
 .btn[data-flash] .swap-done { visibility: visible; }
 
 .btn-outline[data-flash],
 .btn-quiet[data-flash] { color: var(--success); }
 
+/* Record and reference commands are ruled marks. The runtime marks each
+   client's import as its primary variant, so the small primary is flattened
+   back to a ruled mark and Copy subscription stays the only filled surface. */
 .btn-sm {
-  min-block-size: 40px;
-  padding-inline: var(--sp-3);
-  font-size: var(--fs-caption);
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border-color: var(--rule);
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 500;
 }
 
-.btn-sm .icon {
-  inline-size: 1rem;
-  block-size: 1rem;
+.btn-sm.btn-primary {
+  background: transparent;
+  color: var(--muted);
 }
 
-.actions .btn-primary { min-block-size: var(--btn-h); }
-
-.support-cta {
-  inline-size: 100%;
-  min-block-size: var(--btn-h);
-}
-
-/* Header controls: small annotated boxes. */
 .ctl {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--sp-1);
-  min-block-size: 40px;
-  min-inline-size: 40px;
+  min-block-size: var(--tap);
+  min-inline-size: var(--tap);
   padding-inline: var(--sp-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-control);
-  background: var(--surface);
+  border: 1px solid var(--rule);
+  background: transparent;
   color: var(--muted);
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
 }
 
 .ctl-icon { padding-inline: 0; }
 
-/* An open menu keeps its trigger lit, which is the only cue that the panel
-   below belongs to this control and not the one beside it. */
+.ctl .icon-chevron {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
 .ctl[aria-expanded="true"] {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--track);
   color: var(--text);
 }
 
 .ctl:active,
-.menu-item:active,
-.btn-outline:active,
-.btn-quiet:active { background: var(--track); }
+.menu-item:active { background: var(--track); }
 
 .btn:disabled,
 .ctl:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: default;
 }
 
@@ -377,15 +267,14 @@
 
 .menu {
   position: absolute;
-  inset-block-start: calc(100% + var(--sp-1));
+  inset-block-start: calc(100% + var(--sp-2));
   inset-inline-end: 0;
   z-index: 20;
-  min-inline-size: 180px;
+  min-inline-size: 190px;
   padding: var(--sp-1);
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-panel);
-  animation: rise var(--dur) var(--ease);
+  border: 1px solid var(--rule-strong);
+  box-shadow: var(--shadow-pop);
 }
 
 .menu-item {
@@ -393,14 +282,15 @@
   align-items: center;
   gap: var(--sp-2);
   inline-size: 100%;
-  min-block-size: 40px;
+  min-block-size: var(--tap);
   padding-inline: var(--sp-2);
   border: 0;
-  border-radius: var(--r-mark);
   background: transparent;
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   text-align: start;
   cursor: pointer;
+  transition: background-color var(--dur) var(--ease);
 }
 
 .menu-item .icon:last-child {
@@ -409,76 +299,208 @@
 }
 
 .menu-item[aria-checked="true"] {
-  color: var(--accent);
+  color: var(--ink);
   font-weight: 700;
 }
 
 .menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
 
-/* Paper-label tabs: outlined annotation labels separated by dotted rules;
-   the selected mode is circled in the accent, the way a choice is marked on
-   a sheet. The strip wraps at the narrowest widths so no label is cut. */
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-3);
-}
+/* --- the record index ----------------------------------------------------- */
 
-.tab {
-  flex: 0 1 auto;
-  min-inline-size: 0;
-  min-block-size: 40px;
-  padding-inline: var(--sp-2);
-  border: 0;
-  border-block-end: 1px dotted var(--border-strong);
-  border-radius: 0;
-  background: transparent;
+.count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
   color: var(--muted);
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  border-block-end: 1px solid var(--rule);
+  color: var(--subtle);
+}
+
+.search:focus-within { border-block-end-color: var(--ink); }
+
+.search input {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.tab[aria-selected="true"] {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: var(--r-control);
-}
+.search input:focus { outline: none; }
 
-.clients {
+/* A record: one ruled line. The record number is a margin mark, the identity is
+   set in the sans voice, the protocol is an annotation, and the commands close
+   the line against the trailing edge. The separator is dotted, which is the
+   drawn-sheet device that keeps the index reading as records rather than rows. */
+#config-list {
   display: flex;
   flex-direction: column;
 }
 
-/* Player rows on the sheet: compact framed entries. */
-.client {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding-block: var(--sp-2);
-  border-block-end: 1px dotted var(--border-strong);
+.cfg {
+  display: grid;
+  grid-template-columns: 3.5rem auto minmax(0, 1fr) 9rem auto;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
+  min-inline-size: 0;
+  padding-block: var(--sp-3);
+  border-block-end: 1px dotted var(--rule-strong);
 }
 
-.client:first-child { padding-block-start: 0; }
+.cfg::before {
+  content: "REC-" counter(record, decimal-leading-zero);
+  grid-column: 1;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--subtle);
+}
 
-.client:last-child { border-block-end: 0; padding-block-end: 0; }
+#config-list { counter-reset: record; }
+.cfg { counter-increment: record; }
 
-/* The base size is the name's own width, so a sheet too narrow for both parts
-   moves the buttons onto their own line instead of squeezing the name away. */
-.client-head {
+.cfg-flag {
+  grid-column: 2;
+  display: grid;
+  place-items: center;
+  inline-size: 1.75rem;
+  font-size: 17px;
+  line-height: 1;
+  overflow: hidden;
+}
+
+/* Monogram fallback when a node carries no country flag: the first letter of
+   its name as a record mark, so the column still reads. */
+.cfg-flag[data-mono] {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+/* The body dissolves, so the name and the protocol become grid items of the
+   record itself and sit on the same measured baseline as the commands. */
+.cfg-body { display: contents; }
+
+.cfg-name {
+  grid-column: 3;
+  display: block;
+  font-size: var(--fs-record);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-proto {
+  grid-column: 4;
+  display: block;
+  max-inline-size: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-actions {
+  grid-column: 5;
   display: flex;
   align-items: center;
+  gap: var(--sp-1);
+  justify-content: flex-end;
+}
+
+.empty { text-align: start; }
+
+.more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: var(--sp-2);
-  flex: 1 1 auto;
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 0;
+  border-block-end: 1px dotted var(--rule-strong);
+  background: transparent;
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  cursor: pointer;
+}
+
+.more .icon { transition: transform var(--dur) var(--ease); }
+.more[aria-expanded="true"] .icon { transform: rotate(180deg); }
+
+/* --- the reference section ------------------------------------------------ */
+
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  border-block-end: 1px solid var(--rule);
+}
+
+/* A reference mode is a written mark, not a button. The engaged one is marked
+   by weight AND by an underline, so it survives monochrome and forced colours. */
+.tab {
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+  padding: 0;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: transparent;
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--text);
+  font-weight: 700;
+  border-block-end-color: var(--ink);
+}
+
+.client {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+  min-inline-size: 0;
+  padding-block: var(--sp-3);
+  border-block-end: 1px dotted var(--rule);
+}
+
+.client-head {
+  display: flex;
+  flex-direction: column;
   min-inline-size: 0;
 }
 
 .client-name {
+  font-size: var(--fs-record);
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -486,32 +508,31 @@
 }
 
 .client-tag {
-  flex: none;
-  color: var(--subtle);
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
+  color: var(--subtle);
   white-space: nowrap;
 }
 
 .client-actions {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  flex: none;
-  margin-inline-start: auto;
+  gap: var(--sp-1);
+  justify-content: flex-end;
 }
 
-/* The page's inline controls — the announcement toggle and the retry in a
-   stopped footer — are words rather than buttons, so the padding gives them a
-   thumb-sized box without drawing one. */
+/* --- the notes ------------------------------------------------------------ */
+
 .text-link {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
   align-self: flex-start;
-  min-block-size: 40px;
+  min-block-size: var(--tap);
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: var(--ink);
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   font-weight: 700;
   text-align: start;
@@ -519,32 +540,40 @@
   cursor: pointer;
 }
 
-/* An operator note pinned to the sheet: framed, with an accent top rule. */
 .announce {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  padding: var(--sp-4);
-  background: var(--info-surface);
-  border: 1px solid var(--info-border);
-  border-block-start: 2px solid var(--accent);
-  border-radius: var(--r-panel);
+  padding-inline-start: var(--sp-3);
+  border-inline-start: 1px solid var(--rule-strong);
 }
 
 .announce-head {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  color: var(--accent);
+  color: var(--muted);
 }
 
-/* Clamped by default; the card carries the open state, because whether the
+/* The runtime builds the announcement heading as .section-title, so it takes the
+   same field-label treatment as the sheet's own labels. */
+.section-title {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label);
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+/* Clamped by default; the panel carries the open state, because whether the
    toggle is needed at all is measured against this clamp. */
 .announce-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
   overflow: hidden;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -557,51 +586,36 @@
   overflow: visible;
 }
 
-.support { margin-block-start: 0; }
+.support { display: flex; }
 
-/* Dialogs are pinned detail sheets: framed, corner-ticked, with the offset
-   annotation stroke and a ruled title band. No heavy shadow; the offset
-   stroke is the depth. */
+/* --- dialogs -------------------------------------------------------------- */
+
 .dialog {
   padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-panel);
+  border: 1px solid var(--rule-strong);
   background: var(--surface);
   color: var(--text);
   inline-size: calc(100% - 2 * var(--sp-4));
-  max-inline-size: 380px;
-  position: relative;
+  max-inline-size: 390px;
+  box-shadow: var(--shadow-pop);
 }
 
 .dialog::backdrop { background: var(--scrim); }
-
-.dialog[open] { animation: rise var(--dur-slow) var(--ease); }
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-}
 
 .dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  border-block-end: 1px solid var(--border-strong);
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  border-block-end: 1px solid var(--rule);
 }
+
+.dialog-head .ctl { color: var(--text); }
 
 .dialog-title {
   font-size: var(--fs-title);
-  font-weight: 800;
-}
-
-.dialog-head .ctl {
-  min-inline-size: 32px;
-  min-block-size: 32px;
-  color: var(--text);
+  font-weight: 700;
 }
 
 .qr-body {
@@ -609,21 +623,20 @@
   flex-direction: column;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
 }
 
 /* The frame stays white in both themes because the code has to scan, and a
    quiet zone is part of the symbol rather than padding around a picture. */
 .qr-frame {
   padding: var(--sp-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-mark);
   background: #FFFFFF;
+  border: 1px solid var(--rule-strong);
 }
 
 /* Bounded by the shorter axis as well: a phone held sideways has room for the
-   width but not the height, and a code the reader has to scroll to is worse
-   than a smaller one shown beside the address it encodes. */
+   width but not the height, and a code the reader must scroll to is worse than
+   a smaller one shown beside the address it encodes. */
 #qr-canvas {
   inline-size: min(280px, 72vw, 36vh);
   block-size: auto;
@@ -640,17 +653,17 @@
   min-inline-size: 0;
   min-block-size: var(--tap);
   padding-inline: var(--sp-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-control);
-  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  background: var(--track);
   color: var(--muted);
-  font-size: var(--fs-caption);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
 }
 
 .url-plain {
   padding: var(--sp-3);
-  border-radius: var(--r-control);
-  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   overflow-wrap: anywhere;
   user-select: all;
@@ -660,188 +673,25 @@
    failure. Success is reported on the control that was pressed. */
 .toast {
   position: fixed;
-  inset-block-end: var(--sp-4);
+  inset-block-end: var(--sp-5);
   inset-inline: 0;
   z-index: 60;
   inline-size: fit-content;
   max-inline-size: calc(100% - 2 * var(--sp-4));
   margin-inline: auto;
-  padding: var(--sp-2) var(--sp-3);
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-inline-start: 3px solid var(--accent);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   font-weight: 700;
   opacity: 0;
-  transform: translateY(3px);
-  transition: opacity var(--dur) var(--ease),
-              transform var(--dur) var(--ease);
+  transition: opacity var(--dur) var(--ease);
 }
 
-.toast[data-show] {
-  opacity: 1;
-  transform: none;
-}
+.toast[data-show] { opacity: 1; }
 
-/* Configurations explorer: the inventory sheet, with registration ticks on
-   the section plate. Rows are separated by short drawn rules that start at
-   the badge column, like ruled entries on a sheet. */
-.explorer {
-  position: relative;
-}
-
-
-.explorer-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-.explorer-head .section-title { flex: 1; }
-
-/* The count is a circled note. */
-.cfg-count {
-  flex: none;
-  min-inline-size: 26px;
-  padding-inline: var(--sp-1);
-  border: 1px solid var(--accent);
-  border-radius: var(--r-pill);
-  color: var(--accent);
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  text-align: center;
-}
-
-.cfg-search {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding-inline: var(--sp-3);
-  min-block-size: var(--tap);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-control);
-  background: var(--surface-2);
-  color: var(--subtle);
-}
-
-.cfg-search:focus-within {
-  background: var(--surface);
-  border-color: var(--accent);
-}
-
-.cfg-search .icon { flex: none; }
-
-.cfg-search input {
-  flex: 1;
-  min-inline-size: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font-size: var(--fs-caption);
-}
-
-.cfg-search input:focus { outline: none; }
-
-.cfg-list {
-  display: flex;
-  flex-direction: column;
-}
-
-/* An inventory entry: notation-box badge, name, annotation-label protocol,
-   and the two markup controls. Rows divide on short dotted rules drawn from
-   the badge column so the sheet keeps its hand-ruled rhythm. */
-.cfg {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding-block: var(--sp-2);
-  position: relative;
-}
-
-.cfg + .cfg { border-block-start: 1px dotted var(--border-strong); }
-
-.cfg[hidden] { display: none; }
-
-/* Flags and monograms share one notation box. */
-.cfg-flag {
-  flex: none;
-  display: grid;
-  place-items: center;
-  inline-size: 32px;
-  block-size: 32px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-mark);
-  font-size: 18px;
-  line-height: 1;
-  overflow: hidden;
-}
-
-/* Monogram fallback when a configuration has no country flag: the first
-   letter of its name in the accent voice, never an empty box. */
-.cfg-flag[data-mono] {
-  color: var(--accent);
-  font-size: var(--fs-caption);
-  font-weight: 700;
-}
-
-.cfg-body {
-  flex: 1;
-  min-inline-size: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.cfg-name {
-  display: block;
-  font-weight: 700;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The protocol is an annotation label: italic side-note in the accent. */
-.cfg-proto {
-  display: block;
-  font-size: var(--fs-micro);
-  color: var(--accent);
-  font-style: italic;
-}
-
-.cfg-actions {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-/* The empty-state line shown when a search matches nothing. */
-.cfg-empty { text-align: center; }
-
-/* The expand/collapse control for a long list: an outlined ghost box. */
-.cfg-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  inline-size: 100%;
-  min-block-size: var(--tap);
-  margin-block-start: var(--sp-2);
-  padding-inline: var(--sp-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-control);
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.cfg-toggle .icon { flex: none; }
-
-/* Config dialog. It reuses the .dialog / .qr-body / .qr-frame / .url-field
-   shell (so the bottom-sheet media query below applies unchanged); only the
-   canvas size and the protocol-specific extras are new. */
 #config-canvas {
   display: block;
   inline-size: min(240px, 64vw);
@@ -849,7 +699,10 @@
   image-rendering: pixelated;
 }
 
-.cfg-open { inline-size: 100%; }
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
 
 .cfg-conf {
   display: flex;
@@ -861,17 +714,17 @@
 .conf-text {
   inline-size: 100%;
   padding: var(--sp-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-control);
-  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  background: var(--track);
   color: var(--text);
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  line-height: 1.5;
+  line-height: 1.6;
   resize: none;
 }
 
-/* Copy and Download sit side by side under the configuration text, sharing
-   the width so neither reads as the primary action. */
+.conf-text:focus { outline: none; border-color: var(--ink); }
+
 .conf-actions {
   display: flex;
   gap: var(--sp-2);
@@ -879,93 +732,85 @@
 
 .conf-actions .btn { flex: 1; }
 
-/* Hover is a pointer affordance, so it lives behind the capability query; the
-   press and focus states above do not, because a thumb needs them too. Every
-   rule here shifts colour only. */
 @media (hover: hover) {
   .btn-primary:hover {
-    border-color: var(--accent);
-    background:
-      linear-gradient(to bottom left,
-        var(--accent) 7px, transparent 7px) top right / 14px 14px no-repeat,
-      var(--track);
+    background: var(--ink-hover);
+    border-color: var(--ink-hover);
   }
 
-  .btn-outline:hover {
-    background: var(--surface-2);
-    border-color: var(--control-border);
+  .btn-outline:hover,
+  .btn-quiet:hover,
+  .btn-sm:hover,
+  .ctl:hover,
+  .more:hover {
+    background: var(--track);
+    border-color: var(--rule-strong);
   }
 
-  .btn-quiet:hover { color: var(--text); }
-
-  .ctl:hover {
-    background: var(--accent-soft);
-    color: var(--text);
-  }
-
-  .menu-item:hover { background: var(--surface-2); }
-
-  .cfg-toggle:hover {
-    border-color: var(--control-border);
-    color: var(--text);
-  }
+  .menu-item:hover { background: var(--track); }
 
   .tab:hover:not([aria-selected="true"]) { color: var(--text); }
 
   .text-link:hover { text-decoration: underline; }
 }
 
+/* Below the phone breakpoint the record folds: the number and the identity take
+   the first line, the protocol and the commands the second, so a 320px record
+   still holds a full name and two 44px marks. */
+@media (max-width: 599px) {
+  .cfg {
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: var(--sp-1) var(--sp-3);
+  }
+
+  .cfg-flag { grid-column: 2; grid-row: 1; justify-self: start; }
+  .cfg-name { grid-column: 2; grid-row: 1; padding-inline-start: 1.75rem; }
+  .cfg-proto { grid-column: 2; grid-row: 2; }
+  .cfg-actions { grid-column: 3; grid-row: 1 / span 2; }
+}
+
 /* Below the phone breakpoint the dialog becomes a bottom sheet: the thumb
    reaches the close button and the copy field without stretching. */
 @media (max-width: 479px) {
-  .tab {
-    flex: 0 1 auto;
-    padding-inline: var(--sp-2);
-  }
-
   .dialog {
     inline-size: 100%;
     max-inline-size: none;
     margin-block: auto 0;
+    border-block-end: 0;
   }
 }
 
 @media (prefers-contrast: more) {
   :root {
-    --hairline: var(--control-border);
-    --border: var(--control-border);
-    --border-strong: var(--control-border);
+    --rule: var(--control-border);
+    --rule-strong: var(--control-border);
     --muted: var(--text);
     --subtle: var(--text);
   }
 
-  .btn-quiet { border-color: var(--control-border); }
+  .cfg,
+  .client,
+  .more { border-block-end-color: var(--control-border); }
+
+  .ctl,
+  .btn-outline,
+  .btn-sm,
+  .menu { border-color: var(--control-border); }
 }
 
+/* The gauge falls back to a solid system highlight and leans on the figure and
+   the percentage text, which always carry the value. */
 @media (forced-colors: active) {
-  .card,
+  .dialog,
   .menu,
-  .announce,
-  .dialog { border: 1px solid CanvasText; }
+  .bar,
+  .search,
+  .more { border-color: CanvasText; }
 
-  .status-card::before,
-  .status-card::after,
-  .dialog::before,
-  .dialog::after,
-  .explorer::before { content: none; }
+  .bar-fill { background-color: Highlight; }
 
-  .bar { box-shadow: inset 0 0 0 1px CanvasText; }
+  .dot { forced-color-adjust: none; }
 
-  .dot,
-  .bar-fill { forced-color-adjust: none; }
-
-  .tab[aria-selected="true"] {
-    color: Highlight;
-    background: ButtonFace;
-    border-color: Highlight;
-  }
-
-  .brand-mark,
-  .cfg-flag,
-  .cfg-count { border: 1px solid CanvasText; }
+  .tab[aria-selected="true"] { border-block-end-color: Highlight; }
 }

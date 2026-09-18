@@ -1,0 +1,50 @@
+/* Direction-specific rules. The cabinet needs almost none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> mirrors the
+   marquee, the screen, the cartridge rail, the bay split and the dialogs on its
+   own - including the cartridge notch, which is inset with inset-inline.
+   What remains are the two glyphs that carry a direction of their own, and the
+   tracked machine labels that do not survive being applied to Arabic script. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+/* The gauge fill grows from the inline-start, so its segment pattern has to be
+   anchored to the other edge in RTL or the breaks would slide as it filled. */
+[dir="rtl"] .bar-fill {
+  background-image: repeating-linear-gradient(
+    to left,
+    var(--signal) 0 9px,
+    transparent 9px 12px
+  );
+}
+
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins
+   that carry the script, which turns a machine label into an unreadable smear.
+   tokens.css already swaps the monospace face for the Arabic one; these drop
+   the tracking so the labels stand as plain text. Protocol stamps are Latin in
+   every locale, so they keep their own spacing. */
+[lang="fa"] .label,
+[lang="ar"] .label,
+[lang="fa"] .tab,
+[lang="ar"] .tab,
+[lang="fa"] .brand-name,
+[lang="ar"] .brand-name,
+[lang="fa"] .pill,
+[lang="ar"] .pill,
+[lang="fa"] .dialog-title,
+[lang="ar"] .dialog-title {
+  letter-spacing: 0;
+}
+
+/* Arabic and Persian ascenders and descenders need the extra leading that a
+   tight figure line-height would clip. */
+[lang="fa"] .figure,
+[lang="ar"] .figure,
+[lang="fa"] .figure-sm,
+[lang="ar"] .figure-sm,
+[lang="fa"] .plan-label,
+[lang="ar"] .plan-label {
+  line-height: 1.35;
+}

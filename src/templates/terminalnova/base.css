@@ -1,0 +1,140 @@
+/* Reset, document shell, and the primitives everything else builds on.
+
+   body carries no inline padding on purpose: the console chrome is a real
+   full-width document region, and the deck below it is inset by #main. That is
+   what makes the chrome full-bleed without a viewport unit or a negative
+   margin, either of which can produce a horizontal scrollbar. */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p {
+  margin: 0;
+  font-weight: inherit;
+  font-size: inherit;
+}
+
+a { color: var(--accent); }
+
+button {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  font-variant-numeric: inherit;
+}
+
+input, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+canvas { display: block; }
+
+svg.sprite { display: none; }
+
+[hidden] { display: none !important; }
+
+/* The machine voice. Tabular figures keep metric columns aligned whether or not
+   the face is actually monospaced, which is what matters under fa/ar. */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A machine label: tracked mono micro-capitals. This is the page's connective
+   tissue - it labels columns and readouts instead of boxing them. */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label);
+  color: var(--subtle);
+}
+
+.icon {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.announce-text,
+#connect-hint {
+  max-inline-size: var(--measure);
+}
+
+/* A figure, URL or protocol whose script is known to be Latin stays Latin even
+   inside an RTL line: the isolate stops the surrounding direction from
+   reordering a value and its unit, or a URL and its path. */
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The boot script sets data-js before first paint, so the no-script layout is
+   what an unscripted client sees and nothing flickers. */
+html:not([data-js]) .js-only { display: none !important; }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-solid);
+  color: var(--on-accent);
+}
+
+/* One fade on first paint, no movement, nothing held hidden. */
+@keyframes fade-in { from { opacity: 0; } }
+
+#main { animation: fade-in var(--dur-slow) var(--ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

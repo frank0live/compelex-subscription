@@ -1,35 +1,63 @@
-/* Page skeleton: a ruled session bar, the annotated status sheet, and framed
-   section plates. */
+/* Page skeleton: one drawn sheet.
 
-.site-header,
-#main {
+   Every section is an annotated field on the same sheet: a title block at the
+   top, then the system readout, the record index, the reference section and the
+   notes. Each field is drawn with a rule down its leading edge and a run of
+   measurement ticks in the margin, which is what makes the page read as a
+   technical document rather than a stack of sections.
+
+   One DOM order serves every composition: title block, system, records,
+   reference, notes. The margin rail only draws; it never reorders anything, so
+   focus order is the mobile reading order. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
   inline-size: 100%;
   max-inline-size: var(--page-max);
   margin-inline: auto;
+  padding-inline: var(--sp-4);
+  flex: 1 0 auto;
 }
 
-/* The session bar: a double rule underneath, like the header line of a
-   technical sheet (thin rule over the sheet edge). */
-.site-header {
+/* The title block: identity, session state and controls, closed by the heaviest
+   rule on the sheet. */
+.title-block {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
   padding-block: var(--sp-4) var(--sp-3);
-  min-block-size: var(--header-h);
-  border-block-end: 1px solid var(--border-strong);
-  box-shadow: 0 3px 0 -2px var(--hairline);
+  border-block-end: 2px solid var(--rule-strong);
 }
 
-.brand {
+.title-brand {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   min-inline-size: 0;
 }
 
-/* One line, with the full value in the title attribute: a name long enough to
-   wrap would push the controls off the first screen. */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  background: var(--track);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
 .brand-name {
   font-size: var(--fs-title);
   font-weight: 700;
@@ -40,7 +68,16 @@
   text-overflow: ellipsis;
 }
 
-.header-controls {
+.title-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.title-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
@@ -50,55 +87,40 @@
 #main {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
   flex: 1 0 auto;
-  /* The annotation index for section labels starts here. */
-  counter-reset: sheet;
 }
 
-/* Slots hold optional components. display:contents keeps an empty slot from
-   contributing a row to the flex gap, so an absent section costs nothing. */
-#plan-slot,
-#bar-slot,
-#announce-slot,
-#support-slot {
-  display: contents;
-}
-
-/* The status sheet's zones: traffic and expiry read as two regions on one
-   sheet, divided by a ruled line that stops short of the edges (a drawn
-   separator, not a full-width rule). */
-.status-grid {
+/* Every field is drawn the same way: a rule down the leading edge, a run of
+   measurement ticks in the margin beside it, and a hairline closing it. */
+.system,
+.records,
+.reference,
+.notes {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
+  padding-block: var(--sp-6);
+  padding-inline-start: var(--rail);
+  border-inline-start: 2px solid var(--rule-strong);
+  border-block-end: 1px solid var(--rule);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--rule-strong) 0 1px,
+    transparent 1px var(--tick-h)
+  );
+  background-size: 9px 100%;
+  background-repeat: no-repeat;
+  background-position: left top;
 }
 
-.traffic-block {
+.notes { border-block-end: 0; }
+
+.system-head,
+.records-head {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  min-inline-size: 0;
+  align-items: baseline;
+  gap: var(--sp-3);
 }
 
-.expiry-block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-inline-size: 0;
-  padding-block-start: var(--sp-3);
-  border-block-start: 1px dotted var(--border-strong);
-}
-
-.actions {
-  display: grid;
-  gap: var(--sp-2);
-}
-
-@media (min-width: 480px) {
-  .actions { grid-template-columns: 1fr auto; }
-}
-
-@media (min-width: 720px) {
-  body { padding-inline: var(--sp-6); }
-}
+.system-head .label,
+.records-head .label { flex: 1; }

@@ -1,9 +1,12 @@
 /* Design tokens. Every value a theme can change lives here and nowhere else;
-   the rest of the stylesheet only ever reads custom properties. */
+   the rest of the stylesheet only ever reads custom properties.
+
+   The session sheet is a document, so the typographic scale is a document
+   scale: one reading size, one measure, and rules instead of boxes. */
 
 :root {
-  /* Monospace is the voice of the console; the sans face is kept only for
-     reading prose (announcement body, connect hint), where mono harms reading. */
+  /* Monospace is the voice of the sheet. The sans face survives only where a
+     person reads running prose, because mono harms long reading. */
   --font: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas,
           "Liberation Mono", monospace;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
@@ -11,18 +14,20 @@
   --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
                  "Geeza Pro", sans-serif;
 
-  --fs-display: 1.75rem;
+  --fs-figure: 1.375rem;
   --fs-title: 1rem;
-  --fs-section: 0.6875rem;
-  --fs-body: 0.9375rem;
+  --fs-label: 0.6875rem;
+  --fs-body: 0.875rem;
   --fs-caption: 0.8125rem;
   --fs-micro: 0.6875rem;
 
-  --lh-display: 1.25;
+  --lh-figure: 1.35;
   --lh-tight: 1.4;
-  --lh-body: 1.55;
-  --measure: 62ch;
-  --ls-section: 0.08em;
+  --lh-body: 1.6;
+  /* The sheet's reading measure. Everything that carries prose is capped by it,
+     which is what makes the page a document rather than a column of boxes. */
+  --measure: 72ch;
+  --ls-label: 0.1em;
 
   --sp-1: 4px;
   --sp-2: 8px;
@@ -32,96 +37,89 @@
   --sp-6: 24px;
   --sp-7: 32px;
 
-  /* The console is square: no radius anywhere except the state LED. Panes and
-     controls are framed by 1px rules instead. */
-  --r-panel: 0px;
+  /* Square, always. A sheet has no rounded corners. */
   --r-control: 0px;
-  --r-mark: 0px;
   --r-pill: 999px;
 
-  --dur-fast: 80ms;
   --dur: 120ms;
   --dur-slow: 180ms;
   --ease: cubic-bezier(0.3, 0.5, 0.2, 1);
 
-  --page-max: 640px;
+  /* Wide enough for a measured text column plus a working margin on each side
+     that carries the entry markers and the per-entry metadata. */
+  --page-max: 880px;
   --tap: 44px;
-
-  --header-h: 52px;
-  --mark: 28px;
-  --card-pad: var(--sp-4);
-  --btn-h: 44px;
+  --mark: 26px;
 }
 
 /* Dark is the default so a client with no matchMedia and no stored preference
-   still lands on a coherent theme. Amber is the single accent family: one
-   ochre tone for interactive ink, a warmer orange kept for warnings. */
+   still lands on a coherent theme. Amber is the single accent family: one ochre
+   tone for interactive ink, a warmer orange kept for warnings. */
 [data-theme="dark"] {
   color-scheme: dark;
 
   --bg: #0C0E10;
-  --surface: #121519;
-  --surface-2: #191E24;
-  --track: #232A31;
+  --surface: #121517;
+  --track: #23282C;
 
-  --hairline: #1C2127;
-  --border: #262D35;
-  --border-strong: #39424C;
-  --control-border: #4E5862;
+  --rule: #23282C;
+  --rule-strong: #3A4147;
+  --control-border: #4E565D;
 
-  --text: #D6DCE3;
-  --muted: #8B97A3;
-  --subtle: #6F7B87;
+  --text: #E4E1DA;
+  --muted: #8E8B84;
+  --subtle: #6F6D67;
 
   --accent: #D9A24B;
-  --accent-solid: #C08A2E;
-  --accent-hover: #E5B45C;
-  --accent-soft: #231B0D;
-  --info-surface: #14181D;
-  --info-border: #232A31;
-  --on-accent: #1B1206;
+  --accent-solid: #C08A34;
+  --accent-hover: #E8B761;
+  --on-accent: #14100A;
 
-  --success: #58A878;
   --warning: #D98E3F;
-  --danger: #D96C5F;
-  --focus: #E0B45C;
+  --danger: #E06C5C;
+  --success: #58A878;
+  --info: #6FA8C0;
+  --focus: #E8B761;
 
-  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.5);
-  --scrim: rgb(0 0 0 / 0.62);
+  --shadow-pop: 0 10px 28px rgb(0 0 0 / 0.55);
+  --scrim: rgb(4 6 8 / 0.68);
 }
 
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #F0F1F3;
-  --surface: #FAFBFC;
-  --surface-2: #E9EBEE;
-  --track: #DEE1E5;
+  --bg: #FAF8F3;
+  --surface: #FFFFFF;
+  --track: #E6E2D8;
 
-  --hairline: #E4E6E9;
-  --border: #D5D9DE;
-  --border-strong: #B4BBC4;
-  --control-border: #8A939E;
+  --rule: #DEDAD0;
+  --rule-strong: #B9B3A6;
+  --control-border: #8A8478;
 
-  --text: #1A1F26;
-  --muted: #59636E;
-  --subtle: #6E7883;
+  --text: #14161A;
+  --muted: #5E5B55;
+  --subtle: #77736B;
 
-  --accent: #8A5F0E;
-  --accent-solid: #8A5F0E;
-  --accent-hover: #6E4B0A;
-  --accent-soft: #F3ECD9;
-  --info-surface: #F1F3F5;
-  --info-border: #DFE3E7;
-  --on-accent: #FFF9EE;
+  --accent: #8A5A12;
+  --accent-solid: #8A5A12;
+  --accent-hover: #6B4509;
+  --on-accent: #FFFFFF;
 
-  --success: #1B7A4E;
-  --warning: #96660D;
-  --danger: #B33A2B;
-  --focus: #8A5F0E;
+  --warning: #8A5A00;
+  --danger: #B03226;
+  --success: #1F6B45;
+  --info: #1C5E75;
+  --focus: #8A5A12;
 
-  --shadow-pop: 0 8px 24px rgb(16 20 26 / 0.14);
-  --scrim: rgb(16 20 26 / 0.42);
+  --shadow-pop: 0 10px 28px rgb(20 22 26 / 0.16);
+  --scrim: rgb(20 22 26 / 0.4);
+}
+
+@media (min-width: 720px) {
+  :root {
+    --fs-figure: 1.625rem;
+    --fs-body: 0.9375rem;
+  }
 }
 
 /* row:font-face */
@@ -136,11 +134,12 @@
 }
 /* row:font-face end */
 
-/* The Arabic-script face replaces the Latin monospace entirely: monospace
-   fonts do not render Arabic script, so fa/ar read in Vazirmatn with the
-   same layout rules and no faux-mono styling. */
+/* Arabic and Persian are first-class. The Arabic face replaces both voices: a
+   monospace font has no Arabic glyphs, and faux-mono tracking closes the joins
+   that carry the script. */
 [lang="fa"],
 [lang="ar"] {
   --font: var(--font-arabic);
+  --font-sans: var(--font-arabic);
   --lh-body: 1.8;
 }

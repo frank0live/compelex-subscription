@@ -1,25 +1,32 @@
 /* Design tokens. Every value a theme can change lives here and nowhere else;
-   the rest of the stylesheet only ever reads custom properties. */
+   the rest of the stylesheet only ever reads custom properties.
+
+   The page is a signal flow: one horizontal lane with a live trace, milestones
+   marked along it, and channels running beneath. The scale is built for that
+   reading, so the figure is set to be read at the head of a lane rather than
+   centred in a card. */
 
 :root {
-  /* One modern sans voice; hierarchy comes from weight, size and tone. */
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
           Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
   --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
                  "Geeza Pro", sans-serif;
 
-  --fs-display: 2rem;
+  --fs-figure: 2.25rem;
   --fs-title: 1.0625rem;
-  --fs-section: 0.75rem;
-  --fs-body: 1rem;
-  --fs-caption: 0.875rem;
-  --fs-micro: 0.75rem;
+  --fs-channel: 1rem;
+  --fs-label: 0.6875rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.6875rem;
 
-  --lh-display: 1.15;
-  --lh-tight: 1.4;
-  --lh-body: 1.6;
-  --measure: 60ch;
-  --ls-section: 0.07em;
+  --lh-figure: 1.1;
+  --lh-tight: 1.35;
+  --lh-body: 1.55;
+  --measure: 64ch;
+  --ls-label: 0.12em;
 
   --sp-1: 4px;
   --sp-2: 8px;
@@ -29,105 +36,89 @@
   --sp-6: 24px;
   --sp-7: 32px;
 
-  /* Bands carry a soft but structural radius; controls match. Nothing is
-     square (Terminal) or razor-ruled (Prism); nothing floats at 16px
-     (Canvas). */
-  --r-panel: 8px;
-  --r-control: 6px;
-  --r-mark: 4px;
+  /* The rail and the channel nodes are the only curved things on the page. */
+  --r-control: 4px;
   --r-pill: 999px;
+  --node: 9px;
+  --rail-x: 16px;
 
-  --dur-fast: 100ms;
-  --dur: 180ms;
-  --dur-slow: 240ms;
-  --ease: cubic-bezier(0.25, 0.55, 0.25, 1);
+  --dur: 140ms;
+  --dur-slow: 220ms;
+  --ease: cubic-bezier(0.3, 0.6, 0.2, 1);
 
-  --page-max: 660px;
+  --page-max: 960px;
   --tap: 44px;
-
-  --header-h: 56px;
-  --mark: 34px;
-  --card-pad: var(--sp-5);
-  --btn-h: 46px;
+  --mark: 28px;
 }
 
 /* Dark is the default so a client with no matchMedia and no stored preference
-   still lands on a coherent theme. Pulse lives on warm graphite with one
-   vermilion family; state colours stay separate from the accent. */
+   still lands on a coherent theme. A cold instrument panel with one warm trace. */
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #141210;
-  --surface: #1C1916;
-  --surface-2: #242019;
-  --track: #2E2921;
+  --bg: #0B1014;
+  --surface: #121A20;
+  --track: #1E2A33;
 
-  --hairline: #26221C;
-  --border: #322D25;
-  --border-strong: #4A4336;
-  --control-border: #554D3F;
+  --rule: #22303A;
+  --rule-strong: #3A4C59;
+  --control-border: #566A78;
 
-  --text: #EDE7DC;
-  --muted: #A79D8C;
-  --subtle: #8B8272;
+  --text: #E6EEF3;
+  --muted: #93A3AE;
+  --subtle: #6D7C87;
 
-  --accent: #E8654F;
-  --accent-solid: #D14B36;
-  --accent-hover: #F07862;
-  --accent-soft: #2A1712;
-  --info-surface: #1D1A17;
-  --info-border: #2B2721;
-  --on-accent: #FFF3ED;
+  --accent: #FF7A6B;
+  --accent-solid: #E85F4E;
+  --accent-hover: #FF9486;
+  --on-accent: #1A0A07;
 
-  --success: #58A878;
-  --warning: #D9A94F;
-  --danger: #C93A3A;
-  --focus: #F07862;
+  --warning: #E0A33D;
+  --danger: #F0655C;
+  --success: #58C48A;
+  --info: #6FB6D6;
+  --focus: #FF9486;
 
-  --shadow-pop: 0 10px 28px rgb(0 0 0 / 0.5);
-  --scrim: rgb(10 6 4 / 0.6);
+  --shadow-pop: 0 12px 30px rgb(2 6 10 / 0.66);
+  --scrim: rgb(3 7 11 / 0.72);
 }
 
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #F5F3F1;
-  --surface: #FCFAF8;
-  --surface-2: #EFEAE5;
-  --track: #E3DDD5;
+  --bg: #F5F7F8;
+  --surface: #FFFFFF;
+  --track: #E3E9ED;
 
-  --hairline: #E8E3DC;
-  --border: #DAD3C9;
-  --border-strong: #BFB5A6;
-  --control-border: #8F8577;
+  --rule: #DCE3E8;
+  --rule-strong: #AEBBC4;
+  --control-border: #78868F;
 
-  --text: #211C17;
-  --muted: #6B6255;
-  --subtle: #7E7466;
+  --text: #0F1418;
+  --muted: #4E5A63;
+  --subtle: #6A767E;
 
-  --accent: #C2402A;
-  --accent-solid: #C2402A;
-  --accent-hover: #A03220;
-  --accent-soft: #F9E6E0;
-  --info-surface: #F4F0EC;
-  --info-border: #E4DED6;
-  --on-accent: #FFF5F1;
+  --accent: #C23A26;
+  --accent-solid: #C23A26;
+  --accent-hover: #A32E1C;
+  --on-accent: #FFFFFF;
 
-  --success: #1B7A4E;
-  --warning: #96660D;
-  --danger: #C93A3A;
-  --focus: #C2402A;
+  --warning: #8A5A00;
+  --danger: #B03226;
+  --success: #1F6B45;
+  --info: #1C5E75;
+  --focus: #C23A26;
 
-  --shadow-pop: 0 10px 28px rgb(30 22 16 / 0.14);
-  --scrim: rgb(30 22 16 / 0.42);
+  --shadow-pop: 0 12px 30px rgb(15 20 24 / 0.16);
+  --scrim: rgb(15 20 24 / 0.4);
 }
 
-@media (min-width: 480px) {
-  :root { --card-pad: var(--sp-5) var(--sp-6); }
-}
-
-@media (min-width: 720px) {
-  :root { --fs-display: 2.25rem; }
+@media (min-width: 820px) {
+  :root {
+    --fs-figure: 3rem;
+    --fs-channel: 1.0625rem;
+    --rail-x: 20px;
+  }
 }
 
 /* row:font-face */
@@ -142,10 +133,12 @@
 }
 /* row:font-face end */
 
-/* The Arabic-script face is opted into by language, and its unicode-range
-   keeps it off Latin, Cyrillic and CJK text even here. */
+/* Arabic and Persian are first-class. The Arabic face replaces both voices: a
+   monospace font has no Arabic glyphs, and faux-mono tracking closes the joins
+   that carry the script. */
 [lang="fa"],
 [lang="ar"] {
   --font: var(--font-arabic);
-  --lh-body: 1.8;
+  --font-mono: var(--font-arabic);
+  --lh-body: 1.75;
 }

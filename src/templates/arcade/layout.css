@@ -1,42 +1,66 @@
-/* Page skeleton: the marquee bar, then the score screen and tiled sections.
-   Sections are framed plates on the cabinet background; the status area is
-   the screen inside its bezel. */
+/* Page skeleton: one launcher screen.
 
-.site-header,
-#main {
+   The page reads top to bottom as a machine would: a status strip, a single
+   horizontal scoreboard, the field of selectable lanes, then the launcher rail.
+   Nothing is framed; the scoreboard is closed by heavier rules and the lanes
+   are separated by gaps, which is what gives the screen its horizontal rhythm.
+
+   One DOM order serves every composition: strip, board, selector, launcher,
+   foot. The scoreboard grid only places the readouts; it never reorders them,
+   so focus order is the mobile reading order. */
+
+.screen {
+  display: flex;
+  flex-direction: column;
   inline-size: 100%;
   max-inline-size: var(--page-max);
   margin-inline: auto;
-}
-
-/* The marquee bar: framed like the top of a cabinet, with the accent rule
-   under it reading as the marquee light strip. */
-.site-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding-block: var(--sp-4) var(--sp-3);
-  min-block-size: var(--header-h);
-  border: 1px solid var(--border);
-  border-block-end: 2px solid var(--accent-solid);
-  border-radius: var(--r-panel);
   padding-inline: var(--sp-4);
-  background: var(--surface);
+  flex: 1 0 auto;
 }
 
-.brand {
+/* The status strip: identity, session state and controls on one line, closed by
+   the heaviest rule on the screen. */
+.strip {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  padding-block: var(--sp-3);
+  border-block-end: 2px solid var(--edge-strong);
+}
+
+.strip-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
   min-inline-size: 0;
 }
 
-/* One line, with the full value in the title attribute: a name long enough to
-   wrap would push the controls off the first screen. */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  border-radius: var(--r-control);
+  background: var(--lane);
+  border: 1px solid var(--edge-strong);
+  color: var(--signal);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
 .brand-name {
   font-size: var(--fs-title);
-  font-weight: 800;
+  font-weight: 700;
   line-height: var(--lh-tight);
   min-inline-size: 0;
   white-space: nowrap;
@@ -44,7 +68,16 @@
   text-overflow: ellipsis;
 }
 
-.header-controls {
+.strip-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.strip-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
@@ -54,54 +87,85 @@
 #main {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
   flex: 1 0 auto;
 }
 
-/* Slots hold optional components. display:contents keeps an empty slot from
-   contributing a row to the flex gap, so an absent section costs nothing. */
-#plan-slot,
-#bar-slot,
-#announce-slot,
-#support-slot {
-  display: contents;
+/* The scoreboard: one horizontal band, closed top and bottom by heavy rules.
+   The figure and the expiry are the two large readouts; the gauge runs beneath
+   them the full width of the screen, which is what makes the band read across
+   rather than down. */
+.board {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sp-2) var(--sp-5);
+  align-items: baseline;
+  padding-block: var(--sp-5);
+  border-block-end: 2px solid var(--edge-strong);
 }
 
-/* The score screen's sub-zones: the metric block sits inside the bezel, and
-   expiry is a second inset screen row. */
-.status-grid {
+.board-head {
+  grid-column: 1 / -1;
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
   gap: var(--sp-3);
 }
 
-.traffic-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  min-inline-size: 0;
-}
+.board-head .label { flex: 1; }
 
-.expiry-block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-inline-size: 0;
-  padding: var(--sp-3);
-  background: var(--bg);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-control);
-}
-
-.actions {
+.scoreboard {
+  grid-column: 1 / -1;
   display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sp-2) var(--sp-5);
+  align-items: baseline;
+}
+
+#traffic-value { grid-column: 1 / span 5; }
+#traffic-caption { grid-column: 1 / span 5; }
+#expiry-value { grid-column: 8 / span 5; }
+#expiry-caption { grid-column: 8 / span 5; }
+#traffic-trailing { grid-column: 1 / span 5; }
+#updated-slot { grid-column: 8 / span 5; }
+#bar-slot { grid-column: 1 / -1; }
+
+.board-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--sp-2);
 }
 
-@media (min-width: 480px) {
-  .actions { grid-template-columns: 1fr auto; }
+.selector,
+.launcher,
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-6);
+  border-block-end: 1px solid var(--edge);
 }
 
-@media (min-width: 720px) {
-  body { padding-inline: var(--sp-6); }
+.foot { border-block-end: 0; }
+
+.selector-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.selector-head .label { flex: 1; }
+
+/* Below the scoreboard threshold the band folds to one column. The horizontal
+   rhythm is not lost: the gauge still runs the full width and the rules still
+   close the band. */
+@media (max-width: 719px) {
+  .scoreboard { grid-template-columns: minmax(0, 1fr); }
+
+  #traffic-value,
+  #traffic-caption,
+  #traffic-trailing,
+  #expiry-value,
+  #expiry-caption,
+  #updated-slot,
+  #bar-slot { grid-column: 1; }
 }

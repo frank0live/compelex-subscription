@@ -1,38 +1,50 @@
-/* Direction-specific rules. The layout needs none: every offset in this
-   stylesheet is a logical property, so setting dir on <html> is enough. What
-   remains are the two glyphs that carry a direction of their own, the primary
-   button's faceted corner, and the tracked uppercase labels, which are a
-   Latin device: letter-spacing closes Arabic joins. Protocol labels keep
-   their tracking — their content is Latin in every language. */
+/* Direction-specific rules. The sheet needs almost none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> mirrors the
+   masthead, the facet, the offset column and the record field on its own. The
+   three rails are evenly spaced, so their physical gradient reads the same in
+   either direction. What remains are the two glyphs that carry a direction of
+   their own, and the tracked labels that do not survive Arabic script. */
 
 [dir="rtl"] .icon-chevron,
 [dir="rtl"] .icon-external {
   transform: scaleX(-1);
 }
 
-/* The primary button's cut corner marks its inline-end. Mirror the polygon so
-   the facet stays on the end edge in RTL. */
-[dir="rtl"] .btn-primary {
-  clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%, 0 14px);
-}
-
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins
+   that carry the script, which turns a facet label into an unreadable smear.
+   tokens.css already swaps the monospace face for the Arabic one; these drop
+   the tracking so the labels stand as plain text. Protocol marks are Latin in
+   every locale, so they keep their own spacing. */
+[lang="fa"] .label,
+[lang="ar"] .label,
 [lang="fa"] .section-title,
 [lang="ar"] .section-title,
+[lang="fa"] .tab,
+[lang="ar"] .tab,
+[lang="fa"] .btn,
+[lang="ar"] .btn,
 [lang="fa"] .pill,
 [lang="ar"] .pill,
-[lang="fa"] .tab,
-[lang="ar"] .tab {
+[lang="fa"] .brand-name,
+[lang="ar"] .brand-name,
+[lang="fa"] .text-link,
+[lang="ar"] .text-link,
+[lang="fa"] .dialog-title,
+[lang="ar"] .dialog-title {
   letter-spacing: 0;
 }
 
-/* Persian and Arabic ascenders and descenders need the extra leading the
-   tighter Latin display sizes would clip. */
-[lang="fa"] .big-value,
-[lang="ar"] .big-value {
-  line-height: 1.25;
-}
-
-[lang="fa"] .value,
-[lang="ar"] .value {
+/* Arabic and Persian ascenders and descenders need the extra leading that the
+   tight anchor line-height would clip. */
+[lang="fa"] .figure,
+[lang="ar"] .figure,
+[lang="fa"] .figure-sm,
+[lang="ar"] .figure-sm,
+[lang="fa"] .cfg-name,
+[lang="ar"] .cfg-name,
+[lang="fa"] .client-name,
+[lang="ar"] .client-name,
+[lang="fa"] .plan-label,
+[lang="ar"] .plan-label {
   line-height: 1.4;
 }

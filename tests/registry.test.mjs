@@ -17,6 +17,9 @@ import {
   DEFAULT_TEMPLATE,
   templateIds,
   availableTemplateIds,
+  coreTemplateIds,
+  lockedTemplateIds,
+  applyTierDefaults,
   resolveTemplate,
 } from '../tools/templates.mjs';
 
@@ -51,7 +54,7 @@ test('the enum is closed and every entry is well-formed', () => {
 test('Row is available and emits no data-template; the others emit their own', () => {
   assert.equal(TEMPLATES.row.available, true);
   assert.equal(TEMPLATES.row.emitDataTemplate, false, 'Row predates the attribute and must stay byte-identical');
-  for (const id of ['editorial', 'canvas', 'prism', 'terminal', 'pulse', 'brutal', 'arcade', 'sketch', 'signature', 'saffron', 'pulsenova', 'prismnova']) {
+  for (const id of ['editorial', 'canvas', 'prism', 'terminal', 'pulse', 'brutal', 'arcade', 'sketch', 'signature', 'saffron', 'pulsenova', 'prismnova', 'terminalnova', 'arcadenova']) {
     assert.equal(TEMPLATES[id].available, true, `${id} availability`);
     assert.equal(TEMPLATES[id].emitDataTemplate, true, `${id} names its own design`);
   }
@@ -153,4 +156,71 @@ test('the Bash validator refuses every hostile identifier', () => {
     });
     assert.notEqual(r.status, 0, `bash accepted hostile id: ${JSON.stringify(id)}`);
   }
+});
+/* --- template tiers -------------------------------------------------------
+   A tier separates shipping designs from designs added later. The difference is
+   the lock, not the build: both tiers are held to the same hook and runtime
+   contract. These tests pin the rules so a future custom template cannot drift
+   into the frozen set by accident. */
+
+test('every template carries a tier and a lock, and the defaults are core + locked', () => {
+  for (const id of templateIds()) {
+    const tpl = TEMPLATES[id];
+    assert.ok(tpl.tier === 'core' || tpl.tier === 'custom', `${id} tier must be core or custom`);
+    assert.equal(typeof tpl.locked, 'boolean', `${id} locked must be a boolean`);
+  }
+
+  /* The fifteen shipped designs are core and locked. None of them declares the
+     fields in the registry literal, so this also proves the defaults apply. */
+  const core = coreTemplateIds();
+  assert.equal(core.length, 15, 'exactly fifteen core templates ship in this release');
+  for (const id of core) {
+    assert.equal(TEMPLATES[id].tier, 'core', `${id} is core`);
+    assert.equal(TEMPLATES[id].locked, true, `${id} is locked`);
+  }
+  assert.deepEqual(lockedTemplateIds(), core, 'every core template is locked');
+});
+
+test('core templates keep order 1..15 and a custom template must use order >= 200', () => {
+  const coreOrders = coreTemplateIds()
+    .map((id) => TEMPLATES[id].order)
+    .sort((a, b) => a - b);
+  assert.deepEqual(coreOrders, Array.from({ length: 15 }, (_, i) => i + 1));
+
+  /* The rule a future custom entry must satisfy. Enforced here rather than at
+     import time so a misconfiguration fails a test instead of breaking the
+     build for every consumer of the registry. */
+  for (const id of templateIds()) {
+    const { order, tier } = TEMPLATES[id];
+    if (tier === 'core') {
+      assert.ok(order < 200, `${id} is core so its order must stay below 200`);
+    } else {
+      assert.ok(order >= 200, `${id} is custom so its order must be 200 or above`);
+    }
+  }
+});
+
+test('applyTierDefaults keeps the current behaviour and defaults a custom entry to unlocked', () => {
+  /* An entry that declares nothing is core and locked - exactly what all fifteen
+     current entries rely on. */
+  assert.deepEqual(applyTierDefaults({}), { tier: 'core', locked: true });
+
+  /* A custom entry is never locked unless it says so explicitly. */
+  assert.deepEqual(applyTierDefaults({ tier: 'custom' }), { tier: 'custom', locked: false });
+
+  /* An explicit override wins in both directions. */
+  assert.deepEqual(applyTierDefaults({ tier: 'core', locked: false }), { tier: 'core', locked: false });
+  assert.deepEqual(applyTierDefaults({ tier: 'custom', locked: true }), { tier: 'custom', locked: true });
+
+  /* An unrecognised tier is not silently accepted as custom. */
+  assert.equal(applyTierDefaults({ tier: 'anything' }).tier, 'core');
+});
+
+test('the selectable set is sorted by order, so a custom template appended late still sorts correctly', () => {
+  const avail = availableTemplateIds();
+  const orders = avail.map((id) => TEMPLATES[id].order);
+  for (let i = 1; i < orders.length; i++) {
+    assert.ok(orders[i - 1] <= orders[i], 'availableTemplateIds must be ascending by order');
+  }
+  assert.equal(avail[0], DEFAULT_TEMPLATE, 'the default template is still first');
 });

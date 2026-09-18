@@ -1,4 +1,7 @@
-/* Reset, document shell and the primitives everything else builds on. */
+/* Reset, flow shell and the primitives everything else builds on.
+
+   Nothing here draws a card. The page is held together by one rail, one
+   hairline per channel and the leading of its own type. */
 
 *,
 *::before,
@@ -12,27 +15,22 @@ html {
 
 body {
   margin: 0;
-  padding: 0 var(--sp-4) var(--sp-7);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
   font-family: var(--font);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
   color: var(--text);
   background: var(--bg);
-  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, p, ul, ol {
+h1, h2, h3, p {
   margin: 0;
   font-weight: inherit;
   font-size: inherit;
 }
-
-ul, ol { padding: 0; list-style: none; }
 
 a { color: var(--accent); }
 
@@ -52,27 +50,42 @@ canvas { display: block; }
 
 svg.sprite { display: none; }
 
+[hidden] { display: none !important; }
+
+/* The flow's field label. */
+.label {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label);
+  line-height: 1.3;
+  color: var(--subtle);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .icon {
-  inline-size: 1.125rem;
-  block-size: 1.125rem;
+  inline-size: 1.0625rem;
+  block-size: 1.0625rem;
   flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-/* Prose is held to the measure so it never runs past ~60 characters. Figures
-   are not prose and stay unclamped. */
 .announce-text,
 #connect-hint {
   max-inline-size: var(--measure);
 }
 
-/* Values whose script is known to be Latin stay Latin even inside an RTL
-   paragraph: the isolate stops the surrounding direction from reordering a
-   figure and its unit, or a URL and its path. */
+/* A figure, URL or protocol whose script is known to be Latin stays Latin even
+   inside an RTL line: the isolate stops the surrounding direction from
+   reordering a value and its unit, or a URL and its path. */
 .ltr {
   direction: ltr;
   unicode-bidi: isolate;
@@ -90,8 +103,8 @@ svg.sprite { display: none; }
   border: 0;
 }
 
-/* Scripting gates. The boot script sets data-js before first paint, so the
-   no-script layout is what an unscripted client sees and nothing flickers. */
+/* The boot script sets data-js before first paint, so the no-script layout is
+   what an unscripted client sees and nothing flickers. */
 html:not([data-js]) .js-only { display: none !important; }
 
 :focus-visible {
@@ -99,29 +112,10 @@ html:not([data-js]) .js-only { display: none !important; }
   outline-offset: 2px;
 }
 
-::selection {
-  background: var(--accent-solid);
-  color: var(--on-accent);
-}
+/* One fade on first paint, no movement, nothing held hidden. */
+@keyframes fade-in { from { opacity: 0; } }
 
-/* One reveal on first paint: a fade with a 2px lift, like a signal settling.
-   Nothing is delayed and nothing holds a hidden state. */
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateY(2px);
-  }
-}
-
-.site-header,
-#main {
-  animation: page-in var(--dur-slow) var(--ease);
-}
-
-#main {
-  animation-delay: 40ms;
-  animation-fill-mode: backwards;
-}
+#main { animation: fade-in var(--dur-slow) var(--ease); }
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -132,7 +126,4 @@ html:not([data-js]) .js-only { display: none !important; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-
-  .site-header,
-  #main { animation: none; }
 }

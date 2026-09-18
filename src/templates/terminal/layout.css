@@ -1,34 +1,61 @@
-/* Page skeleton: a session bar, then ruled console rows. Terminal separates
-   zones with full-width hairlines the way a log separates entries; there is
-   no side-by-side metric split anywhere. */
+/* Page skeleton: one measured document.
 
-.site-header,
-#main {
+   The sheet is a running head and then a single text column capped at the
+   reading measure. Every zone is separated by one hairline that runs the width
+   of the measure, the way a printed sheet separates sections. There is no
+   frame, no panel and no side-by-side metric split anywhere on the page.
+
+   One DOM order serves every composition: masthead, session, entries,
+   destinations, notice. The desktop measure only constrains width; it never
+   reorders anything, so focus order is the mobile reading order. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
   inline-size: 100%;
   max-inline-size: var(--page-max);
   margin-inline: auto;
+  padding-inline: var(--sp-4);
+  flex: 1 0 auto;
 }
 
-/* The session bar: one thin rule under it, like the top line of a console. */
-.site-header {
+/* The running head: identity on the leading edge, session state and controls on
+   the trailing edge, closed by a heavier rule than the section separators. */
+.masthead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding-block: var(--sp-4) var(--sp-3);
-  min-block-size: var(--header-h);
-  border-block-end: 1px solid var(--hairline);
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  padding-block: var(--sp-3);
+  border-block-end: 2px solid var(--rule-strong);
 }
 
-.brand {
+.masthead-brand {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   min-inline-size: 0;
 }
 
-/* One line, with the full value in the title attribute: a name long enough to
-   wrap would push the controls off the first screen. */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  background: var(--track);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
 .brand-name {
   font-size: var(--fs-title);
   font-weight: 700;
@@ -39,7 +66,16 @@
   text-overflow: ellipsis;
 }
 
-.header-controls {
+.masthead-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.masthead-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
@@ -49,51 +85,27 @@
 #main {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
   flex: 1 0 auto;
 }
 
-/* Slots hold optional components. display:contents keeps an empty slot from
-   contributing a row to the flex gap, so an absent section costs nothing. */
-#plan-slot,
-#bar-slot,
-#announce-slot,
-#support-slot {
-  display: contents;
-}
-
-/* Every metric zone is a full-width ruled row: traffic, then expiry, then the
-   freshness line. The rhythm is a log, not a dashboard grid. */
-.status-grid {
+/* Every zone is the same text column: capped at the reading measure, separated
+   by one hairline, and never wrapped in a frame. */
+.session,
+.entries,
+.destinations,
+.notice {
   display: flex;
   flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-5);
+  border-block-start: 1px solid var(--rule);
+  max-inline-size: var(--measure);
 }
 
-.traffic-block {
+.entries-head {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  min-inline-size: 0;
+  align-items: baseline;
+  gap: var(--sp-3);
 }
 
-.expiry-block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-inline-size: 0;
-  padding-block-start: var(--sp-3);
-  border-block-start: 1px solid var(--hairline);
-}
-
-.actions {
-  display: grid;
-  gap: var(--sp-2);
-}
-
-@media (min-width: 480px) {
-  .actions { grid-template-columns: 1fr auto; }
-}
-
-@media (min-width: 720px) {
-  body { padding-inline: var(--sp-5); }
-}
+.entries-head .label { flex: 1; }

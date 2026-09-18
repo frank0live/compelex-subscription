@@ -79,7 +79,7 @@
   <div class="cx-dash">
 
     <section class="cx-hero" aria-labelledby="status-heading">
-      <h2 class="visually-hidden" id="status-heading">Subscription status</h2>
+      <h2 class="section-title" id="status-heading">Subscription status</h2>
       <span id="plan-slot">{{ if .subTitle }}<span class="plan-label"><bdi>{{ .subTitle }}</bdi></span>{{ end }}</span>
       <p class="big-value" id="traffic-value"><span class="ltr">{{ .used }}</span></p>
       <p class="caption" id="traffic-caption">{{ if eq .totalByte 0 }}used{{ else }}used of <span class="ltr">{{ .total }}</span>{{ end }}</p>

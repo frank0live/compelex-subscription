@@ -1,35 +1,64 @@
-/* Page skeleton: the header, then stacked operational bands. Sections are
-   full-width bands with asymmetric block padding and a cadence marker on
-   their running label; they are not floating cards. */
+/* Page skeleton: one signal flow.
 
-.site-header,
-#main {
+   The page reads as a live instrument: a bar, then the signal section where the
+   traffic runs as one horizontal lane with the expiry marked as a milestone off
+   to the side, then the channel list carried on a single rail, then the control
+   rail at the foot. Nothing is framed; the rail and the hairlines are the only
+   structure.
+
+   One DOM order serves every composition: bar, signal, channels, rail, tail.
+   The lane grid only places the readouts; it never reorders them, so focus
+   order is the mobile reading order. */
+
+.flow {
+  display: flex;
+  flex-direction: column;
   inline-size: 100%;
   max-inline-size: var(--page-max);
   margin-inline: auto;
+  padding-inline: var(--sp-4);
+  flex: 1 0 auto;
 }
 
-/* The session bar carries a thin neutral rule; bands below carry their own
-   backgrounds, so the bar stays quiet. */
-.site-header {
+/* The bar: identity, session state and controls on one line, closed by the
+   heaviest rule on the page. */
+.bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding-block: var(--sp-4) var(--sp-3);
-  min-block-size: var(--header-h);
-  border-block-end: 1px solid var(--hairline);
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  padding-block: var(--sp-3);
+  border-block-end: 2px solid var(--rule-strong);
 }
 
-.brand {
+.bar-brand {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   min-inline-size: 0;
 }
 
-/* One line, with the full value in the title attribute: a name long enough to
-   wrap would push the controls off the first screen. */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
 .brand-name {
   font-size: var(--fs-title);
   font-weight: 700;
@@ -40,7 +69,16 @@
   text-overflow: ellipsis;
 }
 
-.header-controls {
+.bar-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.bar-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
@@ -50,54 +88,85 @@
 #main {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
   flex: 1 0 auto;
 }
 
-/* Slots hold optional components. display:contents keeps an empty slot from
-   contributing a row to the flex gap, so an absent section costs nothing. */
-#plan-slot,
-#bar-slot,
-#announce-slot,
-#support-slot {
-  display: contents;
-}
-
-/* The status band's sub-zones: traffic reads plain on the band, expiry is an
-   inset tone strip so the two instruments read as one composed band with
-   distinct regions. */
-.status-grid {
+/* The signal section: the lane and the milestone. */
+.signal {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
+  padding-block: var(--sp-6);
+  border-block-end: 1px solid var(--rule);
 }
 
-.traffic-block {
+.signal-head {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.signal-head .label { flex: 1; }
+
+/* The lane: the figure at the head, the trace running under it, the remaining
+   readout at its foot. This is the one horizontal composition on the page. */
+.lane {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-4);
   min-inline-size: 0;
 }
 
-.expiry-block {
+.lane > #bar-slot { flex: 1 1 100%; }
+
+.milestone {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-inline-size: 0;
-  padding: var(--sp-3);
-  background: var(--surface-2);
-  border-radius: var(--r-control);
+  padding-inline-start: var(--sp-4);
+  border-inline-start: 2px solid var(--accent);
 }
 
-.actions {
-  display: grid;
+.signal-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--sp-2);
 }
 
-@media (min-width: 480px) {
-  .actions { grid-template-columns: 1fr auto; }
+.channels,
+.rail,
+.tail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-6);
+  border-block-end: 1px solid var(--rule);
 }
 
-@media (min-width: 720px) {
-  body { padding-inline: var(--sp-6); }
+.tail { border-block-end: 0; }
+
+.channels-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.channels-head .label { flex: 1; }
+
+@media (min-width: 820px) {
+  /* The flow opens: the lane takes the leading measure, the milestone is set off
+     to the far column, and the actions close the section beneath the lane. */
+  .signal {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-5) var(--sp-6);
+    align-items: start;
+  }
+
+  .signal-head { grid-column: 1 / -1; }
+  .lane { grid-column: 1 / span 7; }
+  .milestone { grid-column: 9 / span 4; margin-block-start: var(--sp-6); }
+  .signal-actions { grid-column: 1 / span 7; }
 }

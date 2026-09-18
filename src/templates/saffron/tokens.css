@@ -40,7 +40,7 @@
   --ease: cubic-bezier(0.25, 0.5, 0.2, 1);
 
   /* Saffron is the app-like template: a deliberately narrow centred column. */
-  --page-max: 560px;
+  --page-max: 640px;
   --tap: 44px;
 
   --header-h: 54px;

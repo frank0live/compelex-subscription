@@ -1,161 +1,78 @@
-/* Components. Surfaces are printed boards: flat fills, hard 1px frames, and
-   on the major planes only, a solid offset back-plane. No blur anywhere.
-   Colour reads a token from tokens.css everywhere. */
+/* Components. Nothing here is framed and nothing is rounded. The board is a
+   poster: plates, hard rules, poster-scale numerals, and one acid accent spent
+   only on the primary action and the engaged switch.
 
-[hidden] { display: none !important; }
+   The two structural devices are the numbered row — a plate number set large in
+   its own column, which is what makes the configuration list a poster index
+   rather than a table — and the switching board, where a platform mode is a
+   large block rather than a tab. */
 
-/* A framed slab with its back-plane printed behind it, offset down and to the
-   inline end. The offset is physical depth, not a shadow: flat, solid, hard. */
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--card-pad);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--offset-shadow);
-}
-
-/* The status board carries the heaviest construction: a thicker frame and a
-   deeper back-plane, so it reads as the front board of the page. */
-.status-card {
-  border-width: 2px;
-  box-shadow: 6px 6px 0 var(--offset);
-}
-
-/* A running label: heavy uppercase with its kicker slab. The slab is the
-   accent; the rule that follows is ink. */
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--fs-section);
-  font-weight: 800;
-  text-transform: uppercase;
-  color: var(--text);
-}
-
-.section-title::before {
-  content: "";
-  inline-size: 5px;
-  block-size: 18px;
-  flex: none;
-  background: var(--accent);
-}
-
-.section-title::after {
-  content: "";
-  inline-size: 28px;
-  block-size: 3px;
-  flex: none;
-  background: var(--text);
-}
-
-/* A blocky mark: the monogram or logo inside a hard framed plate. */
-.brand-mark {
-  display: grid;
-  place-items: center;
-  inline-size: var(--mark);
-  block-size: var(--mark);
-  flex: none;
-  border: 2px solid var(--border-strong);
-  border-radius: var(--r-control);
-  background: var(--surface-2);
-  color: var(--accent);
-  font-size: var(--fs-caption);
-  font-weight: 800;
-  overflow: hidden;
-}
-
-.brand-mark img {
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: contain;
-}
-
-/* The plan name is metadata: plain muted text. */
-.plan-label {
-  max-inline-size: 100%;
-  color: var(--muted);
-  font-size: var(--fs-caption);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.status-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-}
-
-/* The state tag: a physical label mounted on the board. Framed, squared, and
-   filled by state so it reads as a stamped plate. */
 .pill {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  padding-inline: var(--sp-3);
-  border: 1px solid var(--border-strong);
-  border-inline-start: 3px solid var(--subtle);
-  background: var(--surface-2);
   font-size: var(--fs-caption);
   font-weight: 800;
   text-transform: uppercase;
-  color: var(--text);
+  letter-spacing: 0.06em;
 }
-
-.pill[data-state="active"] {
-  background: var(--accent-soft);
-  border-color: var(--accent-solid);
-}
-
-.pill[data-state="active"] { border-inline-start-color: var(--success); }
-.pill[data-state="expired"],
-.pill[data-state="limited"] { border-inline-start-color: var(--warning); }
 
 .dot {
-  inline-size: 8px;
-  block-size: 8px;
+  inline-size: 9px;
+  block-size: 9px;
   flex: none;
   background: var(--subtle);
+  transition: background-color var(--dur) var(--ease);
 }
 
 .pill[data-state="active"] .dot { background: var(--success); }
 .pill[data-state="expired"] .dot { background: var(--danger); }
 .pill[data-state="limited"] .dot { background: var(--warning); }
-.pill[data-state="disabled"] .dot { background: var(--subtle); }
 
 .live-state {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-caption);
+  font-weight: 700;
   color: var(--subtle);
 }
 
 .live-state[data-online="1"] { color: var(--text); }
 .live-state[data-online="1"] .dot { background: var(--success); }
 
-/* The hero figure: the loudest type on the page. */
-.big-value {
-  font-size: var(--fs-display);
-  font-weight: 800;
-  line-height: var(--lh-display);
+/* The plan name is an enhancement; the localized running head always names the
+   band, so an empty slot removes nothing the region needs. */
+#plan-slot:empty { display: none; }
+
+.plan-label {
+  display: block;
+  max-inline-size: 100%;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
-.value {
-  font-size: var(--fs-body);
+/* The poster anchor: the largest text in the catalogue, set tight and hard. */
+.figure {
+  font-size: var(--fs-anchor);
+  font-weight: 800;
+  line-height: var(--lh-anchor);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.figure-sm {
+  font-size: var(--fs-row);
   font-weight: 800;
   line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Colour repeats what the words already say; the tint only makes the row
-   findable at a glance. */
-.value[data-level="warn"] { color: var(--warning); }
-.value[data-level="over"] { color: var(--danger); }
+/* Colour repeats what the words already say; the words are the signal. */
+.figure-sm[data-level="warn"] { color: var(--warning); }
+.figure-sm[data-level="over"] { color: var(--danger); }
 
 .caption {
   font-size: var(--fs-caption);
@@ -164,119 +81,86 @@
 
 .caption:empty { display: none; }
 
-.bar-row {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  margin-block-start: var(--sp-2);
+.stamp {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
 }
 
-/* The cut bar: one thick rectangular rail, the fill laid as a single solid
-   slab with a hard seam cut at its edge, and the percentage mounted directly
-   against that seam as an attached value tab. */
+.stamp:empty { display: none; }
+.stamp[data-stale] { color: var(--warning); }
+
+/* The gauge: a hard channel with a solid fill. The figure and the percentage
+   both carry the value, so it never has to communicate on colour alone. */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
 .bar {
   flex: 1;
   min-inline-size: 0;
-  block-size: 20px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
+  block-size: 16px;
+  background-color: var(--track);
   overflow: hidden;
 }
 
 .bar-fill {
   display: block;
   block-size: 100%;
-  background: var(--accent-solid);
-  border-inline-end: 3px solid var(--text);
-  animation: bar-grow var(--dur-slow) var(--ease);
+  background-color: var(--text);
+  animation: grow var(--dur-slow) var(--ease);
   transition: inline-size var(--dur-slow) var(--ease);
 }
 
-@keyframes bar-grow {
-  from { inline-size: 0; }
-}
+@keyframes grow { from { inline-size: 0; } }
 
-.bar[data-level="warn"] .bar-fill { background: var(--warning); }
-.bar[data-level="over"] .bar-fill { background: var(--danger); }
+.bar[data-level="warn"] .bar-fill { background-color: var(--warning); }
+.bar[data-level="over"] .bar-fill { background-color: var(--danger); }
 
-/* The value tab: an attached plate, same height as the rail, framed so the
-   number reads as bolted to the seam. */
 .bar-pct {
   flex: none;
-  display: flex;
-  align-items: center;
-  padding-inline: var(--sp-2);
-  border: 1px solid var(--border-strong);
-  border-inline-start: 0;
-  background: var(--surface);
-  font-size: var(--fs-caption);
-  font-weight: 800;
-}
-
-/* Freshness closes the board; quiet metadata. Empty until the first poll
-   answers. */
-.card-foot {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-block-start: var(--sp-1);
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
-  color: var(--subtle);
+  font-weight: 700;
+  color: var(--muted);
+  min-inline-size: 4ch;
+  text-align: end;
 }
 
-.card-foot:empty { display: none; }
-
-.card-foot[data-stale] { color: var(--warning); }
-
-/* Controls are pressed blocks. The primary carries the offset press: it sits
-   on its back-plane until pressed, then drops onto it. Secondary and quiet
-   controls are flat framed verbs. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
   min-block-size: var(--tap);
-  padding-inline: var(--sp-4);
-  border: 1px solid var(--border-strong);
-  font-size: var(--fs-body);
+  padding-inline: var(--sp-5);
+  border: 2px solid transparent;
+  font-size: var(--fs-caption);
   font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   text-decoration: none;
   cursor: pointer;
   background: transparent;
-  color: var(--text);
   transition: background-color var(--dur) var(--ease),
-              border-color var(--dur) var(--ease),
-              color var(--dur) var(--ease);
+              border-color var(--dur) var(--ease);
 }
 
+/* The one acid plate on the board. */
 .btn-primary {
   background: var(--accent-solid);
   border-color: var(--accent-solid);
   color: var(--on-accent);
-  box-shadow: var(--offset-shadow);
 }
 
-.btn-primary:active {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--offset);
-}
+.btn-outline { border-color: var(--text); }
 
-.btn-outline {
-  background: var(--surface);
-}
+.btn-quiet { color: var(--muted); }
 
-.btn-quiet {
-  background: transparent;
-  border-color: transparent;
-  color: var(--muted);
-}
-
-/* Both labels of a copy button occupy the same grid cell, so the button is
-   laid out at the width of the longer word and confirming a copy cannot move
-   the buttons beside it. The unused one is hidden rather than removed, which
-   also keeps it out of the accessible name. */
+/* Both labels share one grid cell, so the control is laid out at the width of
+   the longer word and confirming a copy cannot move its neighbours. */
 .btn-swap {
   display: grid;
   grid-template-areas: "label";
@@ -295,64 +179,69 @@
 .btn-swap > .swap-done { visibility: hidden; }
 
 .btn[data-flash] .swap-live { visibility: hidden; }
-
 .btn[data-flash] .swap-done { visibility: visible; }
 
 .btn-outline[data-flash],
 .btn-quiet[data-flash] { color: var(--success); }
 
+/* Row and destination commands are ruled plates. The runtime marks each
+   client's import as its primary variant, so the small primary is flattened
+   back to a ruled command and Copy subscription stays the only acid plate. */
 .btn-sm {
-  min-block-size: 40px;
+  min-block-size: var(--tap);
   padding-inline: var(--sp-3);
-  font-size: var(--fs-caption);
+  border-width: 1px;
+  border-color: var(--rule-strong);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-
-.actions .btn-primary { min-block-size: var(--btn-h); }
-
-.support-cta {
-  inline-size: 100%;
-  min-block-size: var(--btn-h);
+.btn-sm.btn-primary {
+  background: transparent;
+  color: var(--muted);
 }
 
-/* Header controls: framed hard rectangles. */
 .ctl {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--sp-1);
-  min-block-size: 40px;
-  min-inline-size: 40px;
+  min-block-size: var(--tap);
+  min-inline-size: var(--tap);
   padding-inline: var(--sp-2);
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--rule-strong);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   font-weight: 700;
   cursor: pointer;
   transition: background-color var(--dur) var(--ease),
-              border-color var(--dur) var(--ease),
               color var(--dur) var(--ease);
 }
 
 .ctl-icon { padding-inline: 0; }
 
-/* An open menu keeps its trigger lit, which is the only cue that the panel
-   below belongs to this control and not the one beside it. */
+.ctl .icon-chevron {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
 .ctl[aria-expanded="true"] {
-  background: var(--accent-soft);
-  border-color: var(--accent-solid);
-  color: var(--text);
+  background: var(--text);
+  color: var(--bg);
 }
 
 .ctl:active,
-.menu-item:active,
-.btn-outline:active,
-.btn-quiet:active { background: var(--track); }
+.menu-item:active { background: var(--track); }
 
 .btn:disabled,
 .ctl:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: default;
 }
 
@@ -363,12 +252,11 @@
   inset-block-start: calc(100% + var(--sp-2));
   inset-inline-end: 0;
   z-index: 20;
-  min-inline-size: 180px;
+  min-inline-size: 190px;
   padding: var(--sp-1);
   background: var(--surface);
-  border: 2px solid var(--border-strong);
-  box-shadow: var(--offset-shadow);
-  animation: rise var(--dur) var(--ease);
+  border: 2px solid var(--text);
+  box-shadow: var(--shadow-pop);
 }
 
 .menu-item {
@@ -376,15 +264,14 @@
   align-items: center;
   gap: var(--sp-2);
   inline-size: 100%;
-  min-block-size: 40px;
+  min-block-size: var(--tap);
   padding-inline: var(--sp-2);
   border: 0;
-  border-radius: var(--r-mark);
   background: transparent;
   font-size: var(--fs-caption);
   text-align: start;
   cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease);
+  transition: background-color var(--dur) var(--ease);
 }
 
 .menu-item .icon:last-child {
@@ -399,122 +286,291 @@
 
 .menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
 
-/* Switch blocks: each platform is its own physical block, sitting on its own
-   back-plane when active. No rail, no container, hard gaps. The strip wraps
-   to a second line at the narrowest widths rather than truncating a label. */
-.tabs {
+/* --- the numbered row index ---------------------------------------------- */
+
+.count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.search {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  border-block-end: 1px solid var(--rule-strong);
+  color: var(--subtle);
+}
+
+.search:focus-within { border-block-end-color: var(--accent); }
+
+.search input {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+}
+
+.search input:focus { outline: none; }
+
+/* One configuration, one plate: a large number in its own column, then the
+   identity, then the row commands. The number is what makes the list read as a
+   poster index; it counts the rows currently shown, so filtering renumbers the
+   visible set rather than leaving gaps. */
+#config-list { counter-reset: plate; }
+
+/* A plate, not a table row. The record is a two-level composition on the
+   twelve-column poster grid: the ordinal holds its own vertical track as a
+   plate margin with a hard edge, the identity is set large on the first level,
+   the protocol is a small annotation on the second, and the commands sit
+   against the hard trailing edge spanning both levels. That is what stops the
+   index collapsing back onto one conventional horizontal baseline. */
+.cfg {
+  counter-increment: plate;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: baseline;
+  gap: 0 var(--sp-3);
+  min-inline-size: 0;
+  padding-block: var(--sp-4);
+  border-block-end: 1px solid var(--rule);
+}
+
+/* The plate margin: a large ordinal with its own hard edge. The ordinal is set
+   at poster scale on purpose — it is an anchor, not a list marker. */
+.cfg::before {
+  content: counter(plate, decimal-leading-zero);
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  padding-inline-end: var(--sp-3);
+  border-inline-end: 1px solid var(--rule-strong);
+  font-family: var(--font-mono);
+  font-size: var(--fs-plate);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+
+.cfg-flag {
+  grid-column: 3;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  font-size: 19px;
+  line-height: 1;
+  overflow: hidden;
+}
+
+/* Monogram fallback when a node carries no country flag: the first letter of
+   its name as a plate mark, so the column still reads. */
+.cfg-flag[data-mono] {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+/* The body dissolves, so the name and the protocol become grid items of the
+   row itself - which is what lets them sit on two different levels instead of
+   stacking inside one cell. */
+.cfg-body { display: contents; }
+
+.cfg-name {
+  grid-column: 4 / span 7;
+  grid-row: 1;
+  display: block;
+  font-size: var(--fs-row);
+  font-weight: 800;
+  line-height: var(--lh-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-proto {
+  grid-column: 4 / span 7;
+  grid-row: 2;
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-actions {
+  grid-column: 11 / span 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-content: flex-end;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.empty { text-align: start; }
+
+.more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--rule-strong);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.more .icon { transition: transform var(--dur) var(--ease); }
+.more[aria-expanded="true"] .icon { transform: rotate(180deg); }
+
+/* Below the twelve-column threshold the plate keeps its plate margin and its
+   two levels, but folds to three tracks: the ordinal, the identity and the
+   commands. The flag rides inline with the name rather than taking a track of
+   its own, so the record does not grow taller than it needs to. */
+@media (max-width: 859px) {
+  .cfg { grid-template-columns: 3.25rem minmax(0, 1fr) auto; }
+
+  .cfg::before { grid-column: 1; grid-row: 1 / span 2; }
+
+  .cfg-flag {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start;
+    inline-size: auto;
+  }
+
+  .cfg-name {
+    grid-column: 2;
+    grid-row: 1;
+    padding-inline-start: 2rem;
+  }
+
+  .cfg-proto { grid-column: 2; grid-row: 2; }
+
+  .cfg-actions { grid-column: 3; grid-row: 1 / span 2; }
+}
+
+/* --- the switching board -------------------------------------------------- */
+
+.modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-2);
 }
 
+@media (min-width: 640px) {
+  .modes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* A mode is a large block, not a tab. The engaged one is marked by fill AND by
+   an inset hard edge, so it survives monochrome and forced colours. */
 .tab {
-  flex: 1 0 auto;
   min-inline-size: 0;
-  min-block-size: 40px;
-  padding-inline: var(--sp-3);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
+  min-block-size: 60px;
+  padding-inline: var(--sp-2);
+  border: 2px solid var(--rule-strong);
+  background: transparent;
   color: var(--muted);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-body);
   font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color var(--dur) var(--ease),
-              background-color var(--dur) var(--ease);
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
 }
 
 .tab[aria-selected="true"] {
-  color: var(--on-accent);
   background: var(--accent-solid);
   border-color: var(--accent-solid);
-  box-shadow: var(--offset-shadow);
+  color: var(--on-accent);
+  box-shadow: inset 0 0 0 3px var(--bg);
 }
 
-.tab[aria-selected="true"]:active {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--offset);
-}
-
-.clients {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Line entries framed as inventory strips. */
 .client {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding-block: var(--sp-2);
-  border-block-end: 1px solid var(--hairline);
+  gap: var(--sp-2) var(--sp-3);
+  min-inline-size: 0;
+  padding-block: var(--sp-3);
+  border-block-end: 1px solid var(--rule);
 }
 
-
-/* The base size is the name's own width, so a slab too narrow for both parts
-   moves the buttons onto their own line instead of squeezing the name away. */
 .client-head {
   display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex: 1 1 auto;
+  flex-direction: column;
   min-inline-size: 0;
 }
 
 .client-name {
-  font-weight: 700;
+  font-size: var(--fs-row);
+  font-weight: 800;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .client-tag {
-  flex: none;
-  color: var(--subtle);
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
+  color: var(--subtle);
   white-space: nowrap;
 }
 
 .client-actions {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  flex: none;
-  margin-inline-start: auto;
+  gap: var(--sp-1);
 }
 
-/* The page's inline controls — the announcement toggle and the retry in a
-   stopped footer — are words rather than buttons, so the padding gives them a
-   thumb-sized box without drawing one. */
+/* --- the colophon --------------------------------------------------------- */
+
 .text-link {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
   align-self: flex-start;
-  min-block-size: 40px;
+  min-block-size: var(--tap);
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: var(--text);
   font-size: var(--fs-caption);
   font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   text-align: start;
   text-decoration: none;
   cursor: pointer;
 }
 
-/* A posted notice: heavy top edge, framed body, nothing rounded. */
 .announce {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  padding: var(--sp-4);
-  background: var(--info-surface);
-  border: 1px solid var(--border-strong);
-  border-block-start: 4px solid var(--accent);
+  padding-inline-start: var(--sp-4);
+  border-inline-start: var(--rule-hard) solid var(--accent);
 }
 
 .announce-head {
@@ -524,14 +580,24 @@
   color: var(--text);
 }
 
+/* The runtime builds the announcement heading as .section-title, so it takes the
+   same plate treatment as the board's own anchors. */
+.section-title {
+  font-size: var(--fs-label);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label);
+  line-height: 1.3;
+  color: var(--text);
+}
 
-/* Clamped by default; the card carries the open state, because whether the
+/* Clamped by default; the panel carries the open state, because whether the
    toggle is needed at all is measured against this clamp. */
 .announce-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
   overflow: hidden;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -544,49 +610,38 @@
   overflow: visible;
 }
 
-.support { margin-block-start: 0; }
+.support { display: flex; }
 
-/* Dialogs are heavy panes: 2px frame, offset back-plane, ruled title band. */
+/* --- dialogs -------------------------------------------------------------- */
+
 .dialog {
   padding: 0;
-  border: 2px solid var(--border-strong);
+  border: 2px solid var(--text);
   background: var(--surface);
   color: var(--text);
   inline-size: calc(100% - 2 * var(--sp-4));
-  max-inline-size: 380px;
-  box-shadow: var(--offset-shadow);
+  max-inline-size: 400px;
+  box-shadow: var(--shadow-pop);
 }
 
 .dialog::backdrop { background: var(--scrim); }
-
-.dialog[open] { animation: rise var(--dur-slow) var(--ease); }
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-}
 
 .dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  border-block-end: 2px solid var(--border-strong);
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  border-block-end: 1px solid var(--rule-strong);
 }
+
+.dialog-head .ctl { color: var(--text); }
 
 .dialog-title {
   font-size: var(--fs-title);
   font-weight: 800;
-}
-
-.dialog-head .ctl {
-  min-inline-size: 32px;
-  min-block-size: 32px;
-  background: var(--surface-2);
-  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .qr-body {
@@ -594,7 +649,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
 }
 
 /* The frame stays white in both themes because the code has to scan, and a
@@ -602,12 +657,12 @@
 .qr-frame {
   padding: var(--sp-3);
   background: #FFFFFF;
-  border: 2px solid var(--border-strong);
+  border: 2px solid var(--text);
 }
 
 /* Bounded by the shorter axis as well: a phone held sideways has room for the
-   width but not the height, and a code the reader has to scroll to is worse
-   than a smaller one shown beside the address it encodes. */
+   width but not the height, and a code the reader must scroll to is worse than
+   a smaller one shown beside the address it encodes. */
 #qr-canvas {
   inline-size: min(280px, 72vw, 36vh);
   block-size: auto;
@@ -624,16 +679,17 @@
   min-inline-size: 0;
   min-block-size: var(--tap);
   padding-inline: var(--sp-3);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
+  border: 1px solid var(--rule-strong);
+  background: var(--track);
   color: var(--muted);
-  font-size: var(--fs-caption);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
 }
 
 .url-plain {
   padding: var(--sp-3);
-  border: 1px solid var(--hairline);
-  background: var(--surface-2);
+  border: 1px solid var(--rule-strong);
+  font-family: var(--font-mono);
   font-size: var(--fs-caption);
   overflow-wrap: anywhere;
   user-select: all;
@@ -643,180 +699,25 @@
    failure. Success is reported on the control that was pressed. */
 .toast {
   position: fixed;
-  inset-block-end: var(--sp-4);
+  inset-block-end: var(--sp-5);
   inset-inline: 0;
   z-index: 60;
   inline-size: fit-content;
   max-inline-size: calc(100% - 2 * var(--sp-4));
   margin-inline: auto;
-  padding: var(--sp-2) var(--sp-3);
-  background: var(--surface-2);
-  border: 2px solid var(--border-strong);
-  font-size: var(--fs-caption);
-  font-weight: 800;
-  opacity: 0;
-  transform: translateY(3px);
-  transition: opacity var(--dur) var(--ease),
-              transform var(--dur) var(--ease);
-}
-
-.toast[data-show] {
-  opacity: 1;
-  transform: none;
-}
-
-/* Configurations explorer: an inventory board. Every row is a framed strip;
-   odd rows lift onto the front plane, even rows stay on the shelf behind. */
-.explorer-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-.explorer-head .section-title { flex: 1; }
-
-.cfg-count {
-  flex: none;
-  padding-inline: var(--sp-2);
-  border: 1px solid var(--border-strong);
-  background: var(--accent-solid);
-  color: var(--on-accent);
-  font-size: var(--fs-micro);
-  font-weight: 800;
-}
-
-.cfg-search {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding-inline: var(--sp-3);
-  min-block-size: var(--tap);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
-  color: var(--subtle);
-}
-
-.cfg-search:focus-within {
-  background: var(--surface);
-  border-color: var(--accent-solid);
-}
-
-.cfg-search .icon { flex: none; }
-
-.cfg-search input {
-  flex: 1;
-  min-inline-size: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font-size: var(--fs-caption);
-}
-
-.cfg-search input:focus { outline: none; }
-
-.cfg-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-
-/* An inventory strip: framed, squared, alternating between the front plane
-   and the shelf tone. Compact blocks keep a hundred rows stable. */
-.cfg {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--hairline);
-  background: var(--surface-2);
-}
-
-.cfg:nth-child(odd) { background: var(--surface); }
-.cfg[hidden] { display: none; }
-
-/* Flags and monograms share one framed plate. */
-.cfg-flag {
-  flex: none;
-  display: grid;
-  place-items: center;
-  inline-size: 34px;
-  block-size: 34px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  font-size: 18px;
-  line-height: 1;
-  overflow: hidden;
-}
-
-/* Monogram fallback when a configuration has no country flag: the first
-   letter of its name in the accent voice, never an empty box. */
-.cfg-flag[data-mono] {
-  color: var(--accent);
-  font-size: var(--fs-caption);
-  font-weight: 800;
-}
-
-.cfg-body {
-  flex: 1;
-  min-inline-size: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.cfg-name {
-  display: block;
-  font-weight: 700;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The protocol stamp: solid ink block, reversed type. */
-.cfg-proto {
-  display: inline-block;
-  align-self: flex-start;
-  margin-block-start: var(--sp-1);
-  padding: 1px var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
   background: var(--text);
-  color: var(--surface);
-  font-size: var(--fs-micro);
+  color: var(--bg);
+  font-size: var(--fs-caption);
   font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
 }
 
-.cfg-actions {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
+.toast[data-show] { opacity: 1; }
 
-/* The empty-state line shown when a search matches nothing. */
-.cfg-empty { text-align: center; }
-
-/* The expand/collapse control for a long list: a framed ghost block. */
-.cfg-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  inline-size: 100%;
-  min-block-size: var(--tap);
-  padding-inline: var(--sp-3);
-  border: 1px solid var(--border-strong);
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--fs-caption);
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.cfg-toggle .icon { flex: none; }
-
-/* Config dialog. It reuses the .dialog / .qr-body / .qr-frame / .url-field
-   shell (so the bottom-sheet media query below applies unchanged); only the
-   canvas size and the protocol-specific extras are new. */
 #config-canvas {
   display: block;
   inline-size: min(240px, 64vw);
@@ -824,7 +725,10 @@
   image-rendering: pixelated;
 }
 
-.cfg-open { inline-size: 100%; }
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
 
 .cfg-conf {
   display: flex;
@@ -836,16 +740,17 @@
 .conf-text {
   inline-size: 100%;
   padding: var(--sp-3);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
+  border: 1px solid var(--rule-strong);
+  background: var(--track);
   color: var(--text);
+  font-family: var(--font-mono);
   font-size: var(--fs-micro);
   line-height: 1.5;
   resize: none;
 }
 
-/* Copy and Download sit side by side under the configuration text, sharing
-   the width so neither reads as the primary action. */
+.conf-text:focus { outline: none; border-color: var(--accent); }
+
 .conf-actions {
   display: flex;
   gap: var(--sp-2);
@@ -853,38 +758,27 @@
 
 .conf-actions .btn { flex: 1; }
 
-/* Hover is a pointer affordance, so it lives behind the capability query; the
-   press and focus states above do not, because a thumb needs them too. Every
-   rule here shifts colour only; the offset press on the primary is the one
-   movement, and it is small. */
 @media (hover: hover) {
   .btn-primary:hover {
     background: var(--accent-hover);
     border-color: var(--accent-hover);
   }
 
-  .btn-outline:hover {
-    background: var(--surface-2);
-    border-color: var(--control-border);
+  .btn-outline:hover,
+  .btn-quiet:hover,
+  .btn-sm:hover,
+  .ctl:hover,
+  .more:hover {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
   }
 
-  .btn-quiet:hover { color: var(--text); }
-
-  .ctl:hover {
-    background: var(--surface-2);
-    color: var(--text);
-  }
-
-  .menu-item:hover { background: var(--surface-2); }
-
-  .cfg-toggle:hover {
-    border-color: var(--control-border);
-    color: var(--text);
-  }
+  .menu-item:hover { background: var(--track); }
 
   .tab:hover:not([aria-selected="true"]) {
+    border-color: var(--text);
     color: var(--text);
-    border-color: var(--control-border);
   }
 
   .text-link:hover { text-decoration: underline; }
@@ -893,11 +787,6 @@
 /* Below the phone breakpoint the dialog becomes a bottom sheet: the thumb
    reaches the close button and the copy field without stretching. */
 @media (max-width: 479px) {
-  .tab {
-    flex: 1 1 auto;
-    padding-inline: var(--sp-2);
-  }
-
   .dialog {
     inline-size: 100%;
     max-inline-size: none;
@@ -908,41 +797,43 @@
 
 @media (prefers-contrast: more) {
   :root {
-    --hairline: var(--control-border);
-    --border: var(--control-border);
-    --border-strong: var(--control-border);
+    --rule: var(--control-border);
+    --rule-strong: var(--control-border);
     --muted: var(--text);
     --subtle: var(--text);
   }
 
-  .btn-quiet { border-color: var(--control-border); }
+  .cfg,
+  .client,
+  .search { border-block-end-color: var(--control-border); }
+
+  .ctl,
+  .btn-outline,
+  .btn-sm,
+  .tab,
+  .more { border-color: var(--control-border); }
 }
 
+/* The gauge falls back to a solid system highlight and leans on the figure and
+   the percentage text, which always carry the value. */
 @media (forced-colors: active) {
-  .card,
-  .menu,
-  .announce,
-  .dialog { border: 1px solid CanvasText; }
-
-  .card,
-  .status-card,
-  .menu,
   .dialog,
-  .btn-primary,
-  .tab[aria-selected="true"] { box-shadow: none; }
+  .menu,
+  .bar,
+  .search,
+  .more,
+  .tab { border-color: CanvasText; }
 
-  .bar { box-shadow: inset 0 0 0 1px CanvasText; }
+  .bar-fill { background-color: Highlight; }
 
-  .dot,
-  .bar-fill { forced-color-adjust: none; }
+  .dot { forced-color-adjust: none; }
 
   .tab[aria-selected="true"] {
-    color: Highlight;
-    background: ButtonFace;
+    background: Highlight;
+    color: HighlightText;
+    box-shadow: none;
   }
 
-  .brand-mark,
-  .cfg-flag,
-  .cfg-count,
-  .cfg { border: 1px solid CanvasText; }
+  .cfg,
+  .client { border-block-end: 1px solid CanvasText; }
 }

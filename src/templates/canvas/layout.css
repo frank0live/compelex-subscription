@@ -1,6 +1,15 @@
-/* Page skeleton: the operations board. Desktop uses a two-zone asymmetric
-   dashboard (hero + rail) above a two-column workspace. Mobile stacks in
-   DOM order. */
+/* Page skeleton: an open canvas.
+
+   The page is a field, not a grid of panels. Zones are placed on a twelve-column
+   canvas at deliberately uneven spans and separated by whitespace rather than by
+   frames, so alignment and space carry the hierarchy and nothing is boxed. The
+   expiry readout is anchored in its own column and dropped below the traffic
+   block, which is what makes the composition read as spatial rather than as a
+   dashboard row.
+
+   One DOM order serves every composition: header, traffic, expiry, actions,
+   clients, index. The canvas only places those zones; it never reorders them, so
+   focus order is the mobile reading order. */
 
 .site-header,
 #main {
@@ -9,13 +18,13 @@
   margin-inline: auto;
 }
 
-/* The header carries the live state inline, like a real ops status bar. */
+/* The header is a hairline and a line of type. It is the only rule on the page. */
 .site-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
-  padding-block: var(--sp-3);
+  padding-block: var(--sp-4);
   min-block-size: var(--header-h);
   border-block-end: 1px solid var(--hairline);
 }
@@ -55,24 +64,20 @@
 #main {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
   flex: 1 0 auto;
 }
 
-#plan-slot,
-#bar-slot,
-#announce-slot,
-#support-slot {
-  display: contents;
-}
-
-/* The operations board: hero and rail side by side on desktop, stacked on
-   mobile. The work area splits Connect and Explorer into two columns. */
-.cx-dash {
+/* The two spatial zones. Both are open fields: nothing inside them is framed,
+   and the only separation between zones is a large gap. */
+.cx-dash,
+.cx-work {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--sp-6);
+  padding-block: var(--sp-7);
 }
+
+.cx-dash { padding-block: var(--sp-7) var(--sp-6); }
 
 .cx-hero {
   display: flex;
@@ -85,10 +90,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  padding: var(--sp-4);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-panel);
+  min-inline-size: 0;
 }
 
 .cx-kpi {
@@ -99,101 +101,36 @@
 }
 
 .cx-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--sp-2);
-  margin-block-start: var(--sp-2);
-}
-
-.cx-work {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-5);
+  flex-wrap: wrap;
+  gap: var(--sp-2);
 }
 
-@media (min-width: 760px) {
+@media (min-width: 1000px) {
+  /* The canvas opens. The traffic block takes the leading six columns, the
+     expiry anchor is dropped into the far column well below the traffic line,
+     and the index runs wide beneath both. Nothing is boxed, so the eye follows
+     the alignment rather than a border. */
   .cx-dash {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 240px;
-    column-gap: var(--sp-6);
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-7) var(--sp-6);
     align-items: start;
+    padding-block: var(--sp-7) var(--sp-6);
   }
 
-  .cx-rail {
-    background: transparent;
-    border: none;
-    border-inline-start: 1px solid var(--hairline);
-    border-radius: 0;
-    padding-inline-start: var(--sp-5);
-  }
+  .cx-hero { grid-column: 1 / span 6; }
+  .cx-rail { grid-column: 9 / span 4; margin-block-start: var(--sp-7); }
+  .cx-actions { grid-column: 1 / span 6; }
 
   .cx-work {
     display: grid;
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    gap: var(--sp-5);
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-7) var(--sp-6);
     align-items: start;
-  }
-}
-
-@media (min-width: 720px) {
-  body { padding-inline: var(--sp-6); }
-}
-
-/* Mobile: the state pill and live state drop to a secondary strip below the
-   brand row, freeing inline space for the service name. Actions stack to a
-   single column so the primary CTA label is never truncated. */
-@media (max-width: 479px) {
-  .site-header {
-    flex-wrap: wrap;
-    padding-block: var(--sp-2);
+    padding-block: var(--sp-6) var(--sp-7);
   }
 
-  .brand {
-    order: 1;
-    flex: 1 1 0;
-    min-inline-size: 0;
-  }
-
-  .header-controls {
-    order: 2;
-  }
-
-  .header-status {
-    order: 3;
-    inline-size: 100%;
-    padding-block-start: var(--sp-2);
-    border-block-start: 1px solid var(--hairline);
-    margin-block-start: var(--sp-2);
-  }
-
-  .cx-actions {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Mobile: the state pill and live state drop to a secondary strip below the
-   brand row, freeing inline space for the service name. */
-@media (max-width: 479px) {
-  .site-header {
-    flex-wrap: wrap;
-    padding-block: var(--sp-2);
-  }
-
-  .brand {
-    order: 1;
-    flex: 1 1 0;
-    min-inline-size: 0;
-  }
-
-  .header-controls {
-    order: 2;
-  }
-
-  .header-status {
-    order: 3;
-    inline-size: 100%;
-    padding-block-start: var(--sp-2);
-    border-block-start: 1px solid var(--hairline);
-    margin-block-start: var(--sp-2);
-  }
+  .connect { grid-column: 1 / span 4; }
+  .explorer { grid-column: 6 / span 7; }
 }

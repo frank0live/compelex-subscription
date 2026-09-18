@@ -31,6 +31,7 @@ export const TEMPLATES = {
     order: 1,
     available: true,
     emitDataTemplate: false,
+    layout: true,
     styles: [
       ['src/styles/tokens.css', 'styles/tokens.css'],
       ['src/styles/base.css', 'styles/base.css'],
@@ -75,6 +76,7 @@ export const TEMPLATES = {
     order: 4,
     available: true,
     emitDataTemplate: true,
+    layout: true,
     styles: [
       ['src/templates/prism/tokens.css', 'templates/prism/tokens.css'],
       ['src/templates/prism/base.css', 'templates/prism/base.css'],
@@ -89,6 +91,7 @@ export const TEMPLATES = {
     order: 5,
     available: true,
     emitDataTemplate: true,
+    layout: true,
     styles: [
       ['src/templates/terminal/tokens.css', 'templates/terminal/tokens.css'],
       ['src/templates/terminal/base.css', 'templates/terminal/base.css'],
@@ -103,6 +106,7 @@ export const TEMPLATES = {
     order: 6,
     available: true,
     emitDataTemplate: true,
+    layout: true,
     styles: [
       ['src/templates/pulse/tokens.css', 'templates/pulse/tokens.css'],
       ['src/templates/pulse/base.css', 'templates/pulse/base.css'],
@@ -117,6 +121,7 @@ export const TEMPLATES = {
     order: 7,
     available: true,
     emitDataTemplate: true,
+    layout: true,
     styles: [
       ['src/templates/brutal/tokens.css', 'templates/brutal/tokens.css'],
       ['src/templates/brutal/base.css', 'templates/brutal/base.css'],
@@ -131,6 +136,7 @@ export const TEMPLATES = {
     order: 8,
     available: true,
     emitDataTemplate: true,
+    layout: true,
     styles: [
       ['src/templates/arcade/tokens.css', 'templates/arcade/tokens.css'],
       ['src/templates/arcade/base.css', 'templates/arcade/base.css'],
@@ -145,6 +151,7 @@ export const TEMPLATES = {
     order: 9,
     available: true,
     emitDataTemplate: true,
+    layout: true,
     styles: [
       ['src/templates/sketch/tokens.css', 'templates/sketch/tokens.css'],
       ['src/templates/sketch/base.css', 'templates/sketch/base.css'],
@@ -213,7 +220,65 @@ export const TEMPLATES = {
       ['src/templates/prismnova/rtl.css', 'templates/prismnova/rtl.css'],
     ],
   },
+  terminalnova: {
+    id: 'terminalnova',
+    name: 'Terminal Nova',
+    order: 14,
+    available: true,
+    emitDataTemplate: true,
+    layout: true,
+    styles: [
+      ['src/templates/terminalnova/tokens.css', 'templates/terminalnova/tokens.css'],
+      ['src/templates/terminalnova/base.css', 'templates/terminalnova/base.css'],
+      ['src/templates/terminalnova/layout.css', 'templates/terminalnova/layout.css'],
+      ['src/templates/terminalnova/components.css', 'templates/terminalnova/components.css'],
+      ['src/templates/terminalnova/rtl.css', 'templates/terminalnova/rtl.css'],
+    ],
+  },
+  arcadenova: {
+    id: 'arcadenova',
+    name: 'Arcade Nova',
+    order: 15,
+    available: true,
+    emitDataTemplate: true,
+    layout: true,
+    styles: [
+      ['src/templates/arcadenova/tokens.css', 'templates/arcadenova/tokens.css'],
+      ['src/templates/arcadenova/base.css', 'templates/arcadenova/base.css'],
+      ['src/templates/arcadenova/layout.css', 'templates/arcadenova/layout.css'],
+      ['src/templates/arcadenova/components.css', 'templates/arcadenova/components.css'],
+      ['src/templates/arcadenova/rtl.css', 'templates/arcadenova/rtl.css'],
+    ],
+  },
 };
+
+/* Tier defaults.
+ *
+ * Every template belongs to a tier. `core` templates ship in the release and are
+ * byte-locked; `custom` templates are added later and are never locked. The
+ * difference between the tiers is the lock, not the build: both are held to the
+ * same hook and runtime contract.
+ *
+ * The fields are applied here rather than written into all fifteen entries, so
+ * adding a core template stays a one-line change and a custom template only has
+ * to declare `tier: 'custom'`. An entry may override `locked` explicitly, which
+ * is how a core design still in development would opt out of its lock.
+ */
+export function applyTierDefaults(entry) {
+  const tier = entry.tier === 'custom' ? 'custom' : 'core';
+  return {
+    tier,
+    locked: entry.locked === undefined ? tier === 'core' : Boolean(entry.locked),
+  };
+}
+
+for (const id of Object.keys(TEMPLATES)) {
+  const tpl = TEMPLATES[id];
+  if (tpl.tier !== undefined || tpl.locked !== undefined) {
+    throw new Error(`template ${JSON.stringify(id)} must not declare tier or locked in the literal`);
+  }
+  Object.assign(tpl, applyTierDefaults(tpl));
+}
 
 /* The default template. A missing or legacy selection falls back here. */
 export const DEFAULT_TEMPLATE = 'row';
@@ -222,8 +287,21 @@ export function templateIds() {
   return Object.keys(TEMPLATES);
 }
 
+/* The selectable set, ordered by `order`. Sorting explicitly means a custom
+   template appended out of order still appears in the right place; today the
+   registry literal is already order-sorted, so this is a no-op. */
 export function availableTemplateIds() {
-  return templateIds().filter((id) => TEMPLATES[id].available);
+  return templateIds()
+    .filter((id) => TEMPLATES[id].available)
+    .sort((a, b) => TEMPLATES[a].order - TEMPLATES[b].order);
+}
+
+export function coreTemplateIds() {
+  return templateIds().filter((id) => TEMPLATES[id].tier === 'core');
+}
+
+export function lockedTemplateIds() {
+  return templateIds().filter((id) => TEMPLATES[id].locked);
 }
 
 /* Resolve an id to a template descriptor. Throws on an unknown id and on a

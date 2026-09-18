@@ -72,7 +72,7 @@
 <main id="main">
 
   <section class="hero" aria-labelledby="status-heading">
-    <h2 class="visually-hidden" id="status-heading">Subscription status</h2>
+    <h2 class="section-title" id="status-heading">Subscription status</h2>
     <span id="plan-slot">{{ if .subTitle }}<span class="plan-label"><bdi>{{ .subTitle }}</bdi></span>{{ end }}</span>
     <div class="status-line">
       <span class="pill" id="state-pill" data-state="{{ if .enabled }}active{{ else }}disabled{{ end }}">

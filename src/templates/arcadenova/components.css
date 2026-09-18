@@ -1,0 +1,828 @@
+/* Components. Nothing here reads a raw colour: every plane, edge and signal
+   comes from tokens.css, so both themes stay in step.
+
+   Only two objects are framed: the cabinet and its screen. Everything else -
+   the rail, the bay, the notices - is separated by rules and alignment. A
+   cartridge is the one exception, and only because a moulded slot is the design
+   language itself rather than a container around content. */
+
+/* A machine label: the heavy tracked voice at label size. */
+.label {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-machine);
+  line-height: 1.2;
+  color: var(--subtle);
+}
+
+/* The plan name is an enhancement; the localized running head always names the
+   screen, so an empty slot removes nothing the region needs. */
+#plan-slot:empty { display: none; }
+
+.plan-label {
+  display: block;
+  max-inline-size: 100%;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  overflow-wrap: anywhere;
+}
+
+/* State is a dot, a word and a shape - never a chip. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dot {
+  inline-size: 9px;
+  block-size: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--subtle);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.pill[data-state="active"] .dot { background: var(--success); }
+.pill[data-state="expired"] .dot { background: var(--danger); }
+.pill[data-state="limited"] .dot { background: var(--warning); }
+
+.live-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--subtle);
+}
+
+.live-state[data-online="1"] { color: var(--text); }
+.live-state[data-online="1"] .dot { background: var(--success); }
+
+/* The largest text on the page, and the reason the screen reads as a display
+   rather than a summary: the figure is set, not decorated. */
+.figure {
+  font-size: var(--fs-figure);
+  font-weight: 700;
+  line-height: var(--lh-figure);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.figure-sm {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colour repeats what the words already say; the words are the signal. */
+.figure-sm[data-level="warn"] { color: var(--warning); }
+.figure-sm[data-level="over"] { color: var(--danger); }
+
+.caption {
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}
+
+.caption:empty { display: none; }
+
+.stamp {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+}
+
+.stamp:empty { display: none; }
+.stamp[data-stale] { color: var(--warning); }
+
+/* The segmented gauge. The runtime owns the width of .bar-fill, so the segment
+   breaks are drawn as a separate layer pinned to the TRACK - a pattern on the
+   fill itself would stretch and slide as the value changed. The figure and the
+   percentage both carry the value, so the gauge never has to communicate on
+   colour alone. */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.bar {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 14px;
+  border-radius: 3px;
+  background-color: var(--track);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--signal) 0 9px,
+    transparent 9px 12px
+  );
+  animation: grow var(--dur-slow) var(--ease);
+  transition: inline-size var(--dur-slow) var(--ease);
+}
+
+@keyframes grow { from { inline-size: 0; } }
+
+.bar[data-level="warn"] .bar-fill { background-color: var(--warning); }
+.bar[data-level="over"] .bar-fill { background-color: var(--danger); }
+
+.bar-pct {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  min-inline-size: 4ch;
+  text-align: end;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
+}
+
+/* The one filled surface on the page. Everything else is ruled or plain, which
+   is what keeps Copy subscription unmistakably dominant. */
+.btn-primary {
+  background: var(--signal-solid);
+  border-color: var(--signal-solid);
+  color: var(--on-signal);
+}
+
+.btn-outline { border-color: var(--edge-strong); }
+
+.btn-quiet { color: var(--muted); }
+
+/* Both labels share one grid cell, so the control is laid out at the width of
+   the longer word and confirming a copy cannot move its neighbours. */
+.btn-swap {
+  display: grid;
+  grid-template-areas: "label";
+  place-items: center;
+  min-inline-size: 0;
+}
+
+.btn-swap > span {
+  grid-area: label;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-swap > .swap-done { visibility: hidden; }
+
+.btn[data-flash] .swap-live { visibility: hidden; }
+.btn[data-flash] .swap-done { visibility: visible; }
+
+.btn-outline[data-flash],
+.btn-quiet[data-flash] { color: var(--success); }
+
+/* Cartridge and launch controls are stamped, ruled commands. The runtime marks
+   each client's import as its primary variant, which would put a row of filled
+   buttons in competition with the one real primary action - so the small
+   primary is flattened back to a ruled command. */
+.btn-sm {
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border-color: var(--edge-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+}
+
+.btn-sm.btn-primary {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.ctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-block-size: var(--tap);
+  min-inline-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.ctl-icon { padding-inline: 0; }
+
+.ctl .icon-chevron {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.ctl[aria-expanded="true"] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ctl:active,
+.menu-item:active { background: var(--surface-2); }
+
+.btn:disabled,
+.ctl:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.menu-wrap { position: relative; }
+
+.menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--sp-2));
+  inset-inline-end: 0;
+  z-index: 20;
+  min-inline-size: 180px;
+  padding: var(--sp-1);
+  background: var(--surface);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: var(--fs-caption);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease);
+}
+
+.menu-item .icon:last-child {
+  margin-inline-start: auto;
+  opacity: 0;
+}
+
+.menu-item[aria-checked="true"] {
+  color: var(--signal);
+  font-weight: 700;
+}
+
+.menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
+
+/* --- the cartridge rail --------------------------------------------------- */
+
+.rail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.rail-head .label { flex: 1; }
+
+.cfg-count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--muted);
+}
+
+.cfg-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-inline: var(--sp-3);
+  min-block-size: var(--tap);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--subtle);
+}
+
+.cfg-search:focus-within { border-color: var(--signal); }
+
+.cfg-search input {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+}
+
+.cfg-search input:focus { outline: none; }
+
+/* A cartridge: a moulded slot with a grip notch at the head, the identity
+   stamped large, the name set, the protocol stamped beneath it, and the
+   commands recessed at the foot. minmax(0,1fr) everywhere is what lets a long
+   name ellipsis instead of widening the slot. */
+.cfg {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+  padding: var(--sp-4) var(--sp-3) var(--sp-3);
+  background: var(--surface-2);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-slot);
+}
+
+.cfg::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 28%;
+  block-size: 4px;
+  background: var(--edge-strong);
+}
+
+.cfg-flag {
+  display: grid;
+  place-items: center;
+  block-size: 30px;
+  font-size: 21px;
+  line-height: 1;
+  overflow: hidden;
+}
+
+/* Monogram fallback when a node carries no country flag: the first letter of
+   its name as a stamped identity code, so the head still reads as a label. */
+.cfg-flag[data-mono] {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+.cfg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.cfg-name {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-proto {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-stamp);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-block-start: auto;
+}
+
+.cfg-actions .btn-sm { flex: 1; }
+
+.cfg-empty { text-align: center; }
+
+.cfg-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px dashed var(--edge-strong);
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cfg-toggle .icon { transition: transform var(--dur) var(--ease); }
+.cfg-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
+
+/* --- the control-mode selector: physical mode buttons --------------------- */
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+@media (min-width: 480px) {
+  .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.tab {
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+/* The engaged mode is marked by fill AND weight AND an inset shadow, so it
+   survives monochrome and forced colours rather than relying on a tint. */
+.tab[aria-selected="true"] {
+  background: var(--signal-solid);
+  border-color: var(--signal-solid);
+  color: var(--on-signal);
+  font-weight: 700;
+  box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+/* --- launch targets ------------------------------------------------------- */
+
+.client {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+  padding-block: var(--sp-3);
+  border-block-end: 1px solid var(--edge);
+}
+
+.client:last-child { border-block-end: 0; }
+
+.client-head {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.client-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+  white-space: nowrap;
+}
+
+.client-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+/* --- the system region ---------------------------------------------------- */
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  align-self: flex-start;
+  min-block-size: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--signal);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.announce {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.announce-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--signal);
+}
+
+.announce-head .label { color: var(--signal); }
+
+/* Clamped by default; the panel carries the open state, because whether the
+   toggle is needed at all is measured against this clamp. */
+.announce-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.announce[data-open="1"] .announce-text {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  overflow: visible;
+}
+
+.support {
+  display: flex;
+  align-items: center;
+  padding-block-start: var(--sp-2);
+}
+
+.support-cta {
+  padding-inline: 0;
+  border: 0;
+  color: var(--signal);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+/* --- dialogs -------------------------------------------------------------- */
+
+.dialog {
+  padding: 0;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-screen);
+  background: var(--surface);
+  color: var(--text);
+  inline-size: calc(100% - 2 * var(--sp-4));
+  max-inline-size: 380px;
+  box-shadow: var(--shadow-pop);
+}
+
+.dialog::backdrop { background: var(--scrim); }
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  border-block-end: 1px solid var(--edge);
+}
+
+.dialog-head .ctl { color: var(--text); }
+
+.dialog-title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+/* The frame stays white in both themes because the code has to scan, and a
+   quiet zone is part of the symbol rather than padding around a picture. */
+.qr-frame {
+  padding: var(--sp-3);
+  border-radius: var(--r-control);
+  background: #FFFFFF;
+  border: 1px solid var(--edge-strong);
+}
+
+/* Bounded by the shorter axis as well: a phone held sideways has room for the
+   width but not the height, and a code the reader must scroll to is worse than
+   a smaller one shown beside the address it encodes. */
+#qr-canvas {
+  inline-size: min(280px, 72vw, 36vh);
+  block-size: auto;
+}
+
+.url-field {
+  display: flex;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.url-field input {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+}
+
+.url-plain {
+  padding: var(--sp-3);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* Reserved for what a button cannot say in place: a manual-copy prompt or a
+   failure. Success is reported on the control that was pressed. */
+.toast {
+  position: fixed;
+  inset-block-end: var(--sp-5);
+  inset-inline: 0;
+  z-index: 60;
+  inline-size: fit-content;
+  max-inline-size: calc(100% - 2 * var(--sp-4));
+  margin-inline: auto;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.toast[data-show] { opacity: 1; }
+
+#config-canvas {
+  display: block;
+  inline-size: min(240px, 64vw);
+  block-size: auto;
+  image-rendering: pixelated;
+}
+
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.cfg-conf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.conf-text {
+  inline-size: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  resize: none;
+}
+
+.conf-text:focus { outline: none; border-color: var(--signal); }
+
+.conf-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.conf-actions .btn { flex: 1; }
+
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--signal-hover);
+    border-color: var(--signal-hover);
+  }
+
+  .btn-outline:hover,
+  .btn-quiet:hover,
+  .btn-sm:hover,
+  .ctl:hover,
+  .cfg-toggle:hover,
+  .tab:hover:not([aria-selected="true"]) { color: var(--text); }
+
+  .menu-item:hover,
+  .cfg:hover { background: var(--surface-2); }
+
+  .text-link:hover,
+  .support-cta:hover { text-decoration: underline; }
+}
+
+/* Below the phone breakpoint the dialog becomes a bottom sheet: the thumb
+   reaches the close button and the copy field without stretching. */
+@media (max-width: 479px) {
+  .dialog {
+    inline-size: 100%;
+    max-inline-size: none;
+    margin-block: auto 0;
+    border-radius: var(--r-screen) var(--r-screen) 0 0;
+    border-block-end: 0;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --edge: var(--control-border);
+    --edge-strong: var(--control-border);
+    --muted: var(--text);
+    --subtle: var(--text);
+  }
+
+  .cfg,
+  .tab,
+  .client,
+  .cfg-toggle { border-color: var(--control-border); }
+}
+
+/* The gauge falls back to a solid system highlight and leans on the figure and
+   the percentage text, which always carry the value. The segment breaks are
+   dropped because a Canvas-coloured stripe over Highlight is noise. */
+@media (forced-colors: active) {
+  .cabinet,
+  .stage,
+  .cfg,
+  .dialog,
+  .menu { border: 1px solid CanvasText; }
+
+  .bar-fill {
+    background-color: Highlight;
+    background-image: none;
+  }
+
+  .dot { forced-color-adjust: none; }
+
+  .tab[aria-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
+    outline: 1px solid Highlight;
+  }
+
+  .client { border-block-end: 1px solid CanvasText; }
+}

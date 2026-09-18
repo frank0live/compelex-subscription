@@ -1,37 +1,39 @@
-/* Direction-specific rules. The layout needs none: every offset in this
-   stylesheet is a logical property, so setting dir on <html> is enough. What
-   remains: the two glyphs that carry a direction of their own, and the
-   Latin-only treatments (tracking, prompt spacing) that Arabic script reads
-   as broken joins. The prompt glyph and the active-tab brackets are bidi
-   neutral characters at the inline start, so mirroring is automatic and the
-   reading order never scrambles. */
+/* Direction-specific rules. The sheet needs almost none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> mirrors the
+   masthead, the readout flow, the hanging entry markers and the destination
+   commands on its own. The entry marker is placed with inset-inline-start and
+   the gauge grows from the inline-start, so both follow the reading direction
+   without a rule here. What remains are the two glyphs that carry a direction
+   of their own, and the tracked labels that do not survive Arabic script. */
 
 [dir="rtl"] .icon-chevron,
 [dir="rtl"] .icon-external {
   transform: scaleX(-1);
 }
 
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins
+   that carry the script, which turns a label into an unreadable smear.
+   tokens.css already swaps the monospace face for the Arabic one; these drop
+   the tracking so the labels stand as plain text. Protocol stamps are Latin in
+   every locale, so they keep their own spacing. */
+[lang="fa"] .label,
+[lang="ar"] .label,
 [lang="fa"] .section-title,
 [lang="ar"] .section-title,
-[lang="fa"] .pill,
-[lang="ar"] .pill,
 [lang="fa"] .tab,
 [lang="ar"] .tab,
-[lang="fa"] .btn,
-[lang="ar"] .btn,
-[lang="fa"] .menu-label,
-[lang="ar"] .menu-label {
+[lang="fa"] .pill,
+[lang="ar"] .pill {
   letter-spacing: 0;
 }
 
-/* Persian and Arabic ascenders and descenders need the extra leading the
-   tighter Latin display sizes would clip. */
-[lang="fa"] .big-value,
-[lang="ar"] .big-value {
-  line-height: 1.35;
-}
-
-[lang="fa"] .value,
-[lang="ar"] .value {
+/* Arabic and Persian ascenders and descenders need the extra leading that the
+   tight figure line-height would clip. */
+[lang="fa"] .figure,
+[lang="ar"] .figure,
+[lang="fa"] .figure-sm,
+[lang="ar"] .figure-sm,
+[lang="fa"] .plan-label,
+[lang="ar"] .plan-label {
   line-height: 1.4;
 }

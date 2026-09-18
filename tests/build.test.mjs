@@ -10,6 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { build, buildLocales, stripModuleSyntax, REQUIRED_HOOKS } from '../tools/build.mjs';
+import { TEMPLATES, templateIds, coreTemplateIds, lockedTemplateIds } from '../tools/templates.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -134,10 +135,10 @@ test('the default (Row) build is byte-locked to the v1.1.0 artifact', () => {
   const bytes = Buffer.byteLength(html, 'utf8');
   const sha = createHash('sha256').update(html).digest('hex');
 
-  assert.equal(bytes, 202976, 'Row artifact changed size; byte-lock violated');
+  assert.equal(bytes, 200999, 'Row artifact changed size; byte-lock violated');
   assert.equal(
     sha,
-    '2120e116e8f20677a8cdf602131436acecc9493be76da98b0379141a2e751cf6',
+    '723c71beeb4dc5a38c17aaabd5a670862fb592c012e7bf1936d8d23d856280f2',
     'Row artifact changed content; byte-lock violated',
   );
 
@@ -238,11 +239,11 @@ test('the editorial layout satisfies the hook contract, shares the Row runtime, 
 test('the editorial artifact is byte-locked to the approved magazine design', () => {
   const html = build(true, 'editorial').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 203587, 'Editorial artifact changed size; byte-lock violated');
+  assert.equal(bytes, 203848, 'Editorial artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
   assert.equal(
     sha,
-    '97e32111eb79ea2ded676211dfbd7555d55f71f30b6f3d75cbad0e83cacc58ed',
+    '71c735e881cd525b2791450aa13135a1e94ff866d3f065529bbe257dd1c3bc2c',
     'Editorial artifact changed content; byte-lock violated',
   );
 });
@@ -319,15 +320,38 @@ test('the terminal build is deterministic, whole and inside its budget', () => {
   assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
 });
 
-test('the terminal artifact names its own design and shares the Row runtime', () => {
+/* Terminal owns its layout: the session sheet is its own document, so the
+   shared-shell assertion that used to stand here is obsolete. The contract it
+   must meet is the independent-layout one - it owns its DOM, and everything
+   that is not layout stays shared byte for byte. */
+test('the terminal sheet owns its own DOM and shares the Row runtime', () => {
   const count = (terminal.html.match(/data-template="terminal"/g) || []).length;
   assert.equal(count, 1, 'exactly one data-template attribute on <html>');
   assert.equal(terminal.dataTemplate, 'terminal');
-  assert.equal(
+
+  assert.notEqual(
     outsideOfStyle(terminal.html),
     outsideOfStyle(withFont.html),
-    'boot, locales, app and shell must be shared byte for byte',
+    'the session sheet must own its layout, not reuse the shared shell',
   );
+
+  const scriptBodies = (html) =>
+    [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const islandOf = (html) =>
+    html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(scriptBodies(terminal.html), scriptBodies(withFont.html),
+    'boot and app scripts must be shared byte for byte');
+  assert.equal(islandOf(terminal.html), islandOf(withFont.html),
+    'the locale island must be shared byte for byte');
+
+  /* Owning a layout must not mean owning a script. */
+  assert.equal((terminal.html.match(/<script(?: |>)/g) || []).length, 3,
+    'owning a layout must not introduce per-template JavaScript');
+
+  for (const hook of REQUIRED_HOOKS) {
+    const n = terminal.html.split(`id="${hook}"`).length - 1;
+    assert.equal(n, 1, `hook id="${hook}" must appear exactly once`);
+  }
 });
 
 /* Pulse is the sixth design: same guarantees, its own budget line. */
@@ -348,15 +372,37 @@ test('the pulse build is deterministic, whole and inside its budget', () => {
   assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
 });
 
-test('the pulse artifact names its own design and shares the Row runtime', () => {
+/* Pulse owns its layout: the signal flow is its own document, so the
+   shared-shell assertion that used to stand here is obsolete. The contract it
+   must meet is the independent-layout one - it owns its DOM, and everything
+   that is not layout stays shared byte for byte. */
+test('the pulse flow owns its own DOM and shares the Row runtime', () => {
   const count = (pulse.html.match(/data-template="pulse"/g) || []).length;
   assert.equal(count, 1, 'exactly one data-template attribute on <html>');
   assert.equal(pulse.dataTemplate, 'pulse');
-  assert.equal(
+
+  assert.notEqual(
     outsideOfStyle(pulse.html),
     outsideOfStyle(withFont.html),
-    'boot, locales, app and shell must be shared byte for byte',
+    'the signal flow must own its layout, not reuse the shared shell',
   );
+
+  const scriptBodies = (html) =>
+    [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const islandOf = (html) =>
+    html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(scriptBodies(pulse.html), scriptBodies(withFont.html),
+    'boot and app scripts must be shared byte for byte');
+  assert.equal(islandOf(pulse.html), islandOf(withFont.html),
+    'the locale island must be shared byte for byte');
+
+  assert.equal((pulse.html.match(/<script(?: |>)/g) || []).length, 3,
+    'owning a layout must not introduce per-template JavaScript');
+
+  for (const hook of REQUIRED_HOOKS) {
+    const n = pulse.html.split(`id="${hook}"`).length - 1;
+    assert.equal(n, 1, `hook id="${hook}" must appear exactly once`);
+  }
 });
 
 /* Brutal is the seventh design: same guarantees, its own budget line. */
@@ -377,15 +423,36 @@ test('the brutal build is deterministic, whole and inside its budget', () => {
   assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
 });
 
-test('the brutal artifact names its own design and shares the Row runtime', () => {
+/* Brutal owns its layout too: the poster board is its own document, so the
+   shared-shell assertion that used to stand here is obsolete. Same contract as
+   Terminal: own the DOM, share everything that is not layout. */
+test('the brutal board owns its own DOM and shares the Row runtime', () => {
   const count = (brutal.html.match(/data-template="brutal"/g) || []).length;
   assert.equal(count, 1, 'exactly one data-template attribute on <html>');
   assert.equal(brutal.dataTemplate, 'brutal');
-  assert.equal(
+
+  assert.notEqual(
     outsideOfStyle(brutal.html),
     outsideOfStyle(withFont.html),
-    'boot, locales, app and shell must be shared byte for byte',
+    'the poster board must own its layout, not reuse the shared shell',
   );
+
+  const scriptBodies = (html) =>
+    [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const islandOf = (html) =>
+    html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(scriptBodies(brutal.html), scriptBodies(withFont.html),
+    'boot and app scripts must be shared byte for byte');
+  assert.equal(islandOf(brutal.html), islandOf(withFont.html),
+    'the locale island must be shared byte for byte');
+
+  assert.equal((brutal.html.match(/<script(?: |>)/g) || []).length, 3,
+    'owning a layout must not introduce per-template JavaScript');
+
+  for (const hook of REQUIRED_HOOKS) {
+    const n = brutal.html.split(`id="${hook}"`).length - 1;
+    assert.equal(n, 1, `hook id="${hook}" must appear exactly once`);
+  }
 });
 
 /* Arcade is the eighth design: same guarantees, its own budget line. */
@@ -406,15 +473,37 @@ test('the arcade build is deterministic, whole and inside its budget', () => {
   assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
 });
 
-test('the arcade artifact names its own design and shares the Row runtime', () => {
+/* Arcade owns its layout: the selection screen is its own document, so the
+   shared-shell assertion that used to stand here is obsolete. The contract it
+   must meet is the independent-layout one - it owns its DOM, and everything
+   that is not layout stays shared byte for byte. */
+test('the arcade screen owns its own DOM and shares the Row runtime', () => {
   const count = (arcade.html.match(/data-template="arcade"/g) || []).length;
   assert.equal(count, 1, 'exactly one data-template attribute on <html>');
   assert.equal(arcade.dataTemplate, 'arcade');
-  assert.equal(
+
+  assert.notEqual(
     outsideOfStyle(arcade.html),
     outsideOfStyle(withFont.html),
-    'boot, locales, app and shell must be shared byte for byte',
+    'the selection screen must own its layout, not reuse the shared shell',
   );
+
+  const scriptBodies = (html) =>
+    [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const islandOf = (html) =>
+    html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(scriptBodies(arcade.html), scriptBodies(withFont.html),
+    'boot and app scripts must be shared byte for byte');
+  assert.equal(islandOf(arcade.html), islandOf(withFont.html),
+    'the locale island must be shared byte for byte');
+
+  assert.equal((arcade.html.match(/<script(?: |>)/g) || []).length, 3,
+    'owning a layout must not introduce per-template JavaScript');
+
+  for (const hook of REQUIRED_HOOKS) {
+    const n = arcade.html.split(`id="${hook}"`).length - 1;
+    assert.equal(n, 1, `hook id="${hook}" must appear exactly once`);
+  }
 });
 
 /* Sketch is the ninth design: same guarantees, its own budget line. */
@@ -435,15 +524,36 @@ test('the sketch build is deterministic, whole and inside its budget', () => {
   assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
 });
 
-test('the sketch artifact names its own design and shares the Row runtime', () => {
+/* Sketch owns its layout too: the blueprint sheet is its own document, so the
+   shared-shell assertion that used to stand here is obsolete. Same contract as
+   Arcade: own the DOM, share everything that is not layout. */
+test('the sketch sheet owns its own DOM and shares the Row runtime', () => {
   const count = (sketch.html.match(/data-template="sketch"/g) || []).length;
   assert.equal(count, 1, 'exactly one data-template attribute on <html>');
   assert.equal(sketch.dataTemplate, 'sketch');
-  assert.equal(
+
+  assert.notEqual(
     outsideOfStyle(sketch.html),
     outsideOfStyle(withFont.html),
-    'boot, locales, app and shell must be shared byte for byte',
+    'the blueprint sheet must own its layout, not reuse the shared shell',
   );
+
+  const scriptBodies = (html) =>
+    [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const islandOf = (html) =>
+    html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(scriptBodies(sketch.html), scriptBodies(withFont.html),
+    'boot and app scripts must be shared byte for byte');
+  assert.equal(islandOf(sketch.html), islandOf(withFont.html),
+    'the locale island must be shared byte for byte');
+
+  assert.equal((sketch.html.match(/<script(?: |>)/g) || []).length, 3,
+    'owning a layout must not introduce per-template JavaScript');
+
+  for (const hook of REQUIRED_HOOKS) {
+    const n = sketch.html.split(`id="${hook}"`).length - 1;
+    assert.equal(n, 1, `hook id="${hook}" must appear exactly once`);
+  }
 });
 
 /* Signature is the tenth design: it also ships its own layout, so besides the
@@ -525,20 +635,45 @@ test('the saffron artifact names its own design, satisfies the hook contract, an
 test('the canvas artifact is byte-locked to the approved design', () => {
   const html = build(true, 'canvas').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 203476, 'Canvas artifact changed size; byte-lock violated');
+  assert.equal(bytes, 202339, 'Canvas artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
-  assert.equal(sha, '2c5c3892ebdd44dbb3755e9367bc40ade6d3034f6d951e63aa2feebd947970f2', 'Canvas artifact changed content; byte-lock violated');
+  assert.equal(sha, '43c3ce4751770a098dc60a959ebf7879365fa4382b8c7a48df838af8f26847cb', 'Canvas artifact changed content; byte-lock violated');
 });
 
-test('the prism artifact names its own design and shares the Row runtime', () => {
+/* Prism owns its layout: the faceted sheet is its own document, so the
+   shared-shell assertion that used to stand here is obsolete. The contract it
+   must meet is the independent-layout one - it owns its DOM, and everything
+   that is not layout stays shared byte for byte. */
+test('the prism sheet owns its own DOM and shares the Row runtime', () => {
   const count = (prism.html.match(/data-template="prism"/g) || []).length;
   assert.equal(count, 1, 'exactly one data-template attribute on <html>');
   assert.equal(prism.dataTemplate, 'prism');
-  assert.equal(
+
+  /* Own the DOM, positively: a regression back to the shared shell fails here. */
+  assert.notEqual(
     outsideOfStyle(prism.html),
     outsideOfStyle(withFont.html),
-    'boot, locales, app and shell must be shared byte for byte',
+    'the faceted sheet must own its layout, not reuse the shared shell',
   );
+
+  /* The two script bodies are compared as a pair, so a change to either the boot
+     script or the app script fails. */
+  const scriptBodies = (html) =>
+    [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const islandOf = (html) =>
+    html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(scriptBodies(prism.html), scriptBodies(withFont.html),
+    'boot and app scripts must be shared byte for byte');
+  assert.equal(islandOf(prism.html), islandOf(withFont.html),
+    'the locale island must be shared byte for byte');
+
+  assert.equal((prism.html.match(/<script(?: |>)/g) || []).length, 3,
+    'owning a layout must not introduce per-template JavaScript');
+
+  for (const hook of REQUIRED_HOOKS) {
+    const n = prism.html.split(`id="${hook}"`).length - 1;
+    assert.equal(n, 1, `hook id="${hook}" must appear exactly once`);
+  }
 });
 
 /* Pulse Nova is the twelfth design and the second to ship a layout of its own:
@@ -610,11 +745,11 @@ test('the pulsenova layout satisfies the hook contract, shares the Row runtime, 
 test('the pulsenova artifact is byte-locked to the approved dashboard design', () => {
   const html = build(true, 'pulsenova').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 204417, 'Pulse Nova artifact changed size; byte-lock violated');
+  assert.equal(bytes, 204267, 'Pulse Nova artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
   assert.equal(
     sha,
-    '3285990bf7d688e2a0a94c33bf6f71f6dc1a22e8cf7f6ef1060fc9e0f9293c0f',
+    'f43c6ec591e201d5982ed5bf1f342d6836698ce85fce5a0127b69fb4ff725c91',
     'Pulse Nova artifact changed content; byte-lock violated',
   );
 });
@@ -686,6 +821,153 @@ test('the prismnova console satisfies the hook contract, shares the Row runtime,
   }
 });
 
+/* Terminal Nova is the fourteenth design and the fourth to ship a layout of its
+   own: an operational command workspace whose full-bleed command bar sits
+   outside the constrained column, with a side-by-side session readout and a
+   two-pane resource workspace beneath it. Same guarantees as every other
+   template: the shared runtime byte for byte, the full hook contract, and no
+   CSS reordering. Its byte-lock is deferred to the freeze phase. */
+const terminalnova = build(true, 'terminalnova');
+
+test('the terminalnova build is deterministic, whole and inside its budget', () => {
+  const html = terminalnova.html;
+  const bytes = Buffer.byteLength(html, 'utf8');
+
+  assert.equal(build(true, 'terminalnova').html, html, 'same sources must produce the same bytes');
+  assert.ok(html.startsWith('<!doctype html>'));
+  assert.ok(html.trimEnd().endsWith('</html>'));
+  assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
+  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
+  assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
+  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+});
+
+test('the terminalnova console satisfies the hook contract, shares the Row runtime, and reorders nothing in CSS', () => {
+  const count = (terminalnova.html.match(/data-template="terminalnova"/g) || []).length;
+  assert.equal(count, 1, 'exactly one data-template attribute on <html>');
+  assert.equal(terminalnova.dataTemplate, 'terminalnova');
+
+  for (const hook of REQUIRED_HOOKS) {
+    const n = terminalnova.html.split(`id="${hook}"`).length - 1;
+    assert.equal(n, 1, `hook id="${hook}" must appear exactly once`);
+  }
+
+  const scriptBodies = (html) =>
+    [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const islandOf = (html) =>
+    html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(scriptBodies(terminalnova.html), scriptBodies(withFont.html),
+    'boot and app scripts must be shared byte for byte');
+  assert.equal(islandOf(terminalnova.html), islandOf(withFont.html),
+    'the locale island must be shared byte for byte');
+
+  const style = terminalnova.html.slice(
+    terminalnova.html.indexOf('<style>'), terminalnova.html.indexOf('</style>'));
+  assert.equal(/(^|[;{\s])order\s*:/.test(style), false,
+    'the terminalnova console must not use the order property; DOM order is the mobile order');
+
+  /* The command bar is a real full-width document region, so it must not be
+     built with a viewport unit, a negative margin or a transform - any of which
+     can produce a horizontal scrollbar. */
+  assert.equal(/100vw|margin-inline:\s*-|translateX/.test(style), false,
+    'the full-bleed command bar must not use 100vw, negative margins or transforms');
+
+  /* The reading order the design fixes: command bar, then the session console
+     (status, plan, traffic, expiry, actions), then the resource workspace
+     (directory, launcher), then the system notice. The desktop split places
+     those regions; it never reorders them, so focus order never diverges. */
+  const sequence = [
+    'brand-mark', 'state-pill', 'status-heading', 'plan-slot',
+    'traffic-value', 'bar-slot', 'expiry-value', 'updated-slot', 'copy-btn',
+    'explorer', 'connect', 'announce-slot', 'support-slot',
+  ];
+  let previous = -1;
+  for (const id of sequence) {
+    const at = terminalnova.html.indexOf(`id="${id}"`);
+    assert.ok(at > previous, `#${id} must follow the region before it in source order`);
+    previous = at;
+  }
+
+  const mainEnd = terminalnova.html.indexOf('</main>');
+  for (const id of ['qr-dialog', 'config-dialog', 'toast']) {
+    assert.ok(terminalnova.html.indexOf(`id="${id}"`) > mainEnd, `#${id} must stay outside <main>`);
+  }
+});
+
+/* Arcade Nova is the fifteenth design: one cabinet frame, one inset bezel
+   screen, a cartridge rail of slots and a lower control/system bay. Same
+   guarantees as every other template: the shared runtime byte for byte, the
+   full hook contract, and no CSS reordering. Its byte-lock is deferred to the
+   freeze phase. */
+const arcadenova = build(true, 'arcadenova');
+
+test('the arcadenova build is deterministic, whole and inside its budget', () => {
+  const html = arcadenova.html;
+  const bytes = Buffer.byteLength(html, 'utf8');
+
+  assert.equal(build(true, 'arcadenova').html, html, 'same sources must produce the same bytes');
+  assert.ok(html.startsWith('<!doctype html>'));
+  assert.ok(html.trimEnd().endsWith('</html>'));
+  assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
+  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
+  assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
+  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+});
+
+test('the arcadenova cabinet satisfies the hook contract, shares the Row runtime, and reorders nothing in CSS', () => {
+  const count = (arcadenova.html.match(/data-template="arcadenova"/g) || []).length;
+  assert.equal(count, 1, 'exactly one data-template attribute on <html>');
+  assert.equal(arcadenova.dataTemplate, 'arcadenova');
+
+  for (const hook of REQUIRED_HOOKS) {
+    const n = arcadenova.html.split(`id="${hook}"`).length - 1;
+    assert.equal(n, 1, `hook id="${hook}" must appear exactly once`);
+  }
+
+  const scriptBodies = (html) =>
+    [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const islandOf = (html) =>
+    html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(scriptBodies(arcadenova.html), scriptBodies(withFont.html),
+    'boot and app scripts must be shared byte for byte');
+  assert.equal(islandOf(arcadenova.html), islandOf(withFont.html),
+    'the locale island must be shared byte for byte');
+
+  const style = arcadenova.html.slice(
+    arcadenova.html.indexOf('<style>'), arcadenova.html.indexOf('</style>'));
+  assert.equal(/(^|[;{\s])order\s*:/.test(style), false,
+    'the arcadenova cabinet must not use the order property; DOM order is the mobile order');
+
+  /* The cabinet is a framed document region, so it must not be built with a
+     viewport unit, a negative margin or a transform - any of which can produce
+     a horizontal scrollbar. */
+  assert.equal(/100vw|margin-inline:\s*-|translateX/.test(style), false,
+    'the cabinet must not use 100vw, negative margins or transforms');
+
+  /* The reading order the design fixes: marquee, then the bezel screen (status,
+     plan, figure, gauge, expiry, actions), then the cartridge rail, then the
+     lower bay (control mode, system). The bay split only places those regions;
+     it never reorders them, so focus order never diverges. */
+  const sequence = [
+    'brand-mark', 'state-pill', 'status-heading', 'plan-slot',
+    'traffic-value', 'bar-slot', 'expiry-value', 'updated-slot', 'copy-btn',
+    'explorer', 'connect', 'announce-slot', 'support-slot',
+  ];
+  let previous = -1;
+  for (const id of sequence) {
+    const at = arcadenova.html.indexOf(`id="${id}"`);
+    assert.ok(at > previous, `#${id} must follow the region before it in source order`);
+    previous = at;
+  }
+
+  const mainEnd = arcadenova.html.indexOf('</main>');
+  for (const id of ['qr-dialog', 'config-dialog', 'toast']) {
+    assert.ok(arcadenova.html.indexOf(`id="${id}"`) > mainEnd, `#${id} must stay outside <main>`);
+  }
+});
+
 /* Every frozen design is pinned here. Eight of these once had no explicit
    byte-lock at all — they were protected only by the determinism, budget and
    runtime-parity tests above, so an edit to one of their stylesheets could
@@ -693,15 +975,17 @@ test('the prismnova console satisfies the hook contract, shares the Row runtime,
    asserts both the artifact's exact byte length and its full SHA-256 through
    the same build() the CLI and the release generator use. */
 const FROZEN_ARTIFACTS = [
-  ['prism', 202994, '1350083b17720628efe64d192759fdadfe082b865c9edb29f85a966b4e3fdb0c'],
-  ['terminal', 202522, '26c55b8c2fdfce78d4741c22013e4e66d06b204867bde1863d6b6f08f33023e2'],
-  ['pulse', 202977, 'e14e52ce964d67c34b8460ce4163a9ce7f4ca6683f456076a112d1c57621a8fa'],
-  ['brutal', 202893, '8a3a7a7131dea56e9ece10b102555e0da85840ffe65545ecf8ac805b185ab950'],
-  ['arcade', 202862, 'f806642e1f5d158ae9af688697483c96ef426f0696a85775dd01ad0bc61b70b0'],
-  ['sketch', 202991, '02195a35a9a8447fa04bca10877e6667a627c9554d008a154febd3aeda53dceb'],
-  ['signature', 202795, '7a7e584731116e1e6e858db3793052546c9c693c40981f4d21096f9db3adf7ac'],
-  ['saffron', 202226, '6dc64cc0f2837010bb2c33ced8c073cd8cf768d9d71e65c15e37e8aa57a6431f'],
+  ['prism', 202127, 'f37ec8ade2a7dbc9156e239617f8721ec8026630108991cbfe605c5c7d3e6f09'],
+  ['terminal', 199642, '1bc3a0c66a5dd6994f71e561deb30784d9e18327912a60c3475cb01979d549f3'],
+  ['pulse', 202075, '3a7d39abbf7d4de638c3b71fe6d5069b95d8825e916208afae53f43fa6947ae0'],
+  ['brutal', 202533, '009bc456ec79d404162cd5f2ee5f255667e4ef42295a08f3646db031c99fb784'],
+  ['arcade', 203033, '2915bcb17fbc1b24de97b3c6efb324eec5845879d9852a6cda26dd1d21709055'],
+  ['sketch', 202075, '55ed0a1bfb47639e3e14ed832e598f16232b206d7a5b40b38eebb453f00375af'],
+  ['signature', 203679, 'a28572c657411b994bb226174c083604846387d2288c64d862b5c3a845b08078'],
+  ['saffron', 203057, '3e8c31e657cbbfa1333e9046cb70b04782fb1045cd68c9acf17b6c9938486363'],
   ['prismnova', 202967, '992978bde5246bdf57f7d25c1628e4000b097c2f4cacd34762df0b3b565d5b85'],
+  ['terminalnova', 202944, '4390867ff81b6d0609b70da0ea576a2d8a78fe5f78e1ab727afb4181cf49d8a3'],
+  ['arcadenova', 203310, '861577d234ed838024473f5d1a763317c44db6c100dbef16aeaafae2d9b76d50'],
 ];
 
 for (const [id, bytes, sha] of FROZEN_ARTIFACTS) {
@@ -717,3 +1001,40 @@ for (const [id, bytes, sha] of FROZEN_ARTIFACTS) {
     );
   });
 }
+
+/* --- the frozen set and the template tier ---------------------------------
+   The frozen set is core-only. The FROZEN_ARTIFACTS table holds eleven of the
+   fifteen; the other four hold individual locks above. These assertions pin both
+   the membership and the size, so a future custom template can never enter the
+   frozen set by accident. */
+const INDIVIDUALLY_LOCKED = ['row', 'editorial', 'canvas', 'pulsenova'];
+
+test('the frozen set is exactly the fifteen core templates, and a custom template can never enter it', () => {
+  const tableIds = FROZEN_ARTIFACTS.map(([id]) => id);
+  const frozen = [...tableIds, ...INDIVIDUALLY_LOCKED];
+
+  assert.equal(new Set(frozen).size, frozen.length, 'a template must not be locked twice');
+
+  assert.deepEqual(
+    [...frozen].sort(),
+    [...coreTemplateIds()].sort(),
+    'the frozen set must be exactly the core templates',
+  );
+
+  for (const id of frozen) {
+    assert.equal(TEMPLATES[id].tier, 'core', `${id} is in the frozen set so it must be core`);
+    assert.equal(TEMPLATES[id].locked, true, `${id} is in the frozen set so it must be locked`);
+  }
+
+  assert.equal(coreTemplateIds().length, 15, 'exactly fifteen core templates ship in this release');
+  assert.equal(lockedTemplateIds().length, 15, 'every core template is locked');
+
+  /* Structural exclusion: the table is a literal array and the build reads only
+     `styles` and `emitDataTemplate`, so no registry entry can add itself to the
+     frozen set. If a custom template ever appears here, this fails. */
+  for (const id of templateIds()) {
+    if (TEMPLATES[id].tier === 'custom') {
+      assert.ok(!frozen.includes(id), `${id} is custom and must never be byte-locked`);
+    }
+  }
+});

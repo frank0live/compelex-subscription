@@ -3,14 +3,15 @@
 
 [hidden] { display: none !important; }
 
+/* A zone on the canvas, not a card. The page has no framed panels at all: a
+   zone is separated from its neighbours by space and by the alignment of its
+   own content, which is what keeps the composition open. The name is kept for
+   the markup contract; nothing here draws a box. */
 .card {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  padding: var(--card-pad);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-panel);
+  min-inline-size: 0;
 }
 
 .section-title {
@@ -363,24 +364,23 @@
 
 .menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
 
-/* Platform modules: framed launcher tiles in a wrap grid. The selected tile
-   fills with the accent tint. Wrapping keeps every label whole at 320px. */
+/* The platform selector is a mode rail: written marks along one line, not a grid
+   of tiles. The engaged mode is marked by weight and by an underline, so it
+   survives monochrome and forced colours. */
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-  gap: var(--sp-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  border-block-end: 1px solid var(--hairline);
 }
 
 .tab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   min-inline-size: 0;
   min-block-size: 44px;
-  padding-inline: var(--sp-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-control);
-  background: var(--surface-2);
+  padding: 0;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: transparent;
   color: var(--muted);
   font-size: var(--fs-caption);
   font-weight: 600;
@@ -389,34 +389,30 @@
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color var(--dur) var(--ease),
-              background-color var(--dur) var(--ease),
               border-color var(--dur) var(--ease);
 }
 
 .tab[aria-selected="true"] {
-  color: var(--accent-solid);
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--text);
+  font-weight: 700;
+  border-block-end-color: var(--accent);
 }
 
 .clients {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  padding-inline-start: var(--sp-3);
-  border-inline-start: 2px solid var(--accent-soft);
-  margin-inline-start: var(--sp-2);
 }
 
+/* A client is an open action line: no fill, no frame. The rule between lines is
+   the only structure, which keeps the rail reading as a launcher list. */
 .client {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--r-control);
-  background: var(--surface-2);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+  min-inline-size: 0;
+  padding-block: var(--sp-3);
+  border-block-start: 1px solid var(--hairline);
 }
 
 .client-head {
@@ -671,39 +667,34 @@
 
 .cfg-search input:focus { outline: none; }
 
+/* The configuration field is one open column of strips. It is deliberately not
+   a two-up grid: paired records read as dashboard tiles, and the field is meant
+   to flow. */
 .cfg-list {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
 }
 
-@media (min-width: 760px) {
-  .cfg-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--sp-2);
-  }
-}
-
+/* An anchored strip, not a record card: no frame, no fill, no radius. The strip
+   is held by a rule at its head, a marker at its leading edge and the alignment
+   of its own content against the field's columns. */
 .cfg {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-control);
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+  min-inline-size: 0;
+  padding-block: var(--sp-3);
+  border-block-start: 1px solid var(--hairline);
 }
 
 .cfg[hidden] { display: none; }
 
+/* The marker is a coordinate on the strip, not a tile. */
 .cfg-flag {
-  flex: none;
+  grid-column: 1;
   display: grid;
   place-items: center;
-  inline-size: 34px;
-  block-size: 34px;
-  border-radius: var(--r-control);
-  background: var(--surface);
   font-size: 18px;
   line-height: 1;
   overflow: hidden;
@@ -881,3 +872,28 @@
   .cfg-flag,
   .cfg-count { border: 1px solid CanvasText; }
 }
+
+/* --- the tap-target floor -------------------------------------------------
+
+   Every interactive control clears 44px. The header chips, the row commands,
+   the platform marks and the search field all carried their own smaller heights
+   from the original build; on a phone those are below the minimum a thumb can
+   reliably hit, so the floor is stated once here rather than patched rule by
+   rule. Width is left alone: these are horizontal controls and only their
+   height was short. */
+.ctl,
+.btn,
+.btn-sm,
+.tab,
+.menu-item,
+.cfg-toggle { min-block-size: var(--tap); }
+
+.cfg-search input,
+#explorer-search { block-size: var(--tap); }
+
+/* The dialog's own controls sit inside a contextual rule of their own, so the
+   floor is restated at matching weight. */
+.dialog-head .ctl { min-block-size: var(--tap); }
+
+.support-link,
+#support-link { min-block-size: var(--tap); }

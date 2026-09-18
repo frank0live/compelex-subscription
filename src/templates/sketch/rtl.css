@@ -1,30 +1,51 @@
-/* Direction-specific rules. The layout needs none: every offset in this
-   stylesheet is a logical property, so setting dir on <html> is enough. The
-   registration ticks are physical marks pinned to their sheet corners and
-   read correctly from both directions. What remains: the two glyphs that
-   carry a direction of their own, and the Latin-only annotation styling
-   (italic protocol notes) that would close Arabic joins. */
+/* Direction-specific rules. The sheet needs almost none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> mirrors the title
+   block, the annotated readout, the record index and the reference section on
+   its own. What remains are the two glyphs that carry a direction of their own,
+   the measurement rail (a background image, which has no logical form), and the
+   tracked field labels that do not survive Arabic script. */
 
 [dir="rtl"] .icon-chevron,
 [dir="rtl"] .icon-external {
   transform: scaleX(-1);
 }
 
-/* The protocol is always a Latin word, but the annotation voice stays
-   consistent per script: upright for Arabic-script sheets. */
-[lang="fa"] .cfg-proto,
-[lang="ar"] .cfg-proto {
-  font-style: normal;
+/* The margin rail is drawn with a background image, and background-position has
+   no logical keyword, so the ticks are pinned to the other edge by hand. */
+[dir="rtl"] .system,
+[dir="rtl"] .records,
+[dir="rtl"] .reference,
+[dir="rtl"] .notes {
+  background-position: right top;
 }
 
-/* Persian and Arabic ascenders and descenders need the extra leading the
-   tighter Latin display sizes would clip. */
-[lang="fa"] .big-value,
-[lang="ar"] .big-value {
-  line-height: 1.3;
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins
+   that carry the script, which turns a field label into an unreadable smear.
+   tokens.css already swaps the monospace face for the Arabic one; these drop
+   the tracking so the labels stand as plain text. Protocol annotations are
+   Latin in every locale, so they keep their own spacing. */
+[lang="fa"] .label,
+[lang="ar"] .label,
+[lang="fa"] .section-title,
+[lang="ar"] .section-title,
+[lang="fa"] .caption,
+[lang="ar"] .caption,
+[lang="fa"] .pill,
+[lang="ar"] .pill {
+  letter-spacing: 0;
 }
 
-[lang="fa"] .value,
-[lang="ar"] .value {
+/* Arabic and Persian ascenders and descenders need the extra leading that the
+   tight figure line-height would clip. */
+[lang="fa"] .figure,
+[lang="ar"] .figure,
+[lang="fa"] .figure-sm,
+[lang="ar"] .figure-sm,
+[lang="fa"] .cfg-name,
+[lang="ar"] .cfg-name,
+[lang="fa"] .client-name,
+[lang="ar"] .client-name,
+[lang="fa"] .plan-label,
+[lang="ar"] .plan-label {
   line-height: 1.4;
 }

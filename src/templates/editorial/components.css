@@ -744,19 +744,30 @@
 
 .cfg-search input:focus { outline: none; }
 
-.cfg-list {
-  display: flex;
-  flex-direction: column;
-}
+.cfg-list { counter-reset: entry; }
 
-/* A ruled index entry: the flag is a plain glyph, the name is the running
-   entry in serif, and a hairline separates it from the row above. */
+/* An index entry, not a table row: the article number is set in the display
+   face in its own column, the flag is a plain glyph, the name is the running
+   entry in serif, and a hairline separates it from the entry above. The number
+   counts the entries currently shown, so searching renumbers the visible index
+   rather than leaving gaps in it. */
 .cfg {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
+  counter-increment: entry;
+  display: grid;
+  grid-template-columns: 2.5rem auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
   padding-block: var(--sp-3);
   border-block-start: 1px solid var(--hairline);
+}
+
+.cfg::before {
+  content: counter(entry, decimal-leading-zero);
+  grid-column: 1;
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .cfg:first-child { border-block-start: 0; }

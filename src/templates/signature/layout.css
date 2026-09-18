@@ -141,3 +141,50 @@
 @media (min-width: 720px) {
   body { padding-inline: var(--sp-6); }
 }
+
+/* The dossier spread. The document widens and divides asymmetrically: the
+   credential index takes the wide measure, the client utility rail stands in the
+   narrow column beside it. The console above is the document head, so its rail
+   group is pushed down and away from the primary zone rather than sitting level
+   with it - that offset is what makes the hierarchy read as a document rather
+   than as a dashboard row. */
+@media (min-width: 900px) {
+  body { --page-max: 1040px; padding-inline: var(--sp-6); }
+
+  #main { gap: var(--sp-7); }
+
+  .sig-console {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-5) var(--sp-6);
+    align-items: start;
+  }
+
+  .sig-console-primary { grid-column: 1 / span 7; }
+
+  /* The side information takes the far four columns and keeps its own cut rule.
+     Four of twelve is wide enough for the expiry to read as a date in one line
+     and narrow enough that the document stays asymmetric. The padding and the
+     rule live here rather than on the inner group so the rail has one owner. */
+  .sig-console-rail {
+    grid-column: 9 / span 4;
+    margin-block-start: var(--sp-7);
+    padding: 0;
+    padding-inline-start: var(--sp-5);
+    border-inline-start: 1px solid var(--hairline);
+  }
+
+  /* The date is the one fact that must not fragment: it is allowed to wrap
+     between its parts, never inside one. */
+  #expiry-value { overflow-wrap: normal; word-break: keep-all; }
+
+  .sig-work {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-6) var(--sp-6);
+    align-items: start;
+  }
+
+  .connect { grid-column: 1 / span 3; }
+  .explorer { grid-column: 5 / span 8; }
+}

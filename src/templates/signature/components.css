@@ -4,14 +4,15 @@
 
 [hidden] { display: none !important; }
 
+/* A section of the dossier, not a card. The document is held by rules, measure
+   and negative space: a section is separated from its neighbours by the width of
+   its own column and by a single hairline, never by a frame. The name is kept
+   for the markup contract; nothing here draws a box. */
 .card {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  padding: var(--card-pad);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-panel);
+  min-inline-size: 0;
 }
 
 /* Section labels: small-caps-adjacent tracked micro text with a champagne
@@ -493,7 +494,7 @@
   align-items: center;
   gap: var(--sp-2);
   align-self: flex-start;
-  min-block-size: 40px;
+  min-block-size: var(--tap);
   border: 0;
   background: transparent;
   color: var(--accent);
@@ -940,3 +941,25 @@
   .cfg-flag,
   .cfg-count { border: 1px solid CanvasText; }
 }
+
+/* --- the tap-target floor -------------------------------------------------
+
+   Every interactive control clears 44px. The header chips, the row commands, the
+   platform marks and the search field all carried their own smaller heights from
+   the original build; on a phone those are below the minimum a thumb can
+   reliably hit, so the floor is stated once here rather than patched rule by
+   rule. Width is left alone: these are horizontal controls and only their height
+   was short. The contextual rules above outrank a bare class selector, so the
+   floor is stated at the same weight and last, which is what makes it hold
+   without an !important. */
+.btn.btn,
+.ctl.ctl,
+.btn-sm.btn-sm,
+.tab.tab,
+.menu-item.menu-item,
+.cfg-toggle.cfg-toggle,
+.dialog-head .ctl,
+a.btn#support-link { min-block-size: var(--tap); }
+
+.cfg-search input,
+#explorer-search { block-size: var(--tap); }

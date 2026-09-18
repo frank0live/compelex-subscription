@@ -4,14 +4,15 @@
 
 [hidden] { display: none !important; }
 
+/* A section of the sheet, not a card. The page is set like a printed page: a
+   section is separated from its neighbours by a rule and by the measure of its
+   own column, never by a frame. The name is kept for the markup contract;
+   nothing here draws a box. */
 .card {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  padding: var(--card-pad);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-panel);
+  min-inline-size: 0;
 }
 
 /* Section labels: copper uppercase micro text, centred on the card flow. */
@@ -948,3 +949,25 @@
   .cfg-flag,
   .cfg-count { border: 1px solid CanvasText; }
 }
+
+/* --- the tap-target floor -------------------------------------------------
+
+   Every interactive control clears 44px. The header chips, the row commands,
+   the platform marks and the search field all carried their own smaller heights
+   from the original build; on a phone those are below the minimum a thumb can
+   reliably hit, so the floor is stated once here rather than patched rule by
+   rule. Width is left alone: these are horizontal controls and only their
+   height was short. */
+/* The contextual rules above (`.action-band .btn`, `.header-controls .ctl`)
+   outrank a bare class selector, so the floor is stated at the same weight and
+   last, which is what makes it hold without an !important. */
+.btn.btn,
+.ctl.ctl,
+.btn-sm.btn-sm,
+.tab.tab,
+.menu-item.menu-item,
+.cfg-toggle.cfg-toggle,
+a.btn#support-link { min-block-size: var(--tap); }
+
+.cfg-search input,
+#explorer-search { block-size: var(--tap); }

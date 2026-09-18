@@ -1,4 +1,8 @@
-/* Reset, document shell and the primitives everything else builds on. */
+/* Reset, document shell and the primitives everything else builds on.
+
+   The sheet is a document, so nothing here draws a box. The page is a measured
+   column of text on the page plane; every separation in the template is a rule,
+   a margin or a leading, never a frame. */
 
 *,
 *::before,
@@ -12,11 +16,9 @@ html {
 
 body {
   margin: 0;
-  padding: 0 var(--sp-4) var(--sp-7);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
   font-family: var(--font);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
@@ -25,13 +27,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, p, ul, ol {
+h1, h2, h3, p {
   margin: 0;
   font-weight: inherit;
   font-size: inherit;
 }
-
-ul, ol { padding: 0; list-style: none; }
 
 a { color: var(--accent); }
 
@@ -39,6 +39,7 @@ button {
   margin: 0;
   font: inherit;
   color: inherit;
+  font-variant-numeric: inherit;
 }
 
 input, textarea {
@@ -50,28 +51,44 @@ canvas { display: block; }
 
 svg.sprite { display: none; }
 
+[hidden] { display: none !important; }
+
+/* The sheet's section label: a small tracked mono rule caption. */
+.label {
+  font-size: var(--fs-label);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label);
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
 .icon {
   inline-size: 1.0625rem;
   block-size: 1.0625rem;
   flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: square;
-  stroke-linejoin: miter;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-/* Prose — the announcement body, the connect hint — reads better in the sans
-   face than in monospace; figures and labels stay mono. */
+/* Running prose is the only place the sans face is allowed, and it is the only
+   place that is not capped by the sheet measure's monospace rhythm. */
 .announce-text,
 #connect-hint {
   font-family: var(--font-sans);
   max-inline-size: var(--measure);
 }
 
-/* Values whose script is known to be Latin stay Latin even inside an RTL
-   paragraph: the isolate stops the surrounding direction from reordering a
-   figure and its unit, or a URL and its path. */
+/* A figure, URL or protocol whose script is known to be Latin stays Latin even
+   inside an RTL line: the isolate stops the surrounding direction from
+   reordering a value and its unit, or a URL and its path. */
 .ltr {
   direction: ltr;
   unicode-bidi: isolate;
@@ -89,35 +106,19 @@ svg.sprite { display: none; }
   border: 0;
 }
 
-/* Scripting gates. The boot script sets data-js before first paint, so the
-   no-script layout is what an unscripted client sees and nothing flickers. */
+/* The boot script sets data-js before first paint, so the no-script layout is
+   what an unscripted client sees and nothing flickers. */
 html:not([data-js]) .js-only { display: none !important; }
 
 :focus-visible {
   outline: 2px solid var(--focus);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
-::selection {
-  background: var(--accent-solid);
-  color: var(--on-accent);
-}
+/* One fade on first paint, no movement, nothing held hidden. */
+@keyframes fade-in { from { opacity: 0; } }
 
-/* One reveal on first paint: a short fade, barely a settle. The console is
-   simply there. Nothing is delayed and nothing holds a hidden state. */
-@keyframes page-in {
-  from { opacity: 0; }
-}
-
-.site-header,
-#main {
-  animation: page-in var(--dur-slow) var(--ease);
-}
-
-#main {
-  animation-delay: 30ms;
-  animation-fill-mode: backwards;
-}
+#main { animation: fade-in var(--dur-slow) var(--ease); }
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -128,7 +129,4 @@ html:not([data-js]) .js-only { display: none !important; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-
-  .site-header,
-  #main { animation: none; }
 }
