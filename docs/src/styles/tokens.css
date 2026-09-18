@@ -7,8 +7,9 @@
  * The values are applied to Starlight's own custom properties so the site inherits
  * the design system rather than replacing Starlight's theme wholesale.
  *
- * Phase 1 scope: the palette and the accent. The full type scale and component
- * vocabulary arrive in Phase 2.
+ * Phase 1 defined the palette and the accent. The Phase 2 definitions — the type
+ * scale and measure, the RTL adjustments, the interactive-target floor and the motion
+ * rules — follow in this same file, below.
  */
 
 /* --- dark theme (Starlight's default is [data-theme='dark']) --------------- */
@@ -193,19 +194,6 @@ button[data-copied],
 .sl-menu-button {
   min-block-size: 44px;
   min-inline-size: 44px;
-}
-
-/* Reduced motion: the design language has almost no motion, so this is a small
- * surface — but it must be honoured. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
