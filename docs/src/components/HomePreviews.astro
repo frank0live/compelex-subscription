@@ -1,0 +1,96 @@
+---
+/**
+ * HomePreviews — four real previews on the landing page.
+ *
+ * The four are chosen for STRUCTURAL difference, not for preference: one from each
+ * of four different layout families, so the row shows range rather than a ranking.
+ * Nothing here is called "best", "popular" or "recommended".
+ *
+ *   row        single column, type-led      (also the default)
+ *   editorial  narrow column, reading-first
+ *   brutal     wide board, grid-led
+ *   pulsenova  dashboard, card-led
+ *
+ * Captured by docs/scripts/capture-previews.mjs from the project's own fixture
+ * preview server. Presence is read from disk, so a missing capture degrades to
+ * nothing rather than to a broken image.
+ */
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+// See TemplateGallery: the compiled component's import.meta.url is not the source
+// path, so the preview directory is resolved from the build's working directory.
+const PREVIEW_DIR = join(process.cwd(), "public", "previews");
+const locale = Astro.currentLocale === "fa" ? "fa" : Astro.currentLocale === "ar" ? "ar" : "en";
+
+const PICKS = ["row", "editorial", "brutal", "pulsenova"];
+
+const CAPTION = {
+  en: { row: "Row", editorial: "Editorial", brutal: "Brutal", pulsenova: "Pulse Nova",
+        alt: (n) => `${n} template preview at desktop width` },
+  fa: { row: "Row", editorial: "Editorial", brutal: "Brutal", pulsenova: "Pulse Nova",
+        alt: (n) => `پیش‌نمایش تمپلیت ${n} در عرض دسکتاپ` },
+  ar: { row: "Row", editorial: "Editorial", brutal: "Brutal", pulsenova: "Pulse Nova",
+        alt: (n) => `معاينة قالب ${n} بعرض سطح المكتب` },
+}[locale];
+
+const available = PICKS.filter((id) => existsSync(join(PREVIEW_DIR, `${id}-desktop.webp`)));
+---
+
+{available.length > 0 && (
+  <div class="rt-home-previews">
+    {available.map((id) => (
+      <figure class="rt-home-shot">
+        <img
+          src={`/previews/${id}-desktop.webp`}
+          alt={CAPTION.alt(CAPTION[id])}
+          width="1440" height="1000"
+          loading="lazy" decoding="async"
+        />
+        <figcaption>{CAPTION[id]}</figcaption>
+      </figure>
+    ))}
+  </div>
+)}
+
+<style>
+  .rt-home-previews {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-block: 1.25rem;
+  }
+
+  .rt-home-shot {
+    margin: 0;
+    border: 1px solid var(--rt-rule, #222226);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--rt-surface, #131315);
+  }
+
+  .rt-home-shot img {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+  }
+
+  .rt-home-shot figcaption {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    color: var(--rt-muted, #9c9ca4);
+    border-block-start: 1px solid var(--rt-rule, #222226);
+  }
+
+  @media (max-width: 640px) {
+    .rt-home-previews {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (forced-colors: active) {
+    .rt-home-shot {
+      border-color: CanvasText;
+    }
+  }
+</style>
