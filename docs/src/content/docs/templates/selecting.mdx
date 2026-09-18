@@ -1,0 +1,58 @@
+---
+title: Template Selection
+description: How to choose a template and switch between them.
+---
+
+## Choosing
+
+The right template depends on what your service is. A few honest starting points:
+
+| If you want… | Start with |
+|---|---|
+| The quietest possible page | **Row** — the reference minimal design |
+| Something that reads like a publication | **Editorial** or **Saffron** |
+| A dashboard feel | **Pulse** or **Pulse Nova** |
+| Dense, structured information | **Prism** or **Prism Nova** |
+| A technical, terminal-adjacent tone | **Terminal** or **Terminal Nova** |
+| Strong, bold primary choices | **Brutal**, **Arcade** or **Arcade Nova** |
+| A premium, document-like presentation | **Signature** |
+
+This is orientation, not a ranking. Every template is a complete, supported design.
+
+## A better test
+
+Because the templates are distinguished **structurally** rather than by colour, the
+honest test is to view them in grayscale. A template that still looks like itself without
+its palette has a real identity; one that only differs by hue does not.
+
+## Switching
+
+Your template selection is part of the installation, so switching is a reconfiguration.
+Run the manager and change it there:
+
+```bash
+row-template config
+```
+
+## Command-line selection
+
+For scripted or unattended installs, the template can be selected with the
+`RT_TEMPLATE` environment variable:
+
+```bash
+RT_TEMPLATE=prism bash install.sh
+```
+
+An unknown value is refused, and the error lists the templates this release offers — the
+registry is closed, so a typo can never silently install a different design.
+
+## What switching does not change
+
+- Your branding — service name, support link and logo persist.
+- Your subscribers' data.
+- The runtime, the locales, or the QR behaviour.
+
+## Next
+
+- [Template Gallery](/templates/) — the full catalogue
+- [Branding](/branding/) — applying your own identity

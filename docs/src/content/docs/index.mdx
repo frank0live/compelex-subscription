@@ -1,37 +1,66 @@
 ---
 title: Row-Template
-description: A single self-contained subscription page for 3X-UI, PasarGuard and Rebecca panels.
+description: A single self-contained subscription page for 3X-UI.
 ---
 
-Row-Template turns a subscription link into a page your subscribers can actually use:
-status, traffic, expiry, a configuration list, and one-tap import into their client.
-It installs as **one self-contained HTML file** and makes no third-party requests.
+Row-Template replaces the panel's default subscription page with one you control. It
+installs as **a single self-contained HTML file** and serves it through 3X-UI, so your
+subscribers get a page that is fast, readable, and entirely yours.
 
-## Where to go next
+It is white-label by default. Your subscribers see **your** service name, your support
+link and your logo — not ours.
 
-**I have a subscription link.** Open it, and the page tells you everything about your
-plan. To use it in a client, scan the QR code or copy the link into the app.
+## What it gives your subscribers
 
-**I want to install it.** The installer is a single shell script that runs on standard
-Linux userland — no Node.js, Python, or database. See the installation guide.
+A page they can actually use: subscription status, traffic used and remaining, expiry
+date, a list of configurations with one-tap import, per-client setup instructions, and
+a QR code. It works offline, needs no third-party service, and loads instantly.
 
-**I want to build a template.** Fifteen designs ship with the project, and you can add
-your own. The contract is written down.
+## What it gives you
 
-**I want to work on the code.** The build is zero-dependency and every artifact is
-byte-locked.
+One command to install, one command to reconfigure, and a self-contained artifact that
+you can verify by checksum. No Node.js, no Python, no database on the server — standard
+Linux userland only.
 
-## What makes it different
+## Where to start
+
+**Installing it.** One command, then a short branding prompt. See
+[Installation](/installation/).
+
+**Choosing a look.** Fifteen designs ship with the project. See the
+[Template Gallery](/templates/).
+
+**Setting your brand.** Service name, support link and logo — all optional. See
+[Branding](/branding/).
+
+**Something is wrong.** See [Troubleshooting](/troubleshooting/).
+
+## The short version
+
+```bash
+bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
+```
+
+Then manage the installation with `row-template`:
+
+```bash
+row-template verify
+```
+
+## Requirements
 
 | | |
 |---|---|
-| **One file, no requests** | CSS, JavaScript, fonts and the QR generator are inlined. The page your subscribers open fetches nothing from anywhere. |
-| **Deterministic builds** | The same sources always produce byte-identical output. |
-| **Byte-locked templates** | Each of the fifteen designs is pinned to an exact size and SHA-256. A one-byte change fails the test suite. |
-| **Persian and Arabic first** | RTL is a layout mode, not a mirroring pass. |
+| Panel | **3X-UI 3.6.0 or newer** |
+| Server | Any Linux with `bash`, `coreutils`, `curl`, `tar`, `sha256sum` |
+| Runtime | None — no Node.js, no Python, no database |
+| Access | Root, for the commands that change the system |
 
-## Licence
+## Languages
 
-Released under the [MIT License](https://github.com/frank0live/Row-Template/blob/main/LICENSE).
-The bundled QR code generator is included under its own MIT licence; the embedded
-Vazirmatn font subset is used under the SIL Open Font License 1.1.
+The subscription page ships in five interface languages and follows the subscriber's
+panel or browser locale:
+
+**English · فارسی · العربية · Русский · 简体中文**
+
+Persian and Arabic render right-to-left.

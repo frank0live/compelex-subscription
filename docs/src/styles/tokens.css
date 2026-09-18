@@ -207,3 +207,194 @@ button[data-copied],
     scroll-behavior: auto !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Phase 2 — information architecture polish
+ *
+ * The design system in one line: rules and whitespace do the work, not
+ * containers. One accent, used sparingly. No gradients, no glass, no glow, no
+ * decorative animation.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --- typography ------------------------------------------------------------
+ * Hierarchy comes from the type scale, not from boxes. The scale is deliberately
+ * small: four steps of heading, one body size, one caption.
+ */
+:root {
+  --rt-measure: 68ch;
+  --rt-lh-body: 1.65;
+  --rt-lh-heading: 1.2;
+}
+
+.sl-markdown-content {
+  line-height: var(--rt-lh-body);
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4 {
+  line-height: var(--rt-lh-heading);
+  text-wrap: balance;
+}
+
+/* A section rule above h2 gives the page structure without a container. */
+.sl-markdown-content h2 {
+  margin-block-start: 2.5em;
+  padding-block-start: 1.25em;
+  border-block-start: 1px solid var(--rt-rule);
+}
+
+/* Prose measure: 68 characters. The single cheapest readability improvement. */
+.sl-markdown-content > p,
+.sl-markdown-content > ul,
+.sl-markdown-content > ol,
+.sl-markdown-content > blockquote {
+  max-inline-size: var(--rt-measure);
+}
+
+/* --- the 320px guard -------------------------------------------------------
+ * No horizontal overflow at the narrowest supported width. Long unbroken strings
+ * (URLs, identifiers, checksums) are the usual cause, so they are allowed to
+ * break rather than push the page wide.
+ */
+.sl-markdown-content p,
+.sl-markdown-content li,
+.sl-markdown-content td,
+.sl-markdown-content th,
+.sl-markdown-content a {
+  overflow-wrap: break-word;
+}
+
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  max-inline-size: 100%;
+}
+
+/* --- code ------------------------------------------------------------------
+ * Code is ALWAYS left-to-right, in every locale, including inside RTL prose. The
+ * frame may mirror; its contents never do. Reinforced here for inline code inside
+ * a table cell or a heading, which the earlier rule does not reach.
+ */
+.sl-markdown-content code,
+.sl-markdown-content kbd,
+.sl-markdown-content samp {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-ligatures: none;
+}
+
+/* Code blocks scroll internally. The page itself never scrolls sideways. */
+.sl-markdown-content pre {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  line-height: 1.7;
+}
+
+/* --- navigation ------------------------------------------------------------
+ * Quiet chrome: the sidebar recedes, the content is the interface. Separation is
+ * a hairline, never a panel or a shadow.
+ */
+.sidebar-content a,
+nav a {
+  border-radius: 4px;
+}
+
+/* The current page is marked by weight, not by a filled pill. */
+.sidebar-content a[aria-current="page"] {
+  font-weight: 600;
+}
+
+/* The language and theme controls are text-weight changes, not badges. */
+starlight-lang-select label,
+starlight-theme-select label {
+  font-weight: 500;
+}
+
+/* --- RTL -------------------------------------------------------------------
+ * Persian and Arabic are layout modes, not mirroring passes. The direction comes
+ * from the locale config; these are the adjustments direction alone does not give.
+ */
+
+/* More leading than Latin: the script needs the vertical room. */
+[dir="rtl"] .sl-markdown-content {
+  line-height: 1.85;
+}
+
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins
+ * that carry the script, so it is reset everywhere it could be inherited. */
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] .sl-markdown-content,
+[dir="rtl"] nav,
+[dir="rtl"] aside {
+  letter-spacing: normal;
+}
+
+/* Punctuation and numbers keep their own direction inside RTL prose. */
+[dir="rtl"] .sl-markdown-content code,
+[dir="rtl"] .sl-markdown-content kbd {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* --- interactive targets ---------------------------------------------------
+ * The 44px floor, stated once. Measured by the audit rather than trusted: the
+ * Phase 1 gate found three framework controls below it, which is why the floor
+ * is asserted rather than assumed.
+ */
+.pagination-links a {
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* --- motion ----------------------------------------------------------------
+ * Restrained: a colour transition on hover and nothing else. The design language
+ * has no decorative animation, so this is a small surface by construction.
+ */
+a,
+button {
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- forced colours --------------------------------------------------------
+ * The page must stay usable when the platform overrides the palette.
+ */
+@media (forced-colors: active) {
+  .sl-markdown-content h2 {
+    border-block-start-color: CanvasText;
+  }
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+
+/* --- the sidebar disclosure floor -------------------------------------------
+ * Phase 2 gate finding: Starlight's sidebar group <summary> measures 29px, below
+ * the 44px floor. It is a real tap target (it expands and collapses a group), so
+ * it carries the floor like any other control. Measured, not assumed.
+ */
+.sidebar-content summary,
+.sidebar-pane summary,
+details > summary {
+  min-block-size: 44px;
+  display: flex;
+  align-items: center;
+}

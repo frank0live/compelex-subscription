@@ -1,0 +1,87 @@
+---
+title: Installation
+description: Install Row-Template on 3X-UI in one command, then verify it.
+---
+
+Three steps. Each one tells you what you should see, and what to do if you do not.
+
+## Before you start
+
+- **3X-UI 3.6.0 or newer.** Check with `x-ui` or from the panel's own version display.
+  The installer refuses to proceed below this and tells you what it detected.
+- **Root access.** The install changes the system.
+- **A reachable GitHub.** The bootstrap downloads the release over HTTPS. For air-gapped
+  or staged installs, see [Offline installation](#offline-installation).
+
+## Step 1 — Install
+
+```bash
+bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
+```
+
+The bootstrap fetches the release tarball, **verifies its checksum**, extracts it safely,
+and hands the install transaction to the management library.
+
+**Expected:** the installer reports the version it is installing, then asks for your
+service name, support link and logo. Press Enter at any prompt to skip it — all three are
+optional.
+
+**If it fails:**
+
+| Message | What it means | What to do |
+|---|---|---|
+| `3x-ui <version> is below the required minimum 3.6.0; not installing` | Your panel is older than the supported minimum. | Update 3X-UI first, then re-run. |
+| `an existing install was found at …; re-run interactively or set RT_ASSUME_YES=1 to repair` | Row-Template is already installed. | Run `row-template update`, or re-run with `RT_ASSUME_YES=1` to repair the existing install. |
+| A checksum refusal | The download was incomplete or came from somewhere other than the official release. | Re-download from the official releases page and re-run. **Do not bypass the check.** |
+| A network error | GitHub was unreachable. | Retry, or use [Offline installation](#offline-installation). |
+
+## Step 2 — Activate it
+
+The installer tries to do this for you. It succeeds when `sqlite3` is available on the
+server.
+
+**If it did not activate automatically**, set it once in the panel:
+
+> **Panel Settings → Subscription → Profile → Sub Theme Directory**
+
+Enter exactly:
+
+```
+/etc/3x-ui/sub_templates/row-template
+```
+
+**Expected:** opening your subscription link shows the Row-Template page instead of the
+panel's built-in one.
+
+## Step 3 — Verify
+
+```bash
+row-template verify
+```
+
+This is read-only. It checks the installed artifact, the panel wiring and the live render.
+
+**Expected:** every check reports OK. If a check fails it names what failed and what it
+found, and the installer's own messages tell you which command to run next.
+
+## Offline installation
+
+If the server cannot reach GitHub, download the release assets on another machine from
+the [releases page](https://github.com/frank0live/Row-Template/releases/latest), verify
+the checksum yourself, transfer them, and run the bundled `install.sh` from the
+extracted directory.
+
+## After installation
+
+```bash
+row-template
+```
+
+Run with no arguments in a terminal to open the interactive manager. It is the same
+commands, in a menu.
+
+## Next
+
+- [Configuration](/configuration/) — the manager commands
+- [Branding](/branding/) — changing your service name, support link and logo
+- [Troubleshooting](/troubleshooting/) — if something went wrong

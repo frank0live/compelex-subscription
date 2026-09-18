@@ -1,0 +1,163 @@
+---
+title: Troubleshooting
+description: Known problems, what they mean, and how to fix them.
+---
+
+Every entry here has four parts: the exact message, what it means, the likely causes, and
+the fix. Entries are added only where the evidence exists in the source.
+
+> **A note on refusals.** Several messages below are the installer **refusing to proceed**
+> on purpose. They are safety mechanisms, not bugs. **Never work around one** — fix the
+> cause it names. If a legitimate workflow needs to proceed despite a warning, that is a
+> missing feature, not a missing workaround.
+
+## Installation
+
+### `3x-ui <version> is below the required minimum 3.6.0; not installing`
+
+**What it means.** The installer checked your panel version and stopped before changing
+anything.
+
+**Causes.** 3X-UI is older than 3.6.0.
+
+**Fix.** Update 3X-UI, then re-run the installer.
+
+---
+
+### `an existing install was found at …; re-run interactively or set RT_ASSUME_YES=1 to repair`
+
+**What it means.** Row-Template is already installed at that path.
+
+**Causes.** A previous install, or a partially completed one.
+
+**Fix.** Run `row-template update` to move to the current release. To repair the existing
+install in place, re-run with `RT_ASSUME_YES=1`.
+
+---
+
+### A checksum refusal
+
+**What it means.** The downloaded archive did not match the fingerprint recorded when it
+was released. The installer stopped before changing anything. Your existing setup is
+untouched.
+
+**Causes.** An incomplete download, transit corruption, or a file from somewhere other
+than the official release.
+
+**Fix.** Re-download from the official releases page and re-run. Verify the archive against
+the published `SHA256SUMS`. **Do not bypass the check.**
+
+---
+
+### `unsupported image: only PNG, JPEG or WebP by content`
+
+**What it means.** The logo file's actual bytes are not one of the accepted formats.
+
+**Causes.** A different image format, or a file whose extension does not match its
+contents.
+
+**Fix.** Convert the logo to PNG, JPEG or WebP and re-run `row-template config`.
+
+---
+
+### `refusing to operate on a symlink: <path>`
+
+**What it means.** The installer found a symbolic link where it expected a real file or
+directory, and refused to write through it.
+
+**Causes.** A symlinked install root, logo path, or managed file.
+
+**Fix.** Use a real directory rather than a symlink. If you need the install elsewhere,
+mount or bind it instead.
+
+---
+
+### `cannot determine the 3x-ui version; refusing to proceed`
+
+**What it means.** The installer could not read the panel's version.
+
+**Causes.** 3X-UI is not installed, is installed somewhere non-standard, or the panel's
+files are not readable.
+
+**Fix.** Confirm 3X-UI is installed and `x-ui` runs, then re-run.
+
+## Template activation
+
+### The subscription link still shows the panel's built-in page
+
+**What it means.** The panel is not pointed at the Row-Template directory.
+
+**Fix.** Set **Panel Settings → Subscription → Profile → Sub Theme Directory** to exactly:
+
+```
+/etc/3x-ui/sub_templates/row-template
+```
+
+Then reload the subscription link.
+
+## Live status
+
+### `Live check could not reach the subscription endpoint.`
+
+**What it means.** `row-template verify` tried to fetch the live page and could not.
+
+**Causes.** A network restriction, a proxy in the way, or the panel not being reachable
+from the server itself.
+
+**Fix.** This is a **warning, not a failure**. The server-rendered values still work. Check
+that the panel answers locally, then re-run `row-template verify`.
+
+## Build and verification
+
+### A test reports a changed size or checksum
+
+**What it means.** A template artifact no longer matches its byte lock.
+
+**Causes.** A source change that was not accompanied by an intentional lock update.
+
+**Fix.** If the change was deliberate, update the lock in the same commit. If it was not,
+revert the change. **A lock update is a reviewed event, not a formality.**
+
+## Update and rollback
+
+### `refusing to roll back from a path outside the backups tree`
+
+**What it means.** The rollback was asked to restore from a directory that is not a
+Row-Template backup.
+
+**Fix.** Use `row-template rollback --auto`, or `--to` with a directory the installer
+created.
+
+---
+
+### `refusing to delete <root>: it does not look like a Row-Template install root`
+
+**What it means.** The uninstaller checked the directory and did not recognise it as its
+own.
+
+**Fix.** This is a guard against deleting the wrong directory. Confirm the install root is
+`/etc/3x-ui/sub_templates/row-template`, then re-run.
+
+## Browser and display
+
+### Flags render as letters on Windows
+
+**What it means.** Windows Chromium has no local font containing flag glyphs, so the
+country badge falls back to the two-letter code.
+
+**Status.** **Known and documented.** This is a platform limitation, not a defect, and it
+is one of the open questions in the flag-rendering workstream. The badge is legible either
+way.
+
+## Still stuck
+
+```bash
+row-template version
+row-template verify
+```
+
+Include both outputs when you open an issue.
+
+> **Do not include secrets.** Never paste subscription URLs, `subId` values, client UUIDs,
+> panel credentials, cookies, tokens, the panel `webBasePath`, TLS keys, or real server
+> addresses. Redact logs before sharing them.
