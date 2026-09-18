@@ -37,6 +37,19 @@ node_modules/
 # validation infrastructure, kept local and not published).
 /tests/vps/
 
+# --- documentation workspace -------------------------------------------------
+# The product's /dist/ is root-anchored and does not cover the docs build output,
+# so it needs its own rule. docs/node_modules/ is already covered by the
+# unanchored node_modules/ pattern above and deliberately has no rule here.
+/docs/dist/
+
+# Astro's generated types and content manifest. Regenerated on every build, never
+# a source of truth, and not intended to be committed.
+/docs/.astro/
+
 # --- OS noise -----------------------------------------------------------------
 .DS_Store
 Thumbs.db
+
+# --- local AI workspace ------------------------------------------------------
+.workbuddy-ai/

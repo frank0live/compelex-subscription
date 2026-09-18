@@ -1,0 +1,209 @@
+/* Row-Template documentation — design tokens.
+ *
+ * These are the tokens from DOCUMENTATION-DESIGN-SYSTEM-PROPOSAL.md section 3,
+ * which are Row's own palette promoted from the template tokens. Nothing here is
+ * invented; every colour value exists in src/styles/tokens.css.
+ *
+ * The values are applied to Starlight's own custom properties so the site inherits
+ * the design system rather than replacing Starlight's theme wholesale.
+ *
+ * Phase 1 scope: the palette and the accent. The full type scale and component
+ * vocabulary arrive in Phase 2.
+ */
+
+/* --- dark theme (Starlight's default is [data-theme='dark']) --------------- */
+:root,
+:root[data-theme="dark"] {
+  /* surfaces */
+  --rt-bg: #0b0b0c;
+  --rt-surface: #131315;
+  --rt-track: #222226;
+
+  /* rules */
+  --rt-rule: #222226;
+  --rt-rule-strong: #3a3a40;
+  --rt-control-border: #55555e;
+
+  /* text */
+  --rt-text: #ededef;
+  --rt-muted: #9c9ca4;
+  --rt-subtle: #75757e;
+
+  /* accent */
+  --rt-accent: #6e9bff;
+  --rt-accent-solid: #4c7ef0;
+  --rt-accent-hover: #8ab0ff;
+
+  /* semantic */
+  --rt-success: #5fbe8e;
+  --rt-warning: #d8a54a;
+  --rt-danger: #e0726a;
+  --rt-info: #74b4d6;
+
+  /* Map onto Starlight's variables so its components pick up the palette. */
+  --sl-color-bg: var(--rt-bg);
+  --sl-color-bg-nav: var(--rt-bg);
+  --sl-color-bg-sidebar: var(--rt-bg);
+  --sl-color-hairline: var(--rt-rule);
+  --sl-color-hairline-shade: var(--rt-rule);
+  --sl-color-text: var(--rt-text);
+  --sl-color-text-accent: var(--rt-accent);
+  --sl-color-accent: var(--rt-accent-solid);
+  --sl-color-accent-low: #1b2740;
+  --sl-color-accent-high: var(--rt-accent-hover);
+  --sl-color-white: var(--rt-text);
+  --sl-color-gray-1: var(--rt-text);
+  --sl-color-gray-2: var(--rt-muted);
+  --sl-color-gray-3: var(--rt-subtle);
+  --sl-color-gray-4: var(--rt-rule-strong);
+  --sl-color-gray-5: var(--rt-track);
+  --sl-color-gray-6: var(--rt-surface);
+  --sl-color-black: var(--rt-bg);
+}
+
+/* --- light theme ----------------------------------------------------------- */
+:root[data-theme="light"] {
+  --rt-bg: #fafafa;
+  --rt-surface: #ffffff;
+  --rt-track: #ececee;
+
+  --rt-rule: #e4e4e7;
+  --rt-rule-strong: #b6b6bd;
+  --rt-control-border: #7c7c86;
+
+  --rt-text: #101013;
+  --rt-muted: #55555e;
+  --rt-subtle: #71717a;
+
+  --rt-accent: #2b54c4;
+  --rt-accent-solid: #2b54c4;
+  --rt-accent-hover: #1f3f99;
+
+  --rt-success: #1f6b45;
+  --rt-warning: #8a5a00;
+  --rt-danger: #b03226;
+  --rt-info: #1c5e75;
+
+  --sl-color-bg: var(--rt-bg);
+  --sl-color-bg-nav: var(--rt-bg);
+  --sl-color-bg-sidebar: var(--rt-bg);
+  --sl-color-hairline: var(--rt-rule);
+  --sl-color-hairline-shade: var(--rt-rule);
+  --sl-color-text: var(--rt-text);
+  --sl-color-text-accent: var(--rt-accent);
+  --sl-color-accent: var(--rt-accent-solid);
+  --sl-color-accent-low: #dbe4f8;
+  --sl-color-accent-high: var(--rt-accent-hover);
+  --sl-color-white: var(--rt-text);
+  --sl-color-gray-1: var(--rt-text);
+  --sl-color-gray-2: var(--rt-muted);
+  --sl-color-gray-3: var(--rt-subtle);
+  --sl-color-gray-4: var(--rt-rule-strong);
+  --sl-color-gray-5: var(--rt-track);
+  --sl-color-gray-6: var(--rt-surface);
+  --sl-color-black: var(--rt-bg);
+}
+
+/* --- the identity rules ----------------------------------------------------
+ * From the design system: rules and whitespace do the work, not containers.
+ * One accent, used sparingly. No gradients, no glass, no glow.
+ */
+
+/* The identity rules from the design system, applied to the prose area. */
+.sl-markdown-content {
+  /* Measure: 68-72 characters. The single cheapest readability improvement. */
+  --rt-measure: 68ch;
+}
+
+.sl-markdown-content > p,
+.sl-markdown-content > ul,
+.sl-markdown-content > ol {
+  max-inline-size: var(--rt-measure);
+}
+
+/* Code is ALWAYS LTR, in every locale. Reversing a shell command's direction would
+ * change what it looks like while doing nothing to its meaning. */
+.sl-markdown-content pre,
+.sl-markdown-content code {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Inline code sits on the track colour, matching the templates. */
+.sl-markdown-content :not(pre) > code {
+  background-color: var(--rt-track);
+}
+
+/* Tables: real header cells, hairlines not boxes. */
+.sl-markdown-content table {
+  border-collapse: collapse;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  border-block-end: 1px solid var(--rt-rule);
+  border-inline: 0;
+}
+
+/* --- RTL -------------------------------------------------------------------
+ * Starlight sets dir on <html> from the locale config. These are the adjustments
+ * that the direction alone does not cover.
+ */
+
+/* Arabic and Persian need more leading than Latin. */
+[dir="rtl"] {
+  --sl-line-height: 1.75;
+}
+
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins that
+ * carry the script, so any tracked label is reset. */
+[dir="rtl"] .sl-markdown-content h1,
+[dir="rtl"] .sl-markdown-content h2,
+[dir="rtl"] .sl-markdown-content h3 {
+  letter-spacing: 0;
+}
+
+/* --- accessibility ---------------------------------------------------------
+ * The 44px floor. Stated once, and measured by the audit rather than trusted.
+ */
+.sl-markdown-content a {
+  /* Links in prose are inline text, not tap targets; the rule applies to the
+   * site's controls, which Starlight sizes itself. Measured in the audit. */
+  text-underline-offset: 0.2em;
+}
+
+/* --- the 44px tap-target floor ---------------------------------------------
+ * Measured, not assumed. The Phase 1 gate found three of Starlight's own controls
+ * below the floor, all of them framework defaults:
+ *
+ *   button[data-open-modal]   the search control   40 x 32
+ *   .sl-menu-button           the mobile menu      32 x 32
+ *   button[data-copied]       the code copy button 32 x 32
+ *
+ * The design system sets 44px with no exceptions, so the floor is stated here
+ * once rather than patched per control. The selectors are the ones actually
+ * present in the built markup - verified against the output, not guessed.
+ *
+ * `data-copied` is the copy button's own attribute; expressive-code renders it
+ * without a class, which is why a class selector would have missed it.
+ */
+button[data-open-modal],
+button[data-close-modal],
+button[data-copied],
+.sl-menu-button {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+}
+
+/* Reduced motion: the design language has almost no motion, so this is a small
+ * surface — but it must be honoured. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

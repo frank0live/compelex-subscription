@@ -1,0 +1,37 @@
+---
+title: Row-Template
+description: A single self-contained subscription page for 3X-UI, PasarGuard and Rebecca panels.
+---
+
+Row-Template turns a subscription link into a page your subscribers can actually use:
+status, traffic, expiry, a configuration list, and one-tap import into their client.
+It installs as **one self-contained HTML file** and makes no third-party requests.
+
+## Where to go next
+
+**I have a subscription link.** Open it, and the page tells you everything about your
+plan. To use it in a client, scan the QR code or copy the link into the app.
+
+**I want to install it.** The installer is a single shell script that runs on standard
+Linux userland — no Node.js, Python, or database. See the installation guide.
+
+**I want to build a template.** Fifteen designs ship with the project, and you can add
+your own. The contract is written down.
+
+**I want to work on the code.** The build is zero-dependency and every artifact is
+byte-locked.
+
+## What makes it different
+
+| | |
+|---|---|
+| **One file, no requests** | CSS, JavaScript, fonts and the QR generator are inlined. The page your subscribers open fetches nothing from anywhere. |
+| **Deterministic builds** | The same sources always produce byte-identical output. |
+| **Byte-locked templates** | Each of the fifteen designs is pinned to an exact size and SHA-256. A one-byte change fails the test suite. |
+| **Persian and Arabic first** | RTL is a layout mode, not a mirroring pass. |
+
+## Licence
+
+Released under the [MIT License](https://github.com/frank0live/Row-Template/blob/main/LICENSE).
+The bundled QR code generator is included under its own MIT licence; the embedded
+Vazirmatn font subset is used under the SIL Open Font License 1.1.
