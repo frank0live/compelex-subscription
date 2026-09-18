@@ -1,58 +1,116 @@
 ---
 title: Template Selection
-description: How to choose a template and switch between them.
+description: How to choose a template, where selection happens, and what to expect afterwards.
 ---
 
-## Choosing
+## What is selectable
 
-The right template depends on what your service is. A few honest starting points:
+**All fifteen core templates are selectable.** The registry is closed: an id that is not
+on this list is refused rather than silently replaced.
 
-| If you want… | Start with |
-|---|---|
-| The quietest possible page | **Row** — the reference minimal design |
-| Something that reads like a publication | **Editorial** or **Saffron** |
-| A dashboard feel | **Pulse** or **Pulse Nova** |
-| Dense, structured information | **Prism** or **Prism Nova** |
-| A technical, terminal-adjacent tone | **Terminal** or **Terminal Nova** |
-| Strong, bold primary choices | **Brutal**, **Arcade** or **Arcade Nova** |
-| A premium, document-like presentation | **Signature** |
-
-This is orientation, not a ranking. Every template is a complete, supported design.
-
-## A better test
-
-Because the templates are distinguished **structurally** rather than by colour, the
-honest test is to view them in grayscale. A template that still looks like itself without
-its palette has a real identity; one that only differs by hue does not.
-
-## Switching
-
-Your template selection is part of the installation, so switching is a reconfiguration.
-Run the manager and change it there:
-
-```bash
-row-template config
+```
+row  editorial  canvas  prism  terminal  pulse  brutal  arcade  sketch
+signature  saffron  pulsenova  prismnova  terminalnova  arcadenova
 ```
 
-## Command-line selection
+The **default is `row`**. A configuration that predates template selection, or that
+stores an unknown id, resets to `row` and says so.
 
-For scripted or unattended installs, the template can be selected with the
-`RT_TEMPLATE` environment variable:
+## Where selection happens
+
+**On a fresh install**, the installer offers the designs directly and asks you to pick
+one:
+
+```
+Choose your Row-Template design
+  1  Row
+  2  Editorial
+  …
+Select [1-15, Enter=Row]:
+```
+
+Pressing Enter takes **Row**. Nothing is applied until you confirm the summary.
+
+**After installation**, switch designs from the manager:
+
+```bash
+row-template
+```
+
+Then choose **2 Reconfigure → 4 Template**. The switch is a full
+snapshot/validate/activate transaction, so a failed switch restores the previous design.
+
+> **`row-template config` does not select a template.** That command changes branding
+> only — service name, support URL and logo.
+
+## Selecting without a terminal
+
+`RT_TEMPLATE` is read by the **install** path only. It is an environment variable, so the
+script it applies to must be reachable — which in practice means you are running the
+`install.sh` from an **extracted release bundle**:
 
 ```bash
 RT_TEMPLATE=prism bash install.sh
 ```
 
-An unknown value is refused, and the error lists the templates this release offers — the
-registry is closed, so a typo can never silently install a different design.
+It also works with the remote one-liner, because the environment is inherited:
+
+```bash
+RT_TEMPLATE=prism bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
+```
+
+**It has no effect on an existing installation.** `row-template config` does not read it —
+use the manager for a post-install switch.
+
+An id that is not on the list is refused, and the error names the available ones:
+
+```
+RT_TEMPLATE='xyz' is not a template this release offers (available: row editorial …)
+```
+
+**The list is closed on purpose.** A typo cannot silently install a different design.
+
+## What selection actually does
+
+The installer keeps **one verified artifact per design** in a template store under the
+install root, each with its own checksum. Selecting a design stages that artifact as the
+served page, then reconciles the live page to it.
+
+Because every artifact is verified against its own checksum, a selection cannot end up
+half-applied: either the chosen design is live, or the previous state is restored.
+
+## What to expect afterwards
+
+```bash
+row-template verify
+```
+
+The verification reports the selected design and confirms the served page matches it:
+
+```
+Template: Row
+Canonical artifact matches the selected template.
+```
+
+A configuration that names one design while another is live is the one state the
+verification must never report as healthy — so it reports it as a failure.
+
+## Choosing between them
+
+The honest way to compare is structural, not by colour. The
+[gallery comparison](/templates/#compare-by-structure) lists every design by layout
+family, composition, density, grouping and width.
+
+A useful test: because the designs differ structurally, viewing them in grayscale still
+tells them apart. A design that only differs by hue is not a different design.
 
 ## What switching does not change
 
-- Your branding — service name, support link and logo persist.
-- Your subscribers' data.
-- The runtime, the locales, or the QR behaviour.
+- **Your branding** — service name, support link and logo persist.
+- **Your subscribers' data.**
+- **The runtime, the locales, or the QR behaviour.**
 
 ## Next
 
-- [Template Gallery](/templates/) — the full catalogue
+- [Template Gallery](/templates/) — the full catalogue and comparison
 - [Branding](/branding/) — applying your own identity

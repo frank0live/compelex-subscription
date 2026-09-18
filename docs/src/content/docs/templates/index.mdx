@@ -1,7 +1,10 @@
 ---
 title: Template Gallery
-description: The fifteen core designs that ship with Row-Template.
+description: The fifteen core designs that ship with Row-Template, with their structural traits.
 ---
+
+import TemplateGallery from "../../../components/TemplateGallery.astro";
+import TemplateComparison from "../../../components/TemplateComparison.astro";
 
 Row-Template ships **fifteen core templates**. Each is a complete design — its own
 layout, its own typography, its own structure — and each is byte-locked, so a released
@@ -10,55 +13,43 @@ design cannot change without a deliberate, reviewed update.
 Every template is available, every template is locked, and every template owns an
 independent `layout.html`. There are no provisional designs.
 
-## The catalogue
-
-| Display name | ID | Design description | Category |
-|---|---|---|---|
-| Row | `row` | A single-column information system. Hierarchy from type scale and rules; almost no containers. The reference minimal design. | Minimal |
-| Editorial | `editorial` | A modern technical publication: measured columns, a magazine rhythm, reading-first. | Editorial |
-| Canvas | `canvas` | A calm, airy layout built on generous space and light separation. | Minimal |
-| Prism | `prism` | A faceted information sheet: the record is cut into aligned facets. | Structured |
-| Terminal | `terminal` | A text session sheet — monospaced, rule-divided, quietly technical. | Technical |
-| Pulse | `pulse` | A signal-flow layout: the status reads as a live channel. | Dashboard |
-| Brutal | `brutal` | A wide, high-contrast board with hard edges and no radius. | Bold |
-| Arcade | `arcade` | A selection screen: strong primary choices, a game-like clarity. | Bold |
-| Sketch | `sketch` | A hand-drawn sheet, ruled and informal. | Playful |
-| Signature | `signature` | A premium service dossier: held by rules, measure and negative space. | Premium |
-| Saffron | `saffron` | A narrow, warm, centred column. | Editorial |
-| Pulse Nova | `pulsenova` | The Nova-era dashboard: cards, a rounded frame, a modern instrument panel. | Dashboard |
-| Prism Nova | `prismnova` | The Nova-era console: dense, structured, information-forward. | Structured |
-| Terminal Nova | `terminalnova` | The Nova-era console in monospace. | Technical |
-| Arcade Nova | `arcadenova` | The Nova-era cabinet: a framed screen with a cartridge rail. | Bold |
-
-Category names describe structure, not quality. **No template is ranked above another** —
-they are different designs for different services.
-
 ## What every template shares
 
-Whichever you choose, you get the same guarantees:
+Whichever you choose, you get the same guarantees. These come from the shared runtime,
+not from any individual design:
 
-- **One self-contained artifact.** CSS, JavaScript, fonts and the QR generator are all
-  inlined. The page fetches nothing from anywhere.
-- **The same runtime.** Every template uses the shared runtime; a template is a layout and
-  a stylesheet set, never a fork of the logic.
+- **One self-contained artifact.** CSS, JavaScript, the fonts and the QR generator are
+  all inlined. The page fetches nothing from anywhere.
+- **The same runtime.** A template is a layout and a stylesheet set, never a fork of the
+  logic.
 - **The same data.** Status, traffic, expiry, configurations and clients are identical
   across all fifteen.
-- **Full right-to-left support.** Persian and Arabic are layout modes, not mirroring
-  passes.
+- **Right-to-left support**, and **dark and light themes**.
+- **79 required hooks**, exactly three scripts, and a byte lock pinning the artifact to
+  an exact size and SHA-256.
 
-## What differs
+## Compare by structure
 
-Structure, typography, density and colour. The page tells the same story in fifteen
-different voices.
+The templates differ in structure, not in colour. This table compares them on the traits
+that actually distinguish them.
 
-## Screenshots
+<TemplateComparison />
 
-Each template will carry desktop and mobile previews in both themes. Those previews are
-being captured from the frozen artifacts and are not yet published — see
-[Template Selection](/templates/selecting/) for how to choose in the meantime.
+## The fifteen designs
+
+Each entry lists its structural traits and how to select it. **No template is ranked above
+another** — they are different designs for different services.
+
+<TemplateGallery />
+
+## Previews
+
+Preview slots are present but not yet filled. Previews will be captured from the **frozen
+artifacts**, so what you see is what the template actually produces — and they are not
+published until that capture pipeline exists. **Nothing here is a synthetic screenshot.**
 
 ## Next
 
-- [Template Selection](/templates/selecting/) — how to choose and switch
+- [Selecting a template](/templates/selecting/) — how to choose and switch
+- [Custom templates](/custom-templates/) — building your own
 - [Branding](/branding/) — your own identity on any template
-- [Custom Templates](/custom-templates/) — building your own

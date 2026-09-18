@@ -1,0 +1,120 @@
+---
+/**
+ * TemplateComparison — a factual, sortable-by-eye comparison of all fifteen templates.
+ *
+ * Every dimension is a structural trait read from the template sources, never a
+ * ranking, a score or a preference. Colour is deliberately not a column: the templates
+ * are distinguished structurally, and reducing them to palettes would misrepresent them.
+ *
+ * Rendered as a real table with header cells, so a screen reader can associate each
+ * value with its dimension. Scrolls internally at narrow widths rather than pushing
+ * the page wide.
+ */
+import data from "../data/templates.json";
+
+const locale = Astro.currentLocale === "fa" ? "fa" : Astro.currentLocale === "ar" ? "ar" : "en";
+
+const H = {
+  en: { name: "Template", family: "Layout family", composition: "Composition", density: "Density", grouping: "Grouping", radius: "Corners", measure: "Width" },
+  fa: { name: "تمپلیت", family: "خانوادهٔ چیدمان", composition: "ترکیب‌بندی", density: "تراکم", grouping: "گروه‌بندی", radius: "گوشه‌ها", measure: "عرض" },
+  ar: { name: "القالب", family: "عائلة التخطيط", composition: "التركيب", density: "الكثافة", grouping: "التجميع", radius: "الحواف", measure: "العرض" },
+}[locale];
+
+const F = {
+  en: {
+    family: { "single-column": "Single column", "narrow-column": "Narrow column", "faceted": "Faceted", "dashboard": "Dashboard", "wide-board": "Wide board", "dossier": "Dossier", "console": "Console", "cabinet": "Cabinet" },
+    composition: { "type-led": "Type-led", "reading-first": "Reading-first", "airy": "Airy", "record-led": "Record-led", "session-sheet": "Session sheet", "status-led": "Status-led", "grid-led": "Grid-led", "choice-led": "Choice-led", "hand-ruled": "Hand-ruled", "document-led": "Document-led", "centred": "Centred", "card-led": "Card-led", "information-forward": "Information-forward", "monospace": "Monospace", "framed-screen": "Framed screen" },
+    density: { compact: "Compact", comfortable: "Comfortable", spacious: "Spacious", dense: "Dense" },
+    grouping: { rules: "Rules", columns: "Columns", space: "Space", facets: "Facets", bands: "Bands", grid: "Grid", panels: "Panels", cards: "Cards" },
+    radius: { square: "Square", soft: "Softened" },
+    measure: { narrow: "Narrow", medium: "Medium", wide: "Wide" },
+  },
+  fa: {
+    family: { "single-column": "تک‌ستونی", "narrow-column": "ستون باریک", "faceted": "چندوجهی", "dashboard": "داشبورد", "wide-board": "تختهٔ پهن", "dossier": "پرونده", "console": "کنسول", "cabinet": "کابینت" },
+    composition: { "type-led": "تایپ‌محور", "reading-first": "خواندن‌محور", "airy": "باز و سبک", "record-led": "رکوردمحور", "session-sheet": "برگهٔ نشست", "status-led": "وضعیت‌محور", "grid-led": "شبکه‌محور", "choice-led": "انتخاب‌محور", "hand-ruled": "دست‌کشیده", "document-led": "سندمحور", "centred": "وسط‌چین", "card-led": "کارت‌محور", "information-forward": "اطلاعات‌محور", "monospace": "مونواسپیس", "framed-screen": "صفحهٔ قاب‌دار" },
+    density: { compact: "فشرده", comfortable: "راحت", spacious: "فراخ", dense: "متراکم" },
+    grouping: { rules: "خطوط", columns: "ستون‌ها", space: "فاصله", facets: "وجه‌ها", bands: "نوارها", grid: "شبکه", panels: "پنل‌ها", cards: "کارت‌ها" },
+    radius: { square: "تیز", soft: "نرم" },
+    measure: { narrow: "باریک", medium: "متوسط", wide: "پهن" },
+  },
+  ar: {
+    family: { "single-column": "عمود واحد", "narrow-column": "عمود ضيّق", "faceted": "متعدد الأوجه", "dashboard": "لوحة معلومات", "wide-board": "لوحة عريضة", "dossier": "ملف", "console": "طرفية", "cabinet": "خزانة" },
+    composition: { "type-led": "قيادة الخطوط", "reading-first": "القراءة أولًا", "airy": "متنفّس", "record-led": "قيادة السجلة", "session-sheet": "ورقة جلسة", "status-led": "قيادة الحالة", "grid-led": "قيادة الشبكة", "choice-led": "قيادة الاختيار", "hand-ruled": "مرسوم يدويًا", "document-led": "قيادة المستند", "centred": "متوسّط", "card-led": "قيادة البطاقات", "information-forward": "متقدّم معلوماتيًا", "monospace": "خط ثابت العرض", "framed-screen": "شاشة مؤطَّرة" },
+    density: { compact: "مضغوط", comfortable: "مريح", spacious: "فسيح", dense: "كثيف" },
+    grouping: { rules: "خطوط", columns: "أعمدة", space: "مسافة", facets: "أوجه", bands: "أشرطة", grid: "شبكة", panels: "لوحات", cards: "بطاقات" },
+    radius: { square: "حادة", soft: "ناعمة" },
+    measure: { narrow: "ضيّق", medium: "متوسط", wide: "عريض" },
+  },
+}[locale];
+
+const rows = data.templates;
+---
+
+<div class="rt-compare-wrap">
+  <table class="rt-compare">
+    <thead>
+      <tr>
+        <th scope="col">{H.name}</th>
+        <th scope="col">{H.family}</th>
+        <th scope="col">{H.composition}</th>
+        <th scope="col">{H.density}</th>
+        <th scope="col">{H.grouping}</th>
+        <th scope="col">{H.radius}</th>
+        <th scope="col">{H.measure}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((t) => (
+        <tr>
+          <th scope="row"><a href={`#template-${t.id}`}>{t.name}</a></th>
+          <td>{F.family[t.family]}</td>
+          <td>{F.composition[t.composition]}</td>
+          <td>{F.density[t.density]}</td>
+          <td>{F.grouping[t.grouping]}</td>
+          <td>{F.radius[t.radius]}</td>
+          <td>{F.measure[t.measure]}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .rt-compare-wrap {
+    max-inline-size: 100%;
+    overflow-x: auto;
+    margin-block: 1.5rem;
+  }
+
+  .rt-compare {
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    inline-size: 100%;
+  }
+
+  .rt-compare th,
+  .rt-compare td {
+    text-align: start;
+    padding: 0.5rem 0.75rem;
+    border-block-end: 1px solid var(--rt-rule, #222226);
+    white-space: nowrap;
+  }
+
+  .rt-compare thead th {
+    color: var(--rt-muted, #9c9ca4);
+    font-weight: 600;
+    border-block-end: 1px solid var(--rt-rule-strong, #3a3a40);
+  }
+
+  .rt-compare tbody th {
+    font-weight: 600;
+  }
+
+  .rt-compare a {
+    text-decoration: none;
+  }
+
+  .rt-compare a:hover {
+    text-decoration: underline;
+  }
+</style>

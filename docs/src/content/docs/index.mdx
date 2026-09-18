@@ -1,39 +1,56 @@
 ---
 title: Row-Template
-description: A single self-contained subscription page for 3X-UI.
+description: A multi-template subscription page system for 3X-UI — fifteen designs, one self-contained artifact.
 ---
 
-Row-Template replaces the panel's default subscription page with one you control. It
-installs as **a single self-contained HTML file** and serves it through 3X-UI, so your
-subscribers get a page that is fast, readable, and entirely yours.
+import { Image } from "astro:assets";
+import banner from "../../../assets/row-template-banner.png";
 
-It is white-label by default. Your subscribers see **your** service name, your support
-link and your logo — not ours.
+<Image src={banner} alt="Row-Template" />
 
-## What it gives your subscribers
+**A multi-template subscription page system for 3X-UI.** Fifteen designs ship with the
+project. Whichever you choose, the result is one self-contained HTML file that you
+control, and your subscribers see your service — not ours.
 
-A page they can actually use: subscription status, traffic used and remaining, expiry
-date, a list of configurations with one-tap import, per-client setup instructions, and
-a QR code. It works offline, needs no third-party service, and loads instantly.
+[Install it](/installation/) · [Browse the templates](/templates/)
 
-## What it gives you
+## What it is
 
-One command to install, one command to reconfigure, and a self-contained artifact that
-you can verify by checksum. No Node.js, no Python, no database on the server — standard
-Linux userland only.
+Row-Template replaces the panel's built-in subscription page with one of fifteen designs.
+It is not a panel, not a theme for the admin interface, and not a client — it changes only
+what your subscribers see.
 
-## Where to start
+It is **white-label by default**. Your service name, support link and logo are yours, they
+persist across updates, and Row-Template's own name appears nowhere on the served page
+unless you enter it yourself.
 
-**Installing it.** One command, then a short branding prompt. See
-[Installation](/installation/).
+## Facts
 
-**Choosing a look.** Fifteen designs ship with the project. See the
-[Template Gallery](/templates/).
+| | |
+|---|---|
+| **Panel** | 3X-UI **3.6.0** or newer — the only supported production panel |
+| **Templates** | **15**, all available, all byte-locked |
+| **Output** | One self-contained artifact, within a 204,800-byte ceiling |
+| **Runtime** | None — no Node.js, no Python, no database on the server |
+| **Requests** | The served page fetches nothing from anywhere |
+| **Locales** | English · فارسی · العربية · Русский · 简体中文 |
+| **RTL** | Persian and Arabic are layout modes, not mirroring passes |
+| **Docs** | English, Persian and Arabic |
 
-**Setting your brand.** Service name, support link and logo — all optional. See
-[Branding](/branding/).
+## The templates
 
-**Something is wrong.** See [Troubleshooting](/troubleshooting/).
+Fifteen designs, differing in **structure** rather than in colour — a single column, a
+narrow reading column, a faceted record, a dashboard, a wide board, a console. They share
+the same runtime, the same data and the same guarantees.
+
+[See all fifteen, compared by structure →](/templates/)
+
+## Start here
+
+- **[Installation](/installation/)** — one command, then a short branding prompt.
+- **[Template Gallery](/templates/)** — all fifteen designs with their structural traits.
+- **[Selecting a template](/templates/selecting/)** — where selection happens and what to expect.
+- **[Troubleshooting](/troubleshooting/)** — known problems, what they mean, and how to fix them.
 
 ## The short version
 
@@ -47,20 +64,11 @@ Then manage the installation with `row-template`:
 row-template verify
 ```
 
-## Requirements
+## This documentation
 
-| | |
-|---|---|
-| Panel | **3X-UI 3.6.0 or newer** |
-| Server | Any Linux with `bash`, `coreutils`, `curl`, `tar`, `sha256sum` |
-| Runtime | None — no Node.js, no Python, no database |
-| Access | Root, for the commands that change the system |
+These docs are available in **English, Persian and Arabic**. English is the source of
+truth; Persian and Arabic are first-class, with right-to-left layout rather than a
+mirrored afterthought.
 
-## Languages
-
-The subscription page ships in five interface languages and follows the subscriber's
-panel or browser locale:
-
-**English · فارسی · العربية · Русский · 简体中文**
-
-Persian and Arabic render right-to-left.
+Anything quoted from the installer or the command line stays in **English** in every
+locale, because that is what the tools actually print.
