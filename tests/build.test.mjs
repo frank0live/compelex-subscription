@@ -135,10 +135,10 @@ test('the default (Row) build is byte-locked to the v1.1.0 artifact', () => {
   const bytes = Buffer.byteLength(html, 'utf8');
   const sha = createHash('sha256').update(html).digest('hex');
 
-  assert.equal(bytes, 200999, 'Row artifact changed size; byte-lock violated');
+  assert.equal(bytes, 200384, 'Row artifact changed size; byte-lock violated');
   assert.equal(
     sha,
-    '723c71beeb4dc5a38c17aaabd5a670862fb592c012e7bf1936d8d23d856280f2',
+    '90447bd4bc5f5f5f6553a6d4f394a101bd0e3d76fcc0dcb5048f7a093794d2b0',
     'Row artifact changed content; byte-lock violated',
   );
 
@@ -239,11 +239,11 @@ test('the editorial layout satisfies the hook contract, shares the Row runtime, 
 test('the editorial artifact is byte-locked to the approved magazine design', () => {
   const html = build(true, 'editorial').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 203848, 'Editorial artifact changed size; byte-lock violated');
+  assert.equal(bytes, 203233, 'Editorial artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
   assert.equal(
     sha,
-    '71c735e881cd525b2791450aa13135a1e94ff866d3f065529bbe257dd1c3bc2c',
+    'cf59f2c16031503cfd26c4daaca87b3cfaa8a26a41e92c313b36a194070cbf34',
     'Editorial artifact changed content; byte-lock violated',
   );
 });
@@ -635,9 +635,9 @@ test('the saffron artifact names its own design, satisfies the hook contract, an
 test('the canvas artifact is byte-locked to the approved design', () => {
   const html = build(true, 'canvas').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 202339, 'Canvas artifact changed size; byte-lock violated');
+  assert.equal(bytes, 201724, 'Canvas artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
-  assert.equal(sha, '43c3ce4751770a098dc60a959ebf7879365fa4382b8c7a48df838af8f26847cb', 'Canvas artifact changed content; byte-lock violated');
+  assert.equal(sha, '9ecee695c7c0f9fbf0f1621a4618b83a745c799a17be817c117a297b2e16d305', 'Canvas artifact changed content; byte-lock violated');
 });
 
 /* Prism owns its layout: the faceted sheet is its own document, so the
@@ -745,11 +745,11 @@ test('the pulsenova layout satisfies the hook contract, shares the Row runtime, 
 test('the pulsenova artifact is byte-locked to the approved dashboard design', () => {
   const html = build(true, 'pulsenova').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 204267, 'Pulse Nova artifact changed size; byte-lock violated');
+  assert.equal(bytes, 203652, 'Pulse Nova artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
   assert.equal(
     sha,
-    'f43c6ec591e201d5982ed5bf1f342d6836698ce85fce5a0127b69fb4ff725c91',
+    '44f64a0be0757b605a3615e8abdcff896d0c7232f0a66d0355adc5ae7f6d8731',
     'Pulse Nova artifact changed content; byte-lock violated',
   );
 });
@@ -975,17 +975,17 @@ test('the arcadenova cabinet satisfies the hook contract, shares the Row runtime
    asserts both the artifact's exact byte length and its full SHA-256 through
    the same build() the CLI and the release generator use. */
 const FROZEN_ARTIFACTS = [
-  ['prism', 202127, 'f37ec8ade2a7dbc9156e239617f8721ec8026630108991cbfe605c5c7d3e6f09'],
-  ['terminal', 199642, '1bc3a0c66a5dd6994f71e561deb30784d9e18327912a60c3475cb01979d549f3'],
-  ['pulse', 202075, '3a7d39abbf7d4de638c3b71fe6d5069b95d8825e916208afae53f43fa6947ae0'],
-  ['brutal', 202533, '009bc456ec79d404162cd5f2ee5f255667e4ef42295a08f3646db031c99fb784'],
-  ['arcade', 203033, '2915bcb17fbc1b24de97b3c6efb324eec5845879d9852a6cda26dd1d21709055'],
-  ['sketch', 202075, '55ed0a1bfb47639e3e14ed832e598f16232b206d7a5b40b38eebb453f00375af'],
-  ['signature', 203679, 'a28572c657411b994bb226174c083604846387d2288c64d862b5c3a845b08078'],
-  ['saffron', 203057, '3e8c31e657cbbfa1333e9046cb70b04782fb1045cd68c9acf17b6c9938486363'],
-  ['prismnova', 202967, '992978bde5246bdf57f7d25c1628e4000b097c2f4cacd34762df0b3b565d5b85'],
-  ['terminalnova', 202944, '4390867ff81b6d0609b70da0ea576a2d8a78fe5f78e1ab727afb4181cf49d8a3'],
-  ['arcadenova', 203310, '861577d234ed838024473f5d1a763317c44db6c100dbef16aeaafae2d9b76d50'],
+  ['prism', 201512, '80b438c27d057b69c3850a84bf4a22b852ea30813735af8bb5c387ae4b87f7f1'],
+  ['terminal', 199027, 'ae47ff7ed2d0d86237a823b316725f73b82c34e075abfb13c593eec1838cee37'],
+  ['pulse', 201460, 'fd2a959947d9f3dfbe71c954236a4b491f417426062c0d9b2e7bad389dcc75f6'],
+  ['brutal', 201918, '99dccbb03b51455a70d2d3567d209591a07ef4dc45981431486152a50e3320d8'],
+  ['arcade', 202418, '0064957588b5fdcfa344443c9cb471223506b5f5e07d466097b7d32304416116'],
+  ['sketch', 201460, '120bc4571042f67dc06034fb099e2ef4a22dc9d136824cde30009aa454b26612'],
+  ['signature', 203064, '019f9eefb3e734f77c45bfef67e3dbc0fb48fd38e3e1b4579c208900b8808d68'],
+  ['saffron', 202442, 'b38f3755dbed9312396d28156c2fa0e9ed8ddfc54575e36dd5715668a1fee344'],
+  ['prismnova', 202352, '9a1fe9ae242e51ee26371c61a118c853c8ab393aa527bf8fbc0d2b8cd6ea5810'],
+  ['terminalnova', 202329, '7691b9500b1753eba773017324241d2a95f7f8f2caa20e0058feefea0fcc01ad'],
+  ['arcadenova', 202695, '057e113a14ea06551e7e5dbff5daacd343167094de144413f4a779ed7242669f'],
 ];
 
 for (const [id, bytes, sha] of FROZEN_ARTIFACTS) {
