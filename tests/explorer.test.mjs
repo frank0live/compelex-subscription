@@ -483,3 +483,103 @@ test('the renderer introduces no markup-parsing API', () => {
     }
   }
 });
+
+/* -------------------------------------------------------------------------
+   Renderer coverage. The renderer is a coverage model, not a catalogue: FLAGS
+   names the six flags a gradient can BE rather than merely resemble, and every
+   other assigned code keeps the emoji its platform already renders. These
+   tests are the permanent proof of that model.
+
+   They read the registry out of the SHIPPED source rather than restating it, so
+   an edit that silently dropped a country from the bitmap or from FLAGS fails
+   here rather than reaching a reader. Nothing is imported that the module does
+   not already export; the source text is the artefact under test.
+   ------------------------------------------------------------------------- */
+
+/* The six covered gradients. DE and US reuse the constants asserted above. */
+const CSS_FLAGS = {
+  DE: DE_GRADIENT,
+  FR: 'linear-gradient(90deg,#039 33.3%,#fff 33.3% 66.6%,#e33 66.6%)',
+  NL: 'linear-gradient(#a11 33.3%,#fff 33.3% 66.6%,#249 66.6%)',
+  JP: 'radial-gradient(circle closest-side,#b02 0 60%,#fff 60%)',
+  SE: 'linear-gradient(90deg,#0000 30%,#fc0 30% 45%,#0000 45%),linear-gradient(#0000 40%,#fc0 40% 55%,#0000 55%),#06a',
+  US: US_GRADIENT,
+};
+
+/* The assigned codes, decoded from the shipped CODES bitmap — the same 85-byte
+   source the runtime decodes, so the two can never disagree. */
+const CODES_BITS = atob((flagSource.match(/atob\('([^']*)'\)/) || [])[1] || '');
+const isAssigned = (code) => {
+  const i = (code.charCodeAt(0) - 65) * 26 + (code.charCodeAt(1) - 65);
+  return (CODES_BITS.charCodeAt(i >> 3) >> (i & 7)) & 1;
+};
+const ASSIGNED = (() => {
+  const out = [];
+  for (let a = 0; a < 26; a += 1) {
+    for (let b = 0; b < 26; b += 1) {
+      const code = String.fromCharCode(65 + a) + String.fromCharCode(65 + b);
+      if (isAssigned(code)) out.push(code);
+    }
+  }
+  return out;
+})();
+
+test('every covered flag paints its own gradient over an intact text node', () => {
+  withMatchMedia(noForcedColors, () => {
+    for (const [code, gradient] of Object.entries(CSS_FLAGS)) {
+      const badge = badgeFor(pair(code));
+      assert.equal(badge.style.background, gradient, code + ' paints its own gradient');
+      assert.equal(badge.textContent, pair(code), code + ' keeps its RI pair as text');
+      assert.equal(badge.kids.length, 1, code + ' text node was never replaced');
+      assert.equal(badge.style.color, 'transparent', code + ' is hidden by colour, not removal');
+      assert.equal(badge.getAttribute('data-mono'), null, code + ' is not a monogram');
+    }
+  });
+});
+
+test('a country without a gradient keeps a real flag badge and is never a monogram', () => {
+  withMatchMedia(noForcedColors, () => {
+    for (const code of ['TR', 'IR', 'GB', 'CA', 'AE', 'SG', 'KR', 'CN', 'IN', 'BR', 'HK']) {
+      assert.equal(isAssigned(code), 1, code + ' is an assigned code');
+      const flag = pair(code);
+      assert.equal(flagOf(flag), flag, code + ' resolves to its flag pair');
+      const badge = badgeFor(flag);
+      assert.equal(badge.textContent, flag, code + ' keeps the platform emoji');
+      assert.equal(badge.getAttribute('data-mono'), null, code + ' never falls to a monogram');
+      assert.equal(badge.style.background, undefined, code + ' gets no gradient');
+      assert.notEqual(badge.style.color, 'transparent', code + ' stays visible');
+    }
+  });
+});
+
+test('every assigned code in the registry renders a flag and never a monogram', () => {
+  withMatchMedia(noForcedColors, () => {
+    assert.equal(ASSIGNED.length, 258, 'the registry holds 258 assigned codes');
+    const bad = [];
+    for (const code of ASSIGNED) {
+      const flag = pair(code);
+      if (flagOf(flag) !== flag) { bad.push(code + ':flagOf'); continue; }
+      const badge = badgeFor(flag);
+      if (badge.getAttribute('data-mono') !== null) bad.push(code + ':monogram');
+      if (badge.textContent !== flag) bad.push(code + ':text');
+      if (badge.style.background !== undefined && CSS_FLAGS[code] === undefined) {
+        bad.push(code + ':unexpected-gradient');
+      }
+    }
+    assert.deepEqual(bad, [], 'no assigned code may lose its flag badge');
+  });
+});
+
+test('an invalid code still falls to the monogram and never to a gradient', () => {
+  withMatchMedia(noForcedColors, () => {
+    for (const code of ['ZZ', 'XX', 'QQ']) {
+      assert.equal(isAssigned(code), 0, code + ' is not an assigned code');
+      const flag = flagOf(pair(code));
+      assert.equal(flag, '', code + ' resolves to no flag at all');
+      const badge = badgeFor(flag);
+      assert.equal(badge.getAttribute('data-mono'), '1', code + ': still the monogram branch');
+      assert.equal(badge.style.background, undefined, code + ': no gradient');
+      assert.notEqual(badge.style.color, 'transparent', code + ': never hidden');
+    }
+  });
+});
