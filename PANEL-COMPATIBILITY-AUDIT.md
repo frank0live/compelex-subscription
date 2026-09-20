@@ -1,17 +1,151 @@
 # PasarGuard + Rebecca Compatibility Audit
 
-**Phase 0 — source audit only. No implementation. No files modified.**
+**Phase 0 — source audit only. No implementation. No production files modified.**
 
 Workstream: panel compatibility. Visual template work is out of scope for this document.
 
 | | |
 |---|---|
 | Audit date | 2026-09-18 |
-| Row-Template | branch `feat/v1.2-multitemplate`, HEAD `c00a77f`, VERSION 1.1.0, tags v1.0.0 / v1.1.0 |
-| Row-Template working tree | 0 tracked modifications; only the three audit documents were untracked at refresh time |
+| Documentation correction pass | 2026-09-19 — stale counts and HEAD references corrected; no new analysis, no recommendation change (see the note below) |
+| Row-Template | branch `feat/v1.2-multitemplate`, HEAD `347f828` at audit time (**now `a012108`** — see the Phase 1 reconciliation block below), VERSION 1.1.0, tags v1.0.0 / v1.1.0 |
+| Row-Template working tree | 0 tracked source modifications; only the three audit documents differ |
 | PasarGuard source | `D:\. frank0live Main\3X-UI Template\PasarGuard Panel\panel-main` (v5.4.1) |
 | Rebecca source | `D:\. frank0live Main\3X-UI Template\Rebecca Panel\Rebecca-master` (module `github.com/rebeccapanel/rebecca`, go 1.25) |
 | Method | local source read directly; internet used only to pin third-party engine semantics |
+
+> **Documentation correction pass — 2026-09-19.** This document was written against a
+> catalogue that has since settled at **15 frozen templates**. The corrections applied were
+> mechanical and did not change any finding, option, or recommendation:
+>
+> | Corrected | Was | Now |
+> |---|---|---|
+> | `{{ end }}` count (§4.3) | ×105 | **×177** across all 15 layouts |
+> | All per-form action counts (§4.3) | ~9-template era | re-measured across all 15 layouts |
+> | Distinct action forms (§4.3) | 27 (unstated basis) | **27**, with the 27-vs-28 literal-token reconciliation now shown |
+> | Templates affected by a runtime change (§14.2, §15, §16, §17) | "all 14 artifacts" | **"all 15 artifacts"** |
+> | Lock accounting (§1.4) | already correct | **15 byte + 15 SHA = 30 lock assertions** (unchanged, cross-referenced from §20) |
+> | HEAD reference (header) | `c00a77f` | **`347f828`** |
+>
+> The architectural conclusion is **unchanged**: multi-panel support is **not approved**, and
+> the recommendation remains to keep Row-Template **3X-UI focused** (§20, now stated
+> explicitly). No source file, artifact, installer file, or `VERSION` was modified.
+
+---
+
+> ## Flag renderer coverage model — cross-reference (added 2026-09-20)
+>
+> **This document's own conclusion is unchanged by this note.** Multi-panel support remains
+> **not approved**, and the recommendation remains to keep Row-Template **3X-UI focused**
+> (§20). This block records one correction from the sibling flag workstream, because §15's
+> frozen-template impact analysis and §20's headroom argument both reference the flag
+> renderer and a reader arriving here could otherwise take the wrong number from it.
+>
+> ### The correction
+>
+> The flag renderer's `FLAGS` registry holds **six** CSS gradients (`DE FR NL JP SE US`).
+> That is the size of the *CSS renderer*, not of *country support*:
+>
+> | | Count | Behaviour |
+> |---|---|---|
+> | **Total assigned country codes** | **258** | every one resolves to a flag badge |
+> | CSS gradient rendered | **6** | `DE FR NL JP SE US` |
+> | Remaining assigned countries | **252** | keep the **native platform emoji flag** |
+> | … of those, becoming a monogram | **0** | **none — never** |
+> | Unassigned / invalid codes | — | continue to use the existing **monogram** fallback |
+>
+> **Six CSS gradients are fidelity-selected premium renderings, not coverage limits.**
+>
+> Measured by sweeping all 258 assigned codes through the real `flagOf` and the real badge
+> path: **258 flags, 0 monograms**. The coverage model is pinned by four tests in
+> `tests/explorer.test.mjs` — the six CSS flags individually, the emoji-fallback countries
+> (`TR IR GB CA AE SG KR CN IN BR HK`), the exhaustive 258-code registry sweep, and the
+> invalid-code monogram fallback (`ZZ XX QQ`). That file went **23 → 27 tests**; all pass, and
+> the addition is tests-only (+100 / −0) so **no artifact byte moved**.
+>
+> ### Why it matters to this document
+>
+> §15 predicts the change class a shared-runtime edit represents, and the flag renderer is a
+> live instance of it: it re-baselined **all 15 artifacts** and **all 30 lock assertions**.
+> The binding template `pulsenova` is at **204,542 B** — **258 B** of headroom, not the 533 B
+> §20 quotes. That strengthens §20's first argument rather than weakening it, and it is the
+> figure any panel work must be measured against.
+>
+> Nothing in this document's findings, options or recommendation changes. `VERSION` is still
+> 1.1.0; nothing is pushed and no tag exists.
+
+> ## Phase 1 reconciliation — 2026-09-20 (documentation only)
+>
+> **This document's own conclusion is unchanged.** Multi-panel support is still **not
+> approved**, and the recommendation is still to keep Row-Template **3X-UI focused** (§20).
+> Nothing below alters a finding, an option or a recommendation. It records only that the
+> tree has moved, and that the change class §15 describes has now occurred once — by a
+> different workstream.
+>
+> ### Tree state
+>
+> | | At audit time | **Now** |
+> |---|---|---|
+> | HEAD | `347f828` | **`a012108`** |
+> | `VERSION` | 1.1.0 | **1.1.0** (unchanged) |
+> | Tags | v1.0.0 / v1.1.0 | **unchanged** — no tag on any new commit |
+> | Working tree | only the three audit documents differ | **still only the three audit documents differ** |
+> | Lock assertions | 15 byte + 15 SHA = **30** | **30** — same count, all re-baselined |
+>
+> Three commits landed between the audited HEAD and the current one:
+> `46abb7e` (`perf: compact country code registry`) → `9a37123` (`docs: make preview
+> capture reproducible across days`) → `4a95cbc` (`feat: paint assigned country flags
+> without an image`) → `a012108` (`docs: refresh template previews for flag renderer`).
+> These belong to the **flag-renderer workstream**, not to this one. Nothing is pushed, no
+> tag was created, and `VERSION` did not move.
+>
+> ### §15's central prediction has now been exercised once
+>
+> §15.1 states that any edit to a file concatenated into an artifact changes every artifact
+> that includes it, and §15.2 predicts that editing any `src/scripts/*.js` affects **all 15**
+> artifacts and re-baselines all 15 byte-locks. That prediction is now a measured event,
+> not a projection:
+>
+> | §15.2 row | Predicted | **Observed (flag renderer, `4a95cbc`)** |
+> |---|---|---|
+> | Edit any `src/scripts/*.js` | **all 15**; all 15 re-baseline | **exactly that** — `src/scripts/flag.js` (+55) and `src/scripts/explorer.js` (+2) moved **all 15** artifacts by a uniform **+890 B**, and all **30** lock assertions were re-baselined |
+> | Edit `src/index.html` | none; 0 re-baseline | still untested — `src/index.html` remains dead code and was not touched |
+> | Edit one `src/templates/<id>/*.css` | that template only; 1 re-baseline | not exercised |
+>
+> **The mechanism behaved exactly as §15 describes.** A two-file shared-runtime edit is a
+> global re-freeze; there is no such thing as a local change to the concatenated runtime.
+> That is the strongest available evidence for §20's first argument, and it was obtained
+> the expensive way.
+>
+> ### §20 item 3 — the headroom figure
+>
+> §20 argues against the work partly on the ground that the binding template `pulsenova`
+> holds "only 533 B of headroom". **The current figure is 258 B**, not 533 B:
+> `pulsenova` is now **204,542 B** against the 204,800 B ceiling. The argument is
+> therefore stronger than §20 states, not weaker. (Sequence: 204,267 B / 533 B at the
+> audited HEAD → 203,652 B / 1,148 B after `46abb7e` reclaimed 615 B → 204,542 B / 258 B
+> after the renderer.) **The whole catalogue remains under the ceiling — 0 of 15 artifacts
+> exceed 204,800 B.**
+>
+> ### §14.3 — a note on scope, not a contradiction
+>
+> §14.3 lists `src/scripts/{…,explorer,…,flag,…}.js` as **"explicitly NOT to be touched"**.
+> That remains correct **as a constraint on this workstream's own change surface** — this
+> audit still proposes no change to any of those files. It is not a claim that the files
+> are immutable: the flag-renderer workstream changed `flag.js` and `explorer.js` in
+> `4a95cbc`, which is precisely why §15's re-freeze occurred. Readers comparing the two
+> documents should not read §14.3 as a statement that these files are still at their
+> `347f828` contents.
+>
+> ### Unaffected
+>
+> §0's headline findings, the PasarGuard and Rebecca source audits (§2, §3), the engine
+> comparison (§4), the data-contract and protocol matrices (§5, §6), the live/status,
+> activation, caching, security and installer analyses (§7–§11), the compatibility matrix
+> (§12), the adapter schema (§13), the phase plan (§16), the test strategy (§17), the VPS
+> analysis (§18) and the open questions (§19) are all statements about the *panels*, and
+> none of them is touched by the flag renderer. Appendix B's hygiene record describes what
+> **this** audit did and remains accurate for it.
 
 ---
 
@@ -83,6 +217,15 @@ A template is therefore:
 > by any template** — it remains in the tree as dead code. The earlier revision of this
 > audit described 8 templates owning a layout and 6 sharing `src/index.html`; that is
 > obsolete.
+>
+> **The registry `layout` field is vestigial — do not read it as the source of truth.**
+> `tools/templates.mjs` declares `layout: true` on only **13 of the 15** entries
+> (`editorial` and `canvas` omit it), yet both of those templates *do* own and use a
+> `layout.html` (`src/templates/editorial/layout.html`, `src/templates/canvas/layout.html`).
+> The field is decorative: **no tool and no test reads `tpl.layout`.** Layout selection is
+> decided purely by `existsSync()` on the filesystem, which is why the registry flag can
+> disagree with reality without breaking anything. Any future work that branches on
+> `layout` would introduce a bug on the two templates that omit it.
 
 **Consequence for this workstream:** the *visual* layer is pure CSS and is 100 % portable
 across panels. Only the shell (HTML + the 27 Go-template actions it contains) is
@@ -95,7 +238,7 @@ contain exactly once (`announce-slot`, `announce-source`, `bar-slot`, `brand-mar
 `traffic-caption`, `traffic-trailing`, `traffic-value`, `updated-slot`).
 `validateLayout()` throws on any missing or duplicated hook.
 
-> **Corrected: 79, not 78.** Verified from `tools/build.mjs` at HEAD `c00a77f`
+> **Corrected: 79, not 78.** Verified from `tools/build.mjs` at HEAD `347f828`
 > (`REQUIRED_HOOKS.length === 79`). All 15 templates satisfy it.
 >
 > **The shared-shell exemption no longer applies.** Every template is validated, because
@@ -828,31 +971,50 @@ The complete Go-template vocabulary actually used across **all 15
 `layout.html` files** is **27 distinct action forms**, and it is closed:
 
 ```
-{{ end }}                        ×105
-{{ else }}                       × 69
-{{ if .enabled }}                × 27
-{{ .subTitle }}                  × 27
-{{ .subUrl }}                    × 24
-{{ if .subTitle }}               × 18
-{{ .subSupportUrl }}             × 18
-{{ range .links }}               ×  9
-{{ if eq .totalByte 0 }}         ×  9
-{{ if eq .expire 0 }}            ×  9
-{{ if .subSupportUrl }}          ×  9
-{{ if .remained }}               ×  9
-{{ if .isOnline }}               ×  9
-{{ else if lt .expire 0 }}       ×  9
+{{ end }}                        ×177
+{{ else }}                       ×117
+{{ if .enabled }}                × 45
+{{ .subTitle }}                  × 45
+{{ .subUrl }}                    × 42
+{{ if .subTitle }}               × 30
+{{ .subSupportUrl }}             × 30
+{{ range .links }}               × 15
+{{ if eq .totalByte 0 }}         × 15
+{{ if eq .expire 0 }}            × 15
+{{ if .subSupportUrl }}          × 15
+{{ if .remained }}               × 15
+{{ if .isOnline }}               × 15
+{{ else if lt .expire 0 }}       × 15
 {{ .used }} {{ .uploadByte }} {{ .totalByte }} {{ .total }}
 {{ .subJsonUrl }} {{ .subClashUrl }} {{ .remained }}
 {{ .lastOnline }} {{ .expire }} {{ .downloadByte }}
-{{ .datepicker }} {{ .announce }} {{ . }}
-{{ if .subUrl }}                 ×  6
+{{ .datepicker }} {{ .announce }}
+{{ if .subUrl }}                 × 12
 ```
 
 That is: `if` / `else` / `else if` / `end`, one `range` with `.`, field emission, `eq`,
 `lt`, and truthiness of a string. **A deterministic transpiler for this vocabulary is a
 small, testable build-time tool** — not a general Go-template implementation. This is the
 key feasibility finding for the adapter design.
+
+**How the 27 is derived (so the count is checkable).** The enumeration above is **19 lines**
+and names **27 forms**. Four of those lines group several literal tokens each (the
+`.used` / `.subJsonUrl` / `.lastOnline` / `.datepicker` lines), which is why the line count
+and the form count differ:
+
+- **27 forms** = the 15 single-token lines plus the 12 forms named on the four grouped lines
+  (`.used` `.uploadByte` `.totalByte` `.total` · `.subJsonUrl` `.subClashUrl` `.remained` ·
+  `.lastOnline` `.expire` `.downloadByte` · `.datepicker` `.announce`).
+- **28 distinct literal tokens** = those 27, plus the bare `{{ . }}` — **× 15** — which
+  appears only inside the `range .links` body. It is the range-body context emission, not an
+  independent action, so it is counted *with* `range` rather than as its own form. That is
+  the single difference between the 28 raw tokens and the 27-form vocabulary.
+
+**Why the totals are not all multiples of 15.** Twelve of the 15 templates are byte-identical
+in template structure (12 `end`, 8 `else`, 3 `.subUrl`, 2 `if .subUrl`). Three — `canvas`,
+`saffron` and `signature` — carry one fewer of each (11 `end`, 7 `else`, 2 `.subUrl`, 0
+`if .subUrl`), because they omit the conditional sub-URL block. That is the whole of the
+variance, and it is the reason `{{ end }}` totals 177 (12 × 12 + 3 × 11) rather than 180.
 
 Escaping is the part that does *not* transpile cleanly: Go's contextual autoescaping
 (notably URL filtering in `href`/`value` and `ZgotmplZ` for unsafe schemes) has no
@@ -1243,8 +1405,8 @@ Nothing below has been changed. This is the predicted change surface.
 |---|---|---|
 | `tools/build.mjs` | register a new build target; `APP` order may become per-target | **additive if the default path and output are untouched**; any change to `APP`/`BOOT` content changes all artifacts |
 | `tools/templates.mjs` | expose the registry to the panel builder | read-only use → no drift |
-| `src/scripts/live.js` | only for §13.4 option B | **changes all 14 artifacts** |
-| `src/scripts/model.js` | only if the island gains new fields | **changes all 14 artifacts** |
+| `src/scripts/live.js` | only for §13.4 option B | **changes all 15 artifacts** |
+| `src/scripts/model.js` | only if the island gains new fields | **changes all 15 artifacts** |
 | `src/index.html`, `src/templates/*/layout.html` | only if the canonical shell replaces them | **changes the affected artifacts** |
 | `installer/lib/row-template.sh` | per-panel activation strategy | no artifact drift |
 | `tests/build.test.mjs` | new `FROZEN_ARTIFACTS` rows for panel artifacts | additive rows; existing rows unchanged |
@@ -1301,7 +1463,7 @@ every `src/templates/*/*.css`, `src/locales/**`, and the shells.
   tested before the canonical shell replaces anything.
 
 **No frozen artifact will be invalidated silently. If Phase 2 is approved, the re-baseline
-must be explicit, accompanied by a byte-diff review of all 14 artifacts, and signed off by
+must be explicit, accompanied by a byte-diff review of all 15 artifacts, and signed off by
 the design workstream.**
 
 ---
@@ -1311,12 +1473,12 @@ the design workstream.**
 | Phase | Scope | Artifact drift | Depends on |
 |---|---|---|---|
 | **P0** | This audit | none | — |
-| **P1** | Canonical shell + transpiler + **golden test proving the Go output is byte-identical to today's 14 artifacts** | none | P0 |
+| **P1** | Canonical shell + transpiler + **golden test proving the Go output is byte-identical to today's 15 artifacts** | none | P0 |
 | **P2** | Normalized model + adapter interface + adapter unit tests against recorded payloads | none | P1 |
 | **P3** | PasarGuard adapter + Jinja emitter + build target + structural gate | none (new output tree) | P2; **blocked by §2.0** |
 | **P4** | Rebecca adapter + pongo2 emitter + build target + structural gate | none | P2 |
 | **P5** | Installer: per-panel activation strategy; verification; docs | none | P3, P4 |
-| **P6** | *(optional, separately approved)* live polling — §13.4 option B | **all 14 re-baseline** | design-workstream sign-off |
+| **P6** | *(optional, separately approved)* live polling — §13.4 option B | **all 15 re-baseline** | design-workstream sign-off |
 | **P7** | Runtime validation on real servers | none | P3–P5 |
 
 P1's byte-identity test is the gate that makes the whole plan safe: if the transpiler
@@ -1436,9 +1598,9 @@ where that gets resolved without contaminating anything.
    of them is a **visual/product** decision that belongs to the design workstream, not to
    this one. Default assumption here: **do not use them**; emit them only if the design
    workstream asks.
-6. **Phase 2 appetite.** Is live polling on PasarGuard/Rebecca worth re-baselining all 14
-   frozen byte-locks, or is "no live polling, graceful degradation" the intended end state
-   for the first release?
+6. **Phase 2 appetite.** Is live polling on PasarGuard/Rebecca worth re-baselining all 15
+   frozen byte-locks — **30 lock assertions** (15 byte + 15 SHA, §1.4), or is "no live
+   polling, graceful degradation" the intended end state for the first release?
 7. **Per-admin templates.** Both new panels support per-admin template overrides. Should
    the installer configure the global setting only (simpler, one page for everyone), or
    also offer per-admin installation?
@@ -1451,6 +1613,45 @@ where that gets resolved without contaminating anything.
 10. **Artifact size budget.** Adding a panel descriptor to the island is a few dozen bytes;
     transpiled shells may differ slightly in length. Confirm that panel artifacts share the
     same 204,800-byte ceiling and that this is acceptable.
+
+---
+
+## 20. Architectural conclusion
+
+**Multi-panel support is NOT approved. The recommendation is that Row-Template stays
+3X-UI focused.** This section is the durable record of that conclusion; it was reached in
+the Phase 0 architecture review and is unchanged by the 2026-09-19 documentation
+correction pass.
+
+| Question | Answer |
+|---|---|
+| Is multi-panel support required? | **Not established.** Nothing in the product brief or the current release plan requires it. It is a *possibility*, not a requirement, and it must not be treated as a commitment. |
+| Should Row-Template remain 3X-UI focused? | **Yes.** 3X-UI is the only engine whose template syntax the shells are authored in, the only one with contextual autoescaping, and the only one the installer, the serving contract and the real-server validation actually target. |
+| Adapters, exporters, separate render targets, or something else? | **The distinction is a false one for this artifact.** In a self-contained file the "adapter" has nowhere to live at runtime — normalization must be emitted *into* the template — so an exporter and an adapter are the same artifact. The only honest framing is a **build-time transpiler plus a per-engine emitter**, which is strictly more work than the audit's option list implies. |
+
+**Why the answer is "do not implement" rather than "implement carefully":**
+
+1. **The cost is a global re-freeze, not a local change.** The runtime is inlined into
+   every artifact, so any shared-runtime change invalidates **30 lock assertions**
+   (15 byte + 15 SHA, §1.4) across **all 15 artifacts** plus the released payload. That is
+   affordable once, deliberately — not speculatively.
+2. **It trades a security guarantee for a feature nobody has asked for.** Go's contextual
+   autoescaping and URL-scheme filtering (`ZgotmplZ`) have **no equivalent** in Jinja2 or
+   pongo2 (§10). Both new panels would leave URL schemes unfiltered in attribute context.
+   That is a *regression* against the current 3X-UI behaviour, and it is the single
+   strongest argument against the work.
+3. **Maintainability is the scarce resource.** Three engines means three escaping models,
+   three activation paths, three caching behaviours and three failure modes to test —
+   against a catalogue of 15 frozen templates with a 204,800-byte ceiling and a binding
+   template (`pulsenova`) holding only 533 B of headroom.
+4. **Nothing here is foreclosed.** The Phase 1 design (§13, §15.3) is deliberately
+   **additive with zero byte-lock drift**, so the option can be taken later at the same
+   cost. Deferring loses nothing.
+
+**What would change the answer:** an explicit product decision that PasarGuard or Rebecca
+support is required for a named release, *and* acceptance of the escaping regression, *and*
+sign-off on the re-freeze of all 15 artifacts. Absent all three, the recommendation stands:
+**remain 3X-UI focused; implement nothing.**
 
 ---
 
@@ -1508,3 +1709,16 @@ Jinja2 ≥ 3.1.6 — `Environment` default `autoescape=False`; `FileSystemLoader
 ---
 
 PASARGUARD + REBECCA COMPATIBILITY AUDIT READY FOR REVIEW
+
+---
+
+**Reconciled 2026-09-20 — conclusion unchanged.** The verdict above stands: multi-panel
+support is **not approved**, and Row-Template stays **3X-UI focused**. What has moved is
+the tree, not the argument: `feat/v1.2-multitemplate` is now at **`a012108`**, the flag
+renderer having re-baselined all 15 artifacts and all 30 lock assertions — a live instance
+of the change class §15 predicts. The binding template `pulsenova` is now at **258 B** of
+headroom, not the 533 B §20 quotes, which strengthens rather than weakens §20's first
+argument. `VERSION` is still 1.1.0; nothing is pushed and no tag exists. See the **Phase 1
+reconciliation** block above.
+
+PASARGUARD + REBECCA COMPATIBILITY AUDIT RECONCILED — CONCLUSION UNCHANGED — 3X-UI FOCUSED

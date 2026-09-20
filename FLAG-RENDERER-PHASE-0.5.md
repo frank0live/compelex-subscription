@@ -4,6 +4,132 @@
 **Status:** cost study. No production source, test, build, template, installer or version file was modified.
 **Supersedes:** §8 of `FLAG-RENDERER-AUDIT.md` (the freeze-accounting section only). Every other finding in Phase 0 stands.
 
+> ## Coverage model reconciliation — SIX GRADIENTS ARE A SELECTION, NOT A LIMIT (added 2026-09-20)
+>
+> **Read the Phase 1 status block below with this correction in hand.** §F and §G of this
+> document search for the largest country set that fits a byte band, and the set finally taken
+> was **6**. That number is the size of the *CSS renderer*, not of *country support*. This
+> block supplies the distinction. Nothing below is rewritten; every snapshot measurement in
+> this document stands as measured.
+>
+> ### The actual final behaviour
+>
+> | | Count | Behaviour |
+> |---|---|---|
+> | **Total assigned country codes** | **258** | every one resolves to a flag badge |
+> | CSS gradient rendered | **6** | `DE FR NL JP SE US` |
+> | Remaining assigned countries | **252** | keep the **native platform emoji flag** |
+> | … of those, becoming a monogram | **0** | **none — never** |
+> | Unassigned / invalid codes | — | continue to use the existing **monogram** fallback |
+>
+> **Six CSS gradients are fidelity-selected premium renderings, not coverage limits.**
+>
+> §F's coverage tables are therefore not a statement that 252 countries are unsupported. The
+> renderer is **progressive enhancement**, exactly as §B describes: `CODES` decides whether a
+> pair is a real country at all, and `FLAGS` decides whether that country can be drawn
+> *faithfully* without an image. A code absent from `FLAGS` is not uncovered — `paintFlag()`
+> returns before painting and the badge keeps the emoji its platform already renders, which is
+> the unchanged path. §F's exclusion list (`GB, HK, CN, SG, CA, KR, SA, IN, TW, VN, MY, BR`)
+> is a list of flags that no gradient primitive draws faithfully, not a list of gaps.
+>
+> **Measured, not asserted.** A sweep of all 258 assigned codes through the real `flagOf` and
+> the real badge path returns **258 flags, 0 monograms**.
+>
+> ### Final verification evidence
+>
+> The coverage model is now pinned by tests in `tests/explorer.test.mjs`, which read the
+> **shipped source** — decoding the same 85-byte `CODES` bitmap the runtime decodes — so the
+> test list and the runtime cannot disagree:
+>
+> | Test | What it proves |
+> |---|---|
+> | `every covered flag paints its own gradient over an intact text node` | the **six CSS flags individually** — each paints its own exact gradient, keeps its text node, and is never a monogram. Previously only `DE` and `US` were asserted. |
+> | `a country without a gradient keeps a real flag badge and is never a monogram` | the **emoji fallback countries** — `TR IR GB CA AE SG KR CN IN BR HK` |
+> | `every assigned code in the registry renders a flag and never a monogram` | the **exhaustive 258-code registry sweep** — the permanent proof of coverage |
+> | `an invalid code still falls to the monogram and never to a gradient` | the **invalid-code monogram fallback** — `ZZ XX QQ`, routed through `flagOf` first |
+>
+> `tests/explorer.test.mjs` went **23 → 27 tests**; all pass. No production file changed: the
+> addition is tests-only, **+100 insertions / 0 deletions**, and all 15 artifacts remain
+> byte-identical to their committed locks.
+>
+> ### What this does *not* change
+>
+> Every measurement in §A–§J is untouched and still correct **as a snapshot value**. §D's
+> prototype costs, §E's fidelity verification and §J's platform table all hold. The binding
+> figure is unchanged: `pulsenova` **204,542 B**, **258 B** headroom.
+
+> ## Phase 1 status — IMPLEMENTED AND COMMITTED (added 2026-09-20)
+>
+> **This document is a snapshot and is left intact.** Every byte figure, hash and lock
+> count in it remains the value actually measured on 2026-09-18 and is *not* rewritten.
+> What follows records only what has changed since, so the snapshot stays honest and the
+> current numbers are on the record beside it.
+>
+> **The verdict this document reaches — §J13, "WAIT FOR LARGER SHARED-RUNTIME
+> HEADROOM" — has been superseded by an explicit decision to implement.** The renderer
+> shipped on 2026-09-20.
+>
+> ### Current state
+>
+> | | Snapshot (this document) | After the `CODES` bitmap | **Now (shipped)** |
+> |---|---|---|---|
+> | `pulsenova` | 204,417 | 203,652 | **204,542** |
+> | Binding headroom | **383 B** | 1,148 B | **258 B** |
+> | `CODES` representation | 907 B list | 292 B bitmap | 292 B bitmap |
+> | Commits | none (all staged) | `46abb7e` | **`a012108`** |
+>
+> Tree: `feat/v1.2-multitemplate` @ **`a012108`**, `VERSION` 1.1.0, nothing pushed, no tag.
+> The renderer is `4a95cbc`; the deterministic preview refresh is `a012108`.
+>
+> ### What was taken, and how it compares with §F and §G
+>
+> | | This document predicted | **Actually shipped** |
+> |---|---|---|
+> | Set at `n = 6` | `DE FR NL JP RU UA` | **`DE FR NL JP SE US`** |
+> | Net cost at `n = 6` | **+553 B** | **+890 B** |
+> | Tightest headroom after | −20 B (over the ceiling) | **258 B** (under it) |
+>
+> **The set differs, and so does the cost.** `RU` and `UA` — cheap 3-band geometries —
+> were not taken; `SE` (Nordic cross, 154 B in §E) and `US` (canton + stripes, 111–117 B)
+> were, and both are the expensive end of the per-flag range this document measured. §6 of
+> the audit requires those two to be signed off individually, and they were, as documented
+> in the source comment.
+>
+> The **+890 B** against a predicted **+553 B** is a 337 B miss, and it decomposes exactly:
+> the `flag.js` built section grew 1,250 → 2,108 B (**+858** — 507 B of `FLAGS` literal,
+> 350 B of `paintFlag()` and the forced-colors guard, 1 B of separator), and the
+> `explorer.js` call site adds **+32 B**. The implementation also writes
+> `style.color = 'transparent'` alongside the background — a detail §D and §E did not
+> model, and a deliberate one: keeping the text node preserves the badge's geometry.
+>
+> ### The `CODES` bitmap landed — at 615 B, not 649 B
+>
+> §F and §J11 price the bitmap at **−649 B**. Measured on the real artifact it is
+> **−615 B**, uniformly across all 15 templates: the packed block is **292 B**, not the
+> 258 B predicted, because the decoder costs ~176 B rather than ~142 B. It still clears
+> §13's "net ≤ −600 B" bar, and it still lands before the renderer, exactly as §J13's
+> sequenced recommendation required. Confirmed: 85 bytes, 258 codes, 116-character
+> base64, `ZW` preserved.
+>
+> ### What this does to §G's bands
+>
+> §G asks which cost bands fit. Against the **258 B** now available, **no band fits** —
+> not even §G's narrowest, `< +383 B` (n = 3 at +382 B), which this document already
+> rejected as landing on the line. The bands are not invalidated; they are simply moot,
+> because the headroom they were measured against (383 B, then 533 B) was consumed by the
+> bitmap's reclaim being spent on a renderer that costs more per flag than the 77.8 B mean.
+>
+> ### What is unchanged
+>
+> §B (progressive enhancement), §C (`flagOf()` keeps its shape), §E's validity, RTL,
+> security and `verify.mjs` findings, and §J3's proof that uncovered flags do not regress
+> all hold as written, and the shipped implementation matches them. `CODES` was retained
+> and is load-bearing, exactly as §B and §J11 insist.
+>
+> **Full detail — the shipped file list, the seven §13 requirements, the per-artifact size
+> table and the lock accounting — is in the Phase 1 status block of
+> `FLAG-RENDERER-AUDIT.md`.**
+
 > **Phase 0.6 note.** `FLAG-RENDERER-AUDIT.md` has since been rewritten so that it is
 > internally consistent with this document. In particular the audit no longer recommends
 > an SVG-first architecture; it adopts **family B — progressive enhancement by CSS
@@ -24,7 +150,7 @@
 > value** and is retained unaltered, because rewriting them would misrepresent what was
 > actually measured.
 >
-> What has changed since, at HEAD `c00a77f`:
+> What has changed since, at HEAD `347f828`:
 >
 > | | At this snapshot | Now |
 > |---|---|---|
@@ -34,7 +160,7 @@
 > | Exact byte / SHA assertions | 14 / 14 | **15 / 15** |
 > | Total lock assertions | 28 | **30** |
 > | Unlocked templates | `arcadenova` | **none** |
-> | Repository | no commits, all files staged | committed; HEAD `c00a77f`, tags `v1.0.0` + `v1.1.0`, `VERSION` 1.1.0 |
+> | Repository | no commits, all files staged | committed; HEAD `347f828`, tags `v1.0.0` + `v1.1.0`, `VERSION` 1.1.0 |
 >
 > `arcadenova` — described throughout this document as **provisional and not
 > byte-locked** — has since been **frozen with size + SHA** (203,310 B, sha
@@ -56,7 +182,7 @@
 `tests/build.test.mjs` — 42,762 bytes, mtime `2026-09-18 04:53:04 +0330`, sha256 `8cdebf24f4d9866ce7849c4e3039260aadc4253f0d15ea37826c48140ab1865d`
 `VERSION` = 1.1.0 · branch `feat/v1.2-multitemplate` · repository has **no commits** (all files staged as `A`)
 
-**Provisional:** `dist/templates/arcadenova/template.html` = **203,310 B**. Its `components.css` was written at `05:17:17` and its `layout.css` at `05:08:58` — both *during* this study. **Arcade Nova is not the binding authority.** Pulse Nova (`pulsenova`, 204,417 B, 383 B headroom) is the binding frozen template and is used as such throughout.
+**Provisional:** `dist/templates/arcadenova/template.html` = **203,310 B**. Its `components.css` was written at `05:17:17` and its `layout.css` at `05:08:58` — both *during* this study. **Arcade Nova is not the binding authority.** Pulse Nova (`pulsenova`) is the binding frozen template and is used as such throughout. **At the snapshot its working-tree artifact read 204,417 B (383 B headroom); the defect is now resolved and the frozen artifact is 204,267 B, so the current binding headroom is 533 B.** Every 383 B figure in this document is therefore a *conservative* snapshot value: conclusions drawn against it still hold against 533 B.
 
 **Throwaway prototypes** live in `C:\Users\itzse\AppData\Local\Temp\flagaudit\` and `D:\Temp\flagaudit\` — both outside the repository, untracked, deletable at any time.
 
@@ -114,17 +240,17 @@ Phase 0 stated "13 of 15 artifacts are pinned", "4 individual locks + 10 `FROZEN
 
 `flag.js` is concatenated into the shared app script, so **every** artifact changes:
 
-| Assertion class | Count | Invalidated by a shared-runtime change? |
-|---|---|---|
-| Exact byte assertions (4 individual + 10 loop) | **14** | **Yes — all 14** |
-| Exact SHA assertions (4 individual + 10 loop) | **14** | **Yes — all 14** |
-| **Total** | **28** | **28** |
-| `the committed artifact is not stale` (L114) | 1 | Only if `template/index.html` is *not* regenerated — a regeneration gate, not a lock |
-| Budget inequalities (`<= 200 * 1024`, `<= 203 * 1024`) | 24 | Only those whose template crosses the line — magnitude-dependent |
-| Shared-section parity (boot / locales / app / shell byte-for-byte) | — | **No** — they compare templates to each other |
-| Installer / release suites | — | No exact artifact-size or hash pins exist (`release.test.mjs` uses `<=`, `installer.test.mjs` builds its own fixtures) |
+| Assertion class | Count at snapshot | **Current** | Invalidated by a shared-runtime change? |
+|---|---|---|---|
+| Exact byte assertions (4 individual + 10 loop) | **14** | **15** (4 + 11) | **Yes — all of them** |
+| Exact SHA assertions (4 individual + 10 loop) | **14** | **15** (4 + 11) | **Yes — all of them** |
+| **Total** | **28** | **30** | **30** |
+| `the committed artifact is not stale` (L114) | 1 | 1 | Only if `template/index.html` is *not* regenerated — a regeneration gate, not a lock |
+| Budget inequalities (`<= 200 * 1024`, `<= 203 * 1024`) | 24 | 24 | Only those whose template crosses the line — magnitude-dependent |
+| Shared-section parity (boot / locales / app / shell byte-for-byte) | — | — | **No** — they compare templates to each other |
+| Installer / release suites | — | — | No exact artifact-size or hash pins exist (`release.test.mjs` uses `<=`, `installer.test.mjs` builds its own fixtures) |
 
-**Corrected figure: 28 lock assertions, not 46.** The regeneration gate and the budget inequalities are additional consequences, not lock re-baselines.
+**Corrected figure: 28 lock assertions, not 46** — *at the snapshot*. **The current figure is 30**, because `arcadenova` has since gained the 11th `FROZEN_ARTIFACTS` row. The regeneration gate and the budget inequalities are additional consequences, not lock re-baselines.
 
 ### Also corrected from Phase 0
 
@@ -331,18 +457,23 @@ Family B (emoji-keyed CSS gradient, inline paint, `try/catch` guard). "Removed" 
 
 Searched across n = 0…29 for family B:
 
-| Target | Best achievable | Codes | NET | pulsenova headroom |
-|---|---|---|---|---|
-| **< +100 B** | **nothing** — the fixed floor alone is +191 B | — | — | — |
-| **< +250 B** | **nothing** — n=0 (+191 B) covers zero flags | — | — | — |
-| **< +383 B** | n=3 | DE FR NL | +382 | **−1 B** ⚠ |
-| < +500 B | n=4 | DE FR NL JP | +440 | +57 |
-| < +750 B | n=9 | DE FR NL JP RU UA PL IT ES | +734 | +351 |
-| < +1 KB | n=10 | + SE | +889 | +506 |
+| Target | Best achievable | Codes | NET | Overrun vs. 383 B | Overrun vs. **533 B** |
+|---|---|---|---|---|---|
+| **< +100 B** | **nothing** — the fixed floor alone is +191 B | — | — | — | — |
+| **< +250 B** | **nothing** — n=0 (+191 B) covers zero flags | — | — | — | — |
+| **< +383 B** | n=3 | DE FR NL | +382 | **−1 B** ⚠ | **−151 B** |
+| < +500 B | n=4 | DE FR NL JP | +440 | +57 | −93 |
+| < +750 B | n=9 | DE FR NL JP RU UA PL IT ES | +734 | +351 | **+201** |
+| < +1 KB | n=10 | + SE | +889 | +506 | **+356** |
 
-**The +383 B band cannot be met with acceptable margin.** n=3 lands at +382 B, one byte inside the ceiling — precisely the "landing exactly on the hard ceiling" the brief rules out. n=2 (+320 B, 63 B of margin) is the largest set that is *defensible*, and 63 B is still thin for a template that is itself the tightest in the catalogue.
+**Negative = headroom still remaining; positive = the artifact crosses the 204,800 B ceiling.**
+The **383 B** column is the snapshot measurement. The **533 B** column is the same NET applied to
+the current resolved headroom (§H) — every value improves by exactly 150 B, and the
+conclusions do not change.
 
-The reason is structural: **the fixed floor of any renderer that touches the badge is ~191 B, which is 50 % of the entire remaining headroom on the binding template, before a single flag is drawn.** With the `CODES` bitmap reclaiming 649 B the picture changes completely — n=10 fits with 143 B of margin, and n=8 fits at a net cost of **+23 B**.
+**The `< +383 B` band cannot be met with acceptable margin.** n=3 lands at +382 B — one byte inside the snapshot ceiling, and still only **151 B** inside the current one, far below the ≥ 1 KB floor the audit's §10 sets. That is precisely the "landing exactly on the hard ceiling" the brief rules out. n=2 (+320 B) leaves 63 B at the snapshot and 213 B now; it is the largest set that is *defensible*, and neither margin is comfortable for a template that is itself the tightest in the catalogue.
+
+The reason is structural: **the fixed floor of any renderer that touches the badge is ~191 B — 50 % of the snapshot headroom on the binding template, and 36 % of the current 533 B — before a single flag is drawn.** With the `CODES` bitmap reclaiming 649 B the picture changes completely — n=10 fits with **293 B** of margin (143 B at the snapshot), and n=8 fits at a net cost of **+23 B**.
 
 ---
 
@@ -350,16 +481,16 @@ The reason is structural: **the fixed floor of any renderer that touches the bad
 
 | Template | Bytes at snapshot | Status |
 |---|---|---|
-| `pulsenova` | 204,417 | **binding** — frozen, byte-locked, 383 B headroom |
+| `pulsenova` | 204,417 → **204,267** | **binding** — frozen, byte-locked; 383 B headroom at the snapshot, **533 B now** (line-ending defect resolved) |
 | `arcadenova` | **203,310** | **provisional at the snapshot** — not frozen, not byte-locked then; `components.css` and `layout.css` written during this study. **Now frozen with size + SHA.** |
 
-Every impact figure in this document is computed against the **frozen 14 at the snapshot**, with `pulsenova` as the binding constraint. Arcade Nova appears only in the "all 15" counts and never determines a conclusion. **The catalogue freeze has since happened (HEAD `c00a77f`, 15 of 15 locked), so these figures can now be recomputed against a settled tree — but they are not recomputed here, because this document records what was measured at the snapshot.**
+Every impact figure in this document is computed against the **frozen 14 at the snapshot** (15 now), with `pulsenova` as the binding constraint. Arcade Nova appears only in the "all 15" counts and never determines a conclusion. **The catalogue freeze has since happened (HEAD `347f828`, 15 of 15 locked), so these figures can now be recomputed against a settled tree — but they are not recomputed here, because this document records what was measured at the snapshot.**
 
 ---
 
 ## I. Production isolation — confirmed
 
-No edits were made to `src/scripts/flag.js`, `explorer.js`, `config.js`, `verify.mjs`, any test, `tools/build.mjs`, any template, the installer, `VERSION`, or any lock hash. `VERSION` still reads 1.1.0; `template/index.html` is still 202,976 B and `dist/templates/pulsenova/template.html` still 204,417 B. No release was regenerated and no worktree was created.
+No edits were made to `src/scripts/flag.js`, `explorer.js`, `config.js`, `verify.mjs`, any test, `tools/build.mjs`, any template, the installer, `VERSION`, or any lock hash. `VERSION` still reads 1.1.0. The two artifacts quoted at the snapshot were `template/index.html` = 202,976 B and `dist/templates/pulsenova/template.html` = 204,417 B; **both are historical** — at HEAD `347f828` they read **200,999 B** and **204,267 B**. No release was regenerated and no worktree was created.
 
 The `M` entries visible in `git status` (`installer/lib/row-template.sh`, `tests/build.test.mjs`, `tests/registry.test.mjs`, `tools/templates.mjs`) are Chat 1's in-flight edits and were already present before this study began.
 
@@ -370,7 +501,7 @@ All prototypes are outside the repository in `%TEMP%\flagaudit\`.
 ## J. Decision output
 
 ### 1. Corrected freeze / lock accounting
-14 unique byte-locked templates *at the snapshot*; **14 exact byte assertions, 14 exact SHA assertions, 28 total lock assertions** — not 13 and not 46. Four individual tests (`row`, `editorial`, `canvas`, `pulsenova`) and ten `FROZEN_ARTIFACTS` rows, with **no overlap**. `arcadenova` was unlocked at the snapshot; **it is now locked, giving 15 / 15 / 15 / 30**. A shared-runtime change invalidates **all 28**, plus 1 regeneration gate and a magnitude-dependent subset of 24 budget inequalities. `CODES` holds 258 codes (not 261).
+14 unique byte-locked templates *at the snapshot*; **14 exact byte assertions, 14 exact SHA assertions, 28 total lock assertions** — not 13 and not 46. Four individual tests (`row`, `editorial`, `canvas`, `pulsenova`) and ten `FROZEN_ARTIFACTS` rows, with **no overlap**. `arcadenova` was unlocked at the snapshot; **it is now locked, giving 15 / 15 / 15 / 30**. A shared-runtime change invalidates **all 28 at the snapshot — 30 now**, plus 1 regeneration gate and a magnitude-dependent subset of 24 budget inequalities. `CODES` holds 258 codes (not 261).
 
 ### 2. Progressive-enhancement architecture
 Covered code → painted gradient badge. Uncovered-but-valid code → the existing emoji pair, untouched. No valid pair → the existing monogram. Implemented as one additive conditional in `explorer.js` (+69 B) and one constant. `CODES` becomes load-bearing and must not be removed.
@@ -390,14 +521,14 @@ Not justified. The hybrid's only purpose is to cover flags CSS cannot express, a
 ### 7. Cumulative country-set cost
 See §F. Under progressive enhancement with `CODES` retained: n=1 +252 B, n=2 +320 B, n=4 +440 B, n=8 +672 B, n=12 +1,106 B. With the `CODES` bitmap: n=8 **+23 B**, n=10 **+240 B**.
 
-### 8. Best solution under +383 B
-**n = 2 — DE, FR — at +320 B**, leaving 63 B on `pulsenova`. n=3 fits arithmetically at +382 B but leaves **1 byte**, which the brief correctly rejects. If 63 B is judged too thin (it is), the honest answer for this band is **nothing fits**.
+### 8. Best solution under +383 B *(the snapshot fit threshold; +533 B now)*
+**n = 2 — DE, FR — at +320 B**, leaving **63 B** on `pulsenova` at the snapshot and **213 B** against the current 533 B. n=3 fits arithmetically at +382 B but leaves only **1 byte** at the snapshot (151 B now), which the brief correctly rejects. If 63 B is judged too thin (it is), the honest answer for this band is **nothing fits**.
 
-### 9. Best solution under +750 B
-**n = 9 — DE FR NL JP RU UA PL IT ES — at +734 B**, leaving 351 B on `pulsenova`. With the `CODES` bitmap the same band buys n=10 (+240 B, 143 B margin) or n=8 at a net **+23 B**.
+### 9. Best solution under +750 B *(a cost band, not a fit threshold)*
+**n = 9 — DE FR NL JP RU UA PL IT ES — at +734 B**, which is **over** the ceiling by 351 B at the snapshot and by 201 B against the current 533 B — so this band does not actually fit. With the `CODES` bitmap the same band buys n=10 (+240 B, **293 B** margin) or n=8 at a net **+23 B**.
 
-### 10. Best solution under +1 KB
-**n = 10 — DE FR NL JP RU UA PL IT ES SE — at +889 B**, leaving 506 B. With the bitmap, n=10 costs +240 B and the 1 KB band is not even reached until n=12.
+### 10. Best solution under +1 KB *(a cost band, not a fit threshold)*
+**n = 10 — DE FR NL JP RU UA PL IT ES SE — at +889 B**, which is **over** the ceiling by 506 B at the snapshot and by 356 B against the current 533 B. With the bitmap, n=10 costs +240 B and the 1 KB band is not even reached until n=12.
 
 ### 11. Is removing `CODES` still desirable?
 **No — under progressive enhancement it is not merely undesirable, it is incorrect.** `CODES` is what distinguishes "a real country we cannot draw" (keep the emoji) from "not a flag at all" (monogram). Replacing it with the renderer registry would send every uncovered country to the monogram, converting an enhancement into a regression. It must stay.
@@ -427,10 +558,10 @@ Progressive enhancement **resolves the product objection** that drove the Phase 
 
 Reasoning:
 
-1. **The fixed floor is +191 B.** Any renderer that touches the badge costs 50 % of the binding template's entire 383 B headroom before a single flag is drawn. There is no design under +250 B, and none under +383 B with acceptable margin.
-2. **Two flags for 320 B is a bad trade.** DE + FR would consume 84 % of `pulsenova`'s remaining headroom to improve 2 of 258 codes. Nine flags cost 734 B and do not fit at all.
-3. **The catalogue was still moving at the snapshot.** Chat 1 rewrote `arcadenova`'s stylesheets during this study, and four files were in flight. A re-freeze then would have been re-freezing a moving target — and it would have consumed 28 lock assertions plus the release payload for a two-flag gain. **The catalogue has since settled (HEAD `c00a77f`), so the target is no longer moving; the cost, however, is now 30 settled lock assertions rather than 28 in-flight ones.**
-4. **The affordable version needs the `CODES` bitmap first.** With 649 B reclaimed, n=8 costs **+23 B net** and n=10 costs +240 B with 143 B of margin. That is a real design. Without it, the same set is +672 B and fails.
+1. **The fixed floor is +191 B.** Any renderer that touches the badge costs 50 % of the binding template's snapshot headroom (36 % of the current 533 B) before a single flag is drawn. There is no design under +250 B, and none under +533 B with acceptable margin.
+2. **Two flags for 320 B is a bad trade.** DE + FR would consume 84 % of `pulsenova`'s snapshot headroom (60 % of the current 533 B) to improve 2 of 258 codes. Nine flags cost 734 B and do not fit at all.
+3. **The catalogue was still moving at the snapshot.** Chat 1 rewrote `arcadenova`'s stylesheets during this study, and four files were in flight. A re-freeze then would have been re-freezing a moving target — and it would have consumed 28 lock assertions plus the release payload for a two-flag gain. **The catalogue has since settled (HEAD `347f828`), so the target is no longer moving; the cost, however, is now 30 settled lock assertions rather than 28 in-flight ones.**
+4. **The affordable version needs the `CODES` bitmap first.** With 649 B reclaimed, n=8 costs **+23 B net** and n=10 costs +240 B with **293 B** of margin (143 B at the snapshot). That is a real design. Without it, the same set is +672 B and fails.
 
 **Sequenced recommendation:**
 
@@ -439,8 +570,20 @@ Reasoning:
 3. **Immediately after:** land family B at **n = 8–10** as a single follow-up commit in the same freeze window, using the headroom step 2 created. Two re-freezes in one window is acceptable; two across release boundaries is not.
 4. **Never:** the hybrid, the SVG family, an embedded COLR font, or full ISO coverage. All are arithmetically impossible against a 204,800 B ceiling.
 
-**If the user wants a Windows improvement before the freeze**, the only honest option is family B at **n = 2 (DE, FR) for +320 B** — accepting that `pulsenova` drops from 383 B to 63 B of headroom and that every subsequent template must be built against that. It is defensible, it is not reckless, and it is a 2 % coverage improvement. My recommendation is not to take it.
+**If the user wants a Windows improvement before the freeze**, the only honest option is family B at **n = 2 (DE, FR) for +320 B** — accepting that `pulsenova` drops from 533 B to 213 B of headroom (383 B → 63 B at the snapshot) and that every subsequent template must be built against that. It is defensible, it is not reckless, and it is a 2 % coverage improvement. My recommendation is not to take it.
 
 ---
 
 FLAG RENDERER PHASE 0.5 COST STUDY READY FOR REVIEW
+
+---
+
+**Superseded 2026-09-20.** The line above is this document's verdict as a cost study and is
+retained as the record of it. The recommendation it reached — §J13, *WAIT FOR LARGER
+SHARED-RUNTIME HEADROOM* — was overtaken by an explicit decision to implement. The renderer
+shipped at `4a95cbc` on the deterministic preview infrastructure (`9a37123`), with the
+regenerated previews at `a012108`. The snapshot measurements in this document are
+unchanged and still correct **as snapshot values**; the current figures are in the Phase 1
+status block at the head of this document.
+
+FLAG RENDERER IMPLEMENTED — COMMITTED AT `4a95cbc` — PREVIEWS REFRESHED AT `a012108`
