@@ -1,0 +1,58 @@
+{
+  "panel": "rebecca",
+  "case": "14-missing-support",
+  "note": "no support-url header: the section is omitted",
+  "source": {
+    "route": "GET /{token}/info",
+    "version": "master",
+    "recorded": "static-read",
+    "clock": 1789732800
+  },
+  "native": {
+    "info": {
+      "id": 7,
+      "username": "alice",
+      "status": "active",
+      "used_traffic": 42949672960,
+      "lifetime_used_traffic": 98784247808,
+      "data_limit": 107374182400,
+      "expire": 1793620800,
+      "data_limit_reset_strategy": "no_reset",
+      "online_at": "2026-09-18 11:58:30",
+      "on_hold_expire_duration": null,
+      "on_hold_timeout": null,
+      "service_name": "Premium 100 GB",
+      "subscription_url": "https://sub.example.com/sub/e3b0c44298fc1c14",
+      "created_at": "2026-01-11 12:00:00",
+      "ip_limit": 0,
+      "note": null
+    },
+    "headers": {
+      "content-disposition": "attachment; filename=\"alice\"",
+      "profile-web-page-url": "https://sub.example.com/sub/e3b0c44298fc1c14",
+      "profile-title": "base64:UHJlbWl1bSAxMDAgR0I=",
+      "profile-update-interval": "12",
+      "subscription-userinfo": "upload=0; download=42949672960; total=107374182400; expire=1793620800"
+    }
+  },
+  "expected": {
+    "model": {
+      "enabled": true,
+      "online": true,
+      "download": 42949672960,
+      "upload": 0,
+      "used": 42949672960,
+      "total": 107374182400,
+      "expire": 1793620800,
+      "lastOnline": 1789732710000,
+      "subUrl": "https://sub.example.com/sub/e3b0c44298fc1c14",
+      "subJsonUrl": "",
+      "subClashUrl": "https://sub.example.com/sub/e3b0c44298fc1c14/clash-meta",
+      "title": "Premium 100 GB",
+      "supportUrl": "",
+      "announce": "",
+      "jalali": false,
+      "links": []
+    }
+  }
+}
