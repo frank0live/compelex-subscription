@@ -2640,6 +2640,24 @@ const RI_LAST = 0x1f1ff;
 const BITS = atob('fFnf7u+93d4vP5QVgNUAHgBcCbCf+xUAjQYceA9AQAMAHSv0QYFP/fz/1yVLCAABQDyPUwEAAEAAUfH953q7n5pBNARXhUAAAkAAAAAAEAAIBEAAAQ==');
 const CODES = { has(code) { const i = (code.charCodeAt(0) - 65) * 26 + code.charCodeAt(1) - 65; return (BITS.charCodeAt(i >> 3) >> (i & 7) & 1) > 0; } };
 
+const FLAGS = {
+DE:'linear-gradient(#000 33.3%,#d00 33.3% 66.6%,#fc0 66.6%)',
+FR:'linear-gradient(90deg,#039 33.3%,#fff 33.3% 66.6%,#e33 66.6%)',
+NL:'linear-gradient(#a11 33.3%,#fff 33.3% 66.6%,#249 66.6%)',
+JP:'radial-gradient(circle closest-side,#b02 0 60%,#fff 60%)',
+SE:'linear-gradient(90deg,#0000 30%,#fc0 30% 45%,#0000 45%),linear-gradient(#0000 40%,#fc0 40% 55%,#0000 55%),#06a',
+US:'linear-gradient(#3c3b6e,#3c3b6e) 0 0/40% 54% no-repeat,repeating-linear-gradient(#b22 0 7.7%,#fff 7.7% 15.4%)',
+};
+
+function paintFlag(badge, flag) {
+  if (!badge || !flag || typeof globalThis.matchMedia !== 'function') return;
+  if (globalThis.matchMedia('(forced-colors: active)').matches) return;
+  const g = FLAGS[letter(flag.codePointAt(0)) + letter(flag.codePointAt(2))];
+  if (!g) return;
+  badge.style.background = g;
+  badge.style.color = 'transparent';
+}
+
 function isIndicator(cp) {
   return cp >= RI_FIRST && cp <= RI_LAST;
 }
@@ -3995,6 +4013,7 @@ function configRow(doc, cfg, index) {
   badge.setAttribute('aria-hidden', 'true');
   if (cfg.flag) {
     badge.textContent = cfg.flag;
+    paintFlag(badge, cfg.flag);
   } else {
     badge.setAttribute('data-mono', '1');
     badge.textContent = monoLetter(cfg);

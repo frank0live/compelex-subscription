@@ -7,11 +7,19 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   protoLabel, collectExplorer, readConfigs, configName,
   renderExplorer, filterConfigs, toggleExplorer,
 } from '../src/scripts/explorer.js';
+import { flagOf } from '../src/scripts/flag.js';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const flagSource = readFileSync(join(ROOT, 'src', 'scripts', 'flag.js'), 'utf8');
+const explorerSource = readFileSync(join(ROOT, 'src', 'scripts', 'explorer.js'), 'utf8');
 
 /* A document just large enough for the explorer: text is text, elements are
    elements, and getElementById finds what was registered under an id. Nothing
@@ -30,6 +38,10 @@ class El {
     this.attrs = new Map();
     this.className = '';
     this.hidden = false;
+    /* The flag renderer writes inline declarations onto the badge, so an
+       element has to be able to hold them. A plain bag is enough: the renderer
+       only ever assigns, and the tests only ever read back what it assigned. */
+    this.style = {};
   }
   get textContent() { return this.kids.map((k) => k.textContent).join(''); }
   set textContent(v) { this.kids = [new TextNode(v)]; }
@@ -316,4 +328,158 @@ test('a language change keeps the collapsed state and relabels the control', () 
   renderExplorer(el, i18n, cfgs);
   assert.equal(names(el).length, 10, 'still expanded after a relabel');
   assert.equal(el.configToggleLabel.textContent, 'Show less');
+});
+
+/* -------------------------------------------------------------------------
+   The flag renderer. A covered country is painted as a CSS gradient over the
+   badge; every other country keeps the emoji the platform already renders, and
+   an unassigned pair keeps the monogram. The badge's text node is never
+   touched, because it is what gives the badge its size.
+   ------------------------------------------------------------------------- */
+
+/* matchMedia does not exist under node:test, and that absence is itself one of
+   the paths that has to stay safe. Each test stubs it and restores the exact
+   previous state — including the absent state — so no stub can leak onwards. */
+function withMatchMedia(value, fn) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, 'matchMedia');
+  const prev = globalThis.matchMedia;
+  if (value === undefined) delete globalThis.matchMedia;
+  else globalThis.matchMedia = value;
+  try {
+    return fn();
+  } finally {
+    if (had) globalThis.matchMedia = prev;
+    else delete globalThis.matchMedia;
+  }
+}
+
+/* The ordinary desktop answer: nothing is forced. */
+const noForcedColors = () => ({ matches: false });
+
+/* A host that forces colours answers only that query, as a real one does. */
+const forcedColors = (query) => ({ matches: query === '(forced-colors: active)' });
+
+/* The two regional indicators for an alpha-2 code, built from the block
+   arithmetic rather than typed, so the pair is always well formed. */
+function pair(code) {
+  const base = 0x1f1e6;
+  return String.fromCodePoint(base + code.charCodeAt(0) - 65, base + code.charCodeAt(1) - 65);
+}
+
+/* One rendered row carrying the given flag, so its badge can be inspected. */
+function badgeFor(flag) {
+  const cfg = {
+    raw: 'vless://u@h:443#x', protocol: 'vless', displayName: 'Server',
+    flag, copyable: true, qr: true,
+  };
+  const el = makeEl(makeDoc([]));
+  renderExplorer(el, i18n, [cfg]);
+  return el.configList.querySelector('.cfg-flag');
+}
+
+const DE_GRADIENT = 'linear-gradient(#000 33.3%,#d00 33.3% 66.6%,#fc0 66.6%)';
+const US_GRADIENT = 'linear-gradient(#3c3b6e,#3c3b6e) 0 0/40% 54% no-repeat,repeating-linear-gradient(#b22 0 7.7%,#fff 7.7% 15.4%)';
+
+test('a covered flag paints its gradient and keeps the emoji text node', () => {
+  withMatchMedia(noForcedColors, () => {
+    const badge = badgeFor(pair('DE'));
+    assert.equal(badge.textContent, pair('DE'), 'the RI pair is still the badge text');
+    assert.equal(badge.kids.length, 1, 'the text node was never replaced');
+    assert.equal(badge.style.background, DE_GRADIENT);
+    assert.equal(badge.style.color, 'transparent', 'hidden by colour, not by removal');
+    assert.equal(badge.getAttribute('data-mono'), null, 'a painted flag is not a monogram');
+  });
+});
+
+test('a covered US flag paints its stripes and canton over the same text node', () => {
+  withMatchMedia(noForcedColors, () => {
+    const badge = badgeFor(pair('US'));
+    assert.equal(badge.style.background, US_GRADIENT);
+    assert.equal(badge.style.color, 'transparent');
+    assert.equal(badge.textContent, pair('US'));
+    assert.equal(badge.kids.length, 1);
+  });
+});
+
+test('an uncovered but valid code keeps its emoji and never becomes a monogram', () => {
+  withMatchMedia(noForcedColors, () => {
+    for (const code of ['GB', 'HK', 'KR', 'CA', 'CN', 'SG', 'IR', 'TR']) {
+      const badge = badgeFor(pair(code));
+      assert.equal(flagOf(pair(code)), pair(code), code + ' is a real assigned code');
+      assert.equal(badge.textContent, pair(code), code + ' keeps the platform emoji');
+      assert.equal(badge.style.background, undefined, code + ' is not painted');
+      assert.notEqual(badge.style.color, 'transparent', code + ' stays visible');
+      assert.equal(badge.getAttribute('data-mono'), null, code + ' is not a monogram');
+    }
+  });
+});
+
+test('an unassigned pair still reaches the monogram path untouched', () => {
+  withMatchMedia(noForcedColors, () => {
+    assert.equal(flagOf(pair('ZZ')), '', 'ZZ is not an assigned code');
+    const badge = badgeFor('');
+    assert.equal(badge.getAttribute('data-mono'), '1', 'still the monogram branch');
+    assert.equal(badge.textContent, 'S', 'and it is never empty');
+    assert.equal(badge.style.background, undefined);
+    assert.notEqual(badge.style.color, 'transparent');
+  });
+});
+
+test('forced colours keeps the emoji instead of painting an empty box', () => {
+  withMatchMedia(forcedColors, () => {
+    const badge = badgeFor(pair('DE'));
+    assert.equal(badge.textContent, pair('DE'), 'the emoji is still the badge');
+    assert.equal(badge.style.background, undefined, 'nothing was painted');
+    assert.notEqual(badge.style.color, 'transparent', 'the emoji is not hidden');
+  });
+});
+
+test('a host without matchMedia falls back to the emoji without throwing', () => {
+  withMatchMedia(undefined, () => {
+    assert.equal(typeof globalThis.matchMedia, 'undefined', 'the path is really absent');
+    let badge;
+    assert.doesNotThrow(() => { badge = badgeFor(pair('DE')); });
+    assert.equal(badge.textContent, pair('DE'));
+    assert.equal(badge.style.background, undefined);
+    assert.notEqual(badge.style.color, 'transparent');
+  });
+});
+
+test('exactly the six approved codes paint, and every painted key is assigned', () => {
+  withMatchMedia(noForcedColors, () => {
+    const painted = [];
+    for (let a = 0; a < 26; a++) {
+      for (let b = 0; b < 26; b++) {
+        const code = String.fromCharCode(65 + a) + String.fromCharCode(65 + b);
+        const badge = badgeFor(pair(code));
+        if (badge.style.background !== undefined) {
+          painted.push(code);
+          assert.equal(flagOf(pair(code)), pair(code), code + ' is painted, so it must be assigned');
+          assert.equal(badge.style.color, 'transparent');
+        }
+      }
+    }
+    /* The scan is alphabetical, so compare as a set: the claim is which codes
+       paint, not the order they were found in. */
+    assert.deepEqual(painted.slice().sort(), ['DE', 'FR', 'JP', 'NL', 'SE', 'US'],
+      'the registry holds exactly the approved six, and no other code');
+  });
+});
+
+test('the renderer references no image, remote asset or URL', () => {
+  const sources = { 'flag.js': flagSource, 'explorer.js': explorerSource };
+  for (const [name, src] of Object.entries(sources)) {
+    for (const token of ['url(', 'http:', 'https:', 'data:', 'src=', 'fetch(']) {
+      assert.equal(src.includes(token), false, name + ' must not contain ' + token);
+    }
+  }
+});
+
+test('the renderer introduces no markup-parsing API', () => {
+  const sources = { 'flag.js': flagSource, 'explorer.js': explorerSource };
+  for (const [name, src] of Object.entries(sources)) {
+    for (const token of ['innerHTML', 'outerHTML', 'insertAdjacentHTML']) {
+      assert.equal(src.includes(token), false, name + ' must not contain ' + token);
+    }
+  }
 });
