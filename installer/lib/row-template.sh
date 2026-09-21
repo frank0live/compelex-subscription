@@ -801,6 +801,104 @@ rt_backups_prune() {
   done < <(rt_backups_list)
 }
 
+# --- snapshot reading (Phase 8E) ---------------------------------------------
+# READER ONLY. Nothing here writes a snapshot, and nothing here is called by an
+# existing code path — install, activate, rollback and uninstall behave exactly
+# as before. These functions exist so that a snapshot WRITER can be added later
+# without repeating the defect this section was written to avoid.
+#
+# THE DEFECT, RECORDED SO IT IS NOT REPEATED: `meta` is written by
+# rt_backup_create and read by nothing. A grep of this library returns only the
+# two writes. Anything a future format stores must be readable FIRST — a value
+# written into a file no code reads is a value no rollback can use.
+#
+# FORMAT MODEL
+#   1  the shipped 1.1.0 snapshot. No `format` key, no `manifest`, no `panels/`.
+#      ABSENT `format` MEANS FORMAT 1 — treating "absent" as "unknown" would make
+#      every existing backup unreadable.
+#   2  reserved for panel state. NOT WRITTEN BY THIS LIBRARY. A library that can
+#      read format 2 must be deployed before anything writes it.
+
+# The highest snapshot format this library can READ. Raised only when the
+# corresponding reader exists and is tested.
+RT_BACKUP_FORMAT_READABLE=1
+
+rt_backup_format() {
+  # echo the snapshot's format number (1 or 2). Return 1 — printing nothing —
+  # when the value is malformed or names a format this library cannot read.
+  # Refusing is deliberate: ignoring the parts of an unknown format we do not
+  # understand is exactly the silent half-rollback the format marker prevents.
+  local dir="$1" raw
+  [ -d "$dir" ] || return 1
+  raw="$(rt_manifest_get format "$dir/meta")"
+  [ -n "$raw" ] || { printf '1'; return 0; }          # absent => format 1
+  case "$raw" in
+    *[!0-9]*) return 1 ;;                              # malformed, e.g. "two"
+  esac
+  [ "$raw" -ge 1 ] 2>/dev/null || return 1
+  [ "$raw" -le "$RT_BACKUP_FORMAT_READABLE" ] 2>/dev/null || return 1
+  printf '%s' "$raw"
+}
+
+rt_backup_meta() {
+  # echo KEY's value from the snapshot's meta. Empty when absent — which for
+  # `format` is meaningful (format 1) and for any other key is simply "unset".
+  rt_manifest_get "$1" "$2/meta"
+}
+
+rt_backup_panels() {
+  # echo the comma-separated panels this snapshot recorded as TOUCHED. Empty for
+  # a format-1 snapshot, and empty for a format-2 snapshot that touched none —
+  # the two are distinguished by rt_backup_format, never by this being empty.
+  rt_backup_meta panels "$1"
+}
+
+rt_backup_panel_state() {
+  # echo the recorded state file for PANEL. Empty when the panel was not touched.
+  # Parsed with rt_manifest_get so a state file is DATA, never evaluated.
+  local dir="$1" panel="$2"
+  [ -n "$panel" ] || return 1
+  case "$panel" in
+    *[!a-z0-9]*) return 1 ;;                           # plain panel ids only
+  esac
+  [ -f "$dir/panels/$panel/state" ] || return 0
+  cat -- "$dir/panels/$panel/state"
+}
+
+rt_backup_manifest_check() {
+  # 0 when the snapshot's manifest is present and every file it lists still
+  # matches. A snapshot with NO manifest is format 1 and is accepted — the
+  # shipped library writes none, so requiring one would refuse every existing
+  # backup. 1 when a manifest is present but fails, which is a real corruption.
+  local dir="$1" line want rel f
+  [ -d "$dir" ] || return 1
+  [ -f "$dir/manifest" ] || return 0                 # format 1: no manifest
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    want="${line%% *}"
+    rel="${line#* }"
+    [ -n "$want" ] && [ -n "$rel" ] && [ "$rel" != "$line" ] || return 1
+    case "$rel" in
+      /*|*..*) return 1 ;;                           # absolute or traversal
+    esac
+    f="$dir/$rel"
+    [ -f "$f" ] || return 1
+    rt_verify_sha256 "$f" "$want" >/dev/null 2>&1 || return 1
+  done < "$dir/manifest"
+  return 0
+}
+
+rt_backup_snapshot_check() {
+  # the composite a future rollback will call: the existing artifact validation,
+  # then the format, then the manifest. Kept separate from rt_backup_validate so
+  # that function's behaviour is untouched.
+  local dir="$1" fmt
+  rt_backup_validate "$dir" || return 1
+  fmt="$(rt_backup_format "$dir")" || return 1
+  rt_backup_manifest_check "$dir" || return 1
+  return 0
+}
+
 # --- 3x-ui discovery ---------------------------------------------------------
 # The panel and Row-Template are deliberately independent. Discovery locates the
 # panel binary, its systemd unit and (only if present) its database; it never
