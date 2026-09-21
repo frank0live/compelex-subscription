@@ -12,6 +12,72 @@
 
 ---
 
+> ## ⚠️ CORRECTION — 2026-09-21 (Phase 8C)
+>
+> **The previous claim was incorrect.** The claim in §4 that Rebecca stores template **content** in
+> the database is **wrong**, and it materially overstated the difficulty of Rebecca activation. It
+> was found in Phase 8A while auditing activation, and is corrected here **by addition** — every
+> original finding above and below this block is preserved verbatim, as this project's convention
+> requires. Nothing has been rewritten or deleted.
+>
+> **What is actually true, in four statements:**
+>
+> 1. **The previous claim was incorrect** — Rebecca does **not** store template content in the
+>    database.
+> 2. **Rebecca stores the template selection** — a directory path and a template name — in the
+>    database. Nothing more.
+> 3. **Template content is loaded from the filesystem**, not from the database:
+>    `resolveCustomTemplatePath` → `safeJoin` → `os.Stat` → `os.ReadFile`.
+> 4. **A supported API exists for settings update** — a sudo-gated HTTP API
+>    (`PUT /api/settings/subscriptions`), so a direct database write is not required.
+>
+> ```go
+> resolveCustomTemplatePath(templateName, customDirectory, adminID)
+>   → safeJoin(baseDir, templateName) → os.Stat(path) → os.ReadFile(path)
+> ```
+>
+> **There is no content column anywhere.** A grep of every migration for
+> `content TEXT` / `content BLOB` / `template_content` / `template_body` / `body TEXT` returns
+> **zero** matches. The schema holds `custom_templates_directory VARCHAR(512) NULL` and
+> `<key>_template VARCHAR(255)` — **a directory and a name, not content.**
+>
+> The supported API:
+>
+> ```
+> PUT /api/settings/subscriptions              → UpdateSubscriptionSettings
+> PUT /api/settings/subscriptions/admins/*     → UpdateAdminSubscriptionSettings
+> ```
+>
+> Both routes are `requireSudo` (`internal/app/api/routes.go:189-190`). The CLI
+> (`rebecca_cli subscription`) offers only `get-link` / `get-config` — read paths — so it is not an
+> activation route.
+>
+> ### Was | Now
+>
+> | item | WAS (this document, §4) | NOW (corrected) |
+> |---|---|---|
+> | where template **content** lives | "in the DATABASE" | **on the filesystem**, read via `os.ReadFile` |
+> | what the DB stores | content, per admin | **a directory + a template name**, per admin |
+> | content column | implied | **does not exist** — zero matches in any migration |
+> | write mechanism | "write to the database" | **sudo HTTP API** (`PUT /api/settings/subscriptions`), DB write not required |
+> | difficulty of Rebecca activation | a **DB content write** — a new class of side effect | **two column updates or one API call** — the same class as 3X-UI's `subThemeDir` write |
+>
+> **What this changes.** The §4 conclusion — *"Rebecca is the hard case"* — **does not hold.** The
+> corrected picture is that **only 3X-UI genuinely requires a database write**; Rebecca has a
+> supported API, and PasarGuard's selection is an environment variable. The recommendation in §7 to
+> defer remains sound on other grounds (the backup gap, and the need for a design phase), but it is
+> no longer driven by Rebecca's storage model.
+>
+> **What this does NOT change.** The §4 *shape* of the finding stands: the three panels **do** use
+> three different mechanisms, and `adapter.livePath()` alone still solves nothing. The
+> three-mechanisms table remains the document's central and correct insight — one of its cells was
+> simply wrong about *what kind* of database interaction Rebecca needs.
+>
+> **Verified** in Phase 8C, claim by claim, against the Rebecca source. See
+> `INSTALLER-ACTIVATION-AUDIT.md` §4 and `INSTALLER-BACKUP-DESIGN.md`.
+
+---
+
 ## 1. The installer today
 
 | file | size | role |
@@ -195,3 +261,23 @@ operator can place them by hand. Nothing is broken today.
 ---
 
 INSTALLER MULTI-PANEL AUDIT COMPLETE — THREE DELIVERY MECHANISMS, NOT ONE — RECOMMEND PACKAGING ONLY — AWAITING APPROVAL
+
+---
+
+**STATUS UPDATE — 2026-09-21 (Phase 8C).** The banner above is left in place as the original
+verdict. Superseding status:
+
+- **"THREE DELIVERY MECHANISMS, NOT ONE" — STANDS.** This is the document's central finding and it
+  has been reinforced, not weakened, by the Phase 8A activation audit. The three panels genuinely
+  use three mechanisms: 3X-UI a database setting, PasarGuard an environment variable, Rebecca a
+  database selection *or* a sudo API.
+- **"RECOMMEND PACKAGING ONLY" — ACTED ON.** Phase 7B (commit `8a70a51`) packaged all 45 shells into
+  the release. No installer behaviour was changed, as this document recommended.
+- **The §4 Rebecca cell — CORRECTED.** See the correction block at the head of this document. The
+  claim that Rebecca stores template *content* in the database was wrong; it stores a selection and
+  reads content from the filesystem, and it offers a supported sudo API.
+- **"AWAITING APPROVAL" — SUPERSEDED.** Approval was given, and Phases 7B, 8A, 8B and 8C followed:
+  the shells were packaged, the activation audit was written, the multi-panel installer architecture
+  was designed, and this correction plus the backup design were produced.
+- **The deferral of installer activation itself — STILL IN FORCE.** Activation must not ship before
+  the backup can restore panel-side selection state. See `INSTALLER-BACKUP-DESIGN.md`.
