@@ -136,14 +136,19 @@ test('G3: the reference panel shell is byte-identical to its source layout', () 
 test('G4: the registry declares exactly three panels and one reference', () => {
   assert.deepEqual(panelIds(), ['3xui', 'pasarguard', 'rebecca']);
   assert.equal(referencePanel(), '3xui');
-  assert.deepEqual(buildablePanelIds(), ['3xui'], 'only the reference panel is buildable');
+  /* All three are buildable as of Phase 4E — every panel now carries an adapter. */
+  assert.deepEqual(buildablePanelIds(), ['3xui', 'pasarguard', 'rebecca']);
 });
 
-test('G4: a planned panel has no adapter and is refused by the builder', () => {
-  for (const id of ['pasarguard', 'rebecca']) {
-    assert.equal(resolvePanel(id).status, 'planned', id + ' must still be planned');
-    assert.equal(adapterFor(id), null, id + ' must have no adapter');
-    assert.throws(() => buildPanelShell(id, 'row'), /has no adapter/, id + ' must be refused');
+test('G4: no panel is left planned, and every panel carries an adapter', () => {
+  /* Phase 4E activated the last one. This is the assertion that keeps the
+     registry honest: a panel cannot quietly revert to `planned` without
+     failing here, and no panel can be active without an adapter. */
+  for (const id of panelIds()) {
+    const panel = resolvePanel(id);
+    assert.notEqual(panel.status, 'planned', id + ' must not be planned any more');
+    assert.ok(panel.adapter, id + ' is active, so it must carry an adapter');
+    assert.ok(adapterFor(id), id + ' must resolve an adapter');
   }
 });
 
