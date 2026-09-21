@@ -32,6 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { templateIds } from './templates.mjs';
 import { transpile, assertGoIdentity } from './transpile.mjs';
 import { buildablePanelIds, emitterFor, resolvePanel, referencePanel } from './panels.mjs';
+import { writeAllShells } from './shell.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -68,6 +69,7 @@ export function buildPanelShell(panelId, templateId) {
   return {
     panelId,
     templateId,
+    emitter: emitterFor(panelId),
     bytes: Buffer.byteLength(html, 'utf8'),
     identical: html === source,
   };
@@ -96,6 +98,15 @@ function main(argv) {
   const quiet = argv.includes('--quiet');
   const clean = argv.includes('--clean');
 
+  /* The release generator needs the panel set from the registry, the same way
+     it takes the template set from `build.mjs --list`. Printing it keeps the
+     packaging honest: a panel cannot be shipped by accident, and one that
+     exists cannot be silently left out. */
+  if (argv.includes('--list')) {
+    for (const id of buildablePanelIds()) process.stdout.write(`${id}\n`);
+    return;
+  }
+
   if (clean) {
     const dir = join(ROOT, 'dist', 'panels');
     if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
@@ -112,8 +123,15 @@ function main(argv) {
 
   /* The reference panel's output must be byte-identical to its source. If it is
      not, the transpiler has lost information and no other dialect can be
-     trusted — so this fails the build rather than reporting it. */
-  const drifted = results.filter((r) => !r.identical);
+     trusted — so this fails the build rather than reporting it.
+
+     This applies ONLY to the Go emitter, which is the identity by construction.
+     Every other dialect TRANSFORMS the shell by design — jinja2 and pongo2 both
+     rewrite `{{ .x }}` into `{{ x }}` and `{{ end }}` into `{% endif %}`, so
+     their output differs from the input and always will. Checking them here was
+     wrong: it made the panel build fail for every non-reference panel as soon as
+     one existed. */
+  const drifted = results.filter((r) => r.emitter === 'go' && !r.identical);
   if (drifted.length > 0) {
     for (const d of drifted) {
       process.stderr.write(`panel shell drift: ${d.panelId}/${d.templateId}\n`);
@@ -135,6 +153,15 @@ function main(argv) {
     process.stdout.write(`\n${results.length} shell(s) written to dist/panels/\n`);
     process.stdout.write('G1 green — the Go path is lossless\n');
   }
+
+  /* The transpiled layouts above are templates of a template: they still carry
+     the five build tokens. tools/shell.mjs fills them from the same styles,
+     boot, app and locales the 3X-UI artifacts use, producing a document that
+     can actually be served once the panel renders it. Writing both means
+     dist/panels/ is the intermediate and dist/shells/ is the finished thing. */
+  if (!quiet) process.stdout.write('\nassembled shells:\n');
+  const shells = writeAllShells({ quiet });
+  if (!quiet) process.stdout.write(`\n${shells.length} shell(s) written to dist/shells/\n`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {

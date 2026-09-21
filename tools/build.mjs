@@ -435,6 +435,19 @@ function main(argv) {
 
 export { build, buildLocales, stripModuleSyntax, validateLayout, REQUIRED_HOOKS };
 
+/* Exported for the panel shell layer (tools/shell.mjs).
+ *
+ * A panel shell is assembled from the SAME styles, boot, app and locales the
+ * 3X-UI artifacts use, so that a PasarGuard page and a 3X-UI page cannot drift
+ * apart in their CSS or their shared runtime. Duplicating that assembly in the
+ * panel layer would have made exactly that drift possible, so the functions are
+ * exported instead.
+ *
+ * This is purely additive: these are build-side helpers, never inlined into an
+ * artifact by name, so exporting them cannot move a byte of any template. The
+ * artifact comparison in the verification step proves it. */
+export { buildStyles, buildBoot, buildApp, substitute, loadLayout };
+
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   try {
     main(process.argv.slice(2));
