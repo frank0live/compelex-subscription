@@ -20,8 +20,15 @@
 #                                       # against, so it must stay Row
 #   templates/<id>/template.html        # every selectable design of this
 #   templates/<id>/template.html.sha256 # release, each with its checksum
+#   shells/<panel>/<id>/shell.html      # the assembled shell for each supported
+#   shells/<panel>/<id>/shell.html.sha256  # panel, in that panel's own dialect
 #   VERSION  install.sh  lib/row-template.sh  bin/row-template
 #   SHA256SUMS                          # inner checksums of the payload files
+#
+# The shells are PACKAGED, not installed. Nothing here places them on a target
+# host or configures a panel to use them — that is the installer's business and
+# it is deliberately untouched. Shipping them makes the release honest: the
+# product builds three panels' shells, so it should carry them.
 
 set -Eeuo pipefail
 
@@ -44,10 +51,18 @@ VERSION="$(tr -d ' \t\r\n' < "$ROOT/VERSION")"
 # drive and dies with MODULE_NOT_FOUND. A relative path is resolved against the
 # process working directory, which every platform translates correctly.
 BUILD="tools/build.mjs"
+PANEL_BUILD="tools/build-panel.mjs"
 [ -f "$ROOT/$BUILD" ] || die "missing required file: tools/build.mjs"
+[ -f "$ROOT/$PANEL_BUILD" ] || die "missing required file: tools/build-panel.mjs"
 command -v node >/dev/null 2>&1 || die "node is required to build the template artifacts."
 IDS="$(cd "$ROOT" && node "$BUILD" --list | tr '\n' ' ')" || die "cannot read the template registry."
 (cd "$ROOT" && node "$BUILD" --all --quiet) || die "template build failed."
+
+# The panel shells, built the same way and for the same reason: the payload must
+# never ship a stale one. `--list` reads the panel set from the registry, so the
+# packaging cannot drift from what the product actually supports.
+PANELS="$(cd "$ROOT" && node "$PANEL_BUILD" --list | tr '\n' ' ')" || die "cannot read the panel registry."
+(cd "$ROOT" && node "$PANEL_BUILD" --quiet) || die "panel shell build failed."
 
 # required source files
 ART_HTML="$ROOT/template/index.html"
@@ -92,6 +107,36 @@ for dir in "$ROOT/dist/templates"/*/; do
   case " $IDS " in *" $id "*) : ;; *) die "stale build output for a non-selectable template: $id" ;; esac
 done
 
+# per-panel shell store: every buildable panel, every selectable template, each
+# with its checksum. The loop order is the registry's, which is stable, and the
+# archive is sorted anyway — so the payload is byte-reproducible.
+mkdir -p "$PAY/shells"
+for panel in $PANELS; do
+  case "$panel" in
+    *[!a-z0-9]*|"") die "registry produced a non-plain panel id: $panel" ;;
+  esac
+  for id in $IDS; do
+    src="$ROOT/dist/shells/$panel/$id/shell.html"
+    [ -f "$src" ] || die "missing shell for panel $panel, template $id"
+    mkdir -p "$PAY/shells/$panel/$id"
+    cp -- "$src" "$PAY/shells/$panel/$id/shell.html"
+    ( cd "$PAY" && sha "shells/$panel/$id/shell.html" > "shells/$panel/$id/shell.html.sha256" )
+  done
+done
+
+# the same guard for the shell tree: an unexpected panel or template under
+# dist/shells would otherwise be shipped without anyone choosing it.
+for pdir in "$ROOT/dist/shells"/*/; do
+  [ -d "$pdir" ] || continue
+  panel="$(basename "$pdir")"
+  case " $PANELS " in *" $panel "*) : ;; *) die "stale shell output for a non-buildable panel: $panel" ;; esac
+  for tdir in "$pdir"*/; do
+    [ -d "$tdir" ] || continue
+    id="$(basename "$tdir")"
+    case " $IDS " in *" $id "*) : ;; *) die "stale shell output for a non-selectable template: $panel/$id" ;; esac
+  done
+done
+
 # inner SHA256SUMS: checksums of every payload file (paths relative to $NAME/).
 ( cd "$PAY" && find . -type f ! -name SHA256SUMS -print0 \
     | LC_ALL=C sort -z \
@@ -124,4 +169,6 @@ cp -- "$BOOT" "$OUT/install.sh"; chmod 755 "$OUT/install.sh"
 printf 'Release built: %s\n' "$OUT"
 printf '  %s\n' "$NAME.tar.gz  ($(wc -c < "$TARBALL" | tr -d ' ') bytes)"
 printf '  templates: %s\n' "$(printf '%s ' $IDS)"
+printf '  panels:    %s\n' "$(printf '%s ' $PANELS)"
+printf '  shells:    %s\n' "$(find "$PAY/shells" -name 'shell.html' | wc -l | tr -d ' ')"
 printf '  sha256: %s\n' "$(awk '{print $1}' "$OUT/SHA256SUMS")"

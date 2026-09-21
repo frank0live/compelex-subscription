@@ -1,10 +1,22 @@
 /* The release payload. tools/make-release.sh must ship the committed Row
    artifact as the top-level template.html — the file an OLDER installed
    library updates against, so it must stay Row — plus every selectable design
-   of the release under templates/ with its checksum sidecar, and nothing
-   else: a design that is not selectable must not ship. */
+   of the release under templates/ with its checksum sidecar, and every panel's
+   assembled shell under shells/ with its own sidecar. Nothing else: a design
+   that is not selectable must not ship, and neither must a panel that is not
+   buildable.
 
-import test from 'node:test';
+   The shells are PACKAGED, not installed. Nothing here places one on a target
+   host or configures a panel to use one — that is the installer's business and
+   it is deliberately untouched.
+
+   BUILD COST. A release build rebuilds 15 artifacts and 45 shells and gzips a
+   multi-megabyte payload; under the sandbox that costs minutes, not seconds.
+   Every test that only INSPECTS the payload therefore shares ONE build, so added
+   coverage does not add build time. Only the determinism test builds again, and
+   it must — comparing two independent runs is the whole point. */
+
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
@@ -15,6 +27,8 @@ import { fileURLToPath } from 'node:url';
 
 import { build } from '../tools/build.mjs';
 import { availableTemplateIds, TEMPLATES } from '../tools/templates.mjs';
+import { assembleShell } from '../tools/shell.mjs';
+import { buildablePanelIds, emitterFor } from '../tools/panels.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -57,39 +71,55 @@ function extractPayload(out) {
   return join(out, name);
 }
 
-test('the release payload ships Row on top and every selectable design with checksums', () => {
-  const out = mkdtempSync(join(tmpdir(), 'row-rel-'));
-  try {
+/* A release build is EXPENSIVE here — it rebuilds 15 artifacts and 45 shells and
+   gzips a multi-megabyte payload, and under the sandbox that costs minutes, not
+   seconds. Every test that only inspects the payload shares ONE build, so adding
+   coverage does not add build time. Only the determinism test builds again, and
+   it must: comparing two runs is the whole point. */
+let shared = null;
+function sharedPayload() {
+  if (shared === null) {
+    const out = mkdtempSync(join(tmpdir(), 'row-rel-shared-'));
     const r = makeRelease(out);
     assert.equal(r.status, 0, r.stderr);
-    const payload = extractPayload(out);
+    shared = { out, payload: extractPayload(out) };
+  }
+  return shared;
+}
 
-    // the top-level file an older library updates against is the Row artifact,
-    // byte for byte
-    assert.equal(readFileSync(join(payload, 'template.html')).equals(ROW), true,
-      'top-level template.html must be the committed Row artifact');
+after(() => {
+  if (shared !== null) rmSync(shared.out, { recursive: true, force: true });
+});
 
-    // the store holds exactly the selectable set — no reserved placeholder ids
-    assert.deepEqual(readdirSync(join(payload, 'templates')).sort(), availableTemplateIds().sort(),
-      'templates/ must contain exactly the available ids');
-    for (const reserved of RESERVED) {
-      assert.ok(!readdirSync(join(payload, 'templates')).includes(reserved),
-        `reserved design ${reserved} must not ship`);
+test('the release payload ships Row on top and every selectable design with checksums', () => {
+  const { payload } = sharedPayload();
+
+  // the top-level file an older library updates against is the Row artifact,
+  // byte for byte
+  assert.equal(readFileSync(join(payload, 'template.html')).equals(ROW), true,
+    'top-level template.html must be the committed Row artifact');
+
+  // the store holds exactly the selectable set — no reserved placeholder ids
+  assert.deepEqual(readdirSync(join(payload, 'templates')).sort(), availableTemplateIds().sort(),
+    'templates/ must contain exactly the available ids');
+  for (const reserved of RESERVED) {
+    assert.ok(!readdirSync(join(payload, 'templates')).includes(reserved),
+      `reserved design ${reserved} must not ship`);
+  }
+
+  // every store artifact matches its sidecar and the bytes it claims
+  for (const id of availableTemplateIds()) {
+    const file = readFileSync(join(payload, 'templates', id, 'template.html'));
+    const sha = createHash('sha256').update(file).digest('hex');
+    const sidecar = readFileSync(join(payload, 'templates', id, 'template.html.sha256'), 'utf8');
+    assert.ok(sidecar.startsWith(sha), `${id} sidecar matches its artifact`);
+    if (id === 'row') {
+      assert.equal(file.equals(ROW), true, 'row store artifact equals the top-level file');
     }
-
-    // every store artifact matches its sidecar and the bytes it claims
-    for (const id of availableTemplateIds()) {
-      const file = readFileSync(join(payload, 'templates', id, 'template.html'));
-      const sha = createHash('sha256').update(file).digest('hex');
-      const sidecar = readFileSync(join(payload, 'templates', id, 'template.html.sha256'), 'utf8');
-      assert.ok(sidecar.startsWith(sha), `${id} sidecar matches its artifact`);
-      if (id === 'row') {
-        assert.equal(file.equals(ROW), true, 'row store artifact equals the top-level file');
-      }
-      if (id === 'editorial') {
-        assert.equal(file.equals(EDITORIAL), true, 'editorial store artifact is the current build');
-        assert.ok(file.length <= 200 * 1024, 'editorial stays inside the hard ceiling');
-      }
+    if (id === 'editorial') {
+      assert.equal(file.equals(EDITORIAL), true, 'editorial store artifact is the current build');
+      assert.ok(file.length <= 200 * 1024, 'editorial stays inside the hard ceiling');
+    }
       if (id === 'canvas') {
         assert.equal(file.equals(CANVAS), true, 'canvas store artifact is the current build');
         assert.ok(file.length <= 203 * 1024, 'canvas stays inside its own budget line');
@@ -146,23 +176,71 @@ test('the release payload ships Row on top and every selectable design with chec
     for (const f of actual) {
       assert.ok(listed.has(f), `inner SHA256SUMS lists ${f}`);
     }
-  } finally {
-    rmSync(out, { recursive: true, force: true });
+});
+
+/* The shell tree. The release carries every panel's assembled shell for every
+   selectable design — packaged, not installed. Nothing here places a shell on a
+   target host or configures a panel to use one; that is the installer's business
+   and it is deliberately untouched by this phase. */
+test('the release payload ships every panel shell for every design, with checksums', () => {
+  const { payload } = sharedPayload();
+  const shellRoot = join(payload, 'shells');
+
+  // all three families, and nothing else
+  assert.deepEqual(readdirSync(shellRoot).sort(), buildablePanelIds().sort(),
+    'shells/ must contain exactly the buildable panels');
+  assert.deepEqual(buildablePanelIds().sort(), ['3xui', 'pasarguard', 'rebecca'],
+    'the three supported panels');
+
+  // every design, under every panel
+  for (const panel of buildablePanelIds()) {
+    assert.deepEqual(readdirSync(join(shellRoot, panel)).sort(), availableTemplateIds().sort(),
+      `${panel} must carry exactly the selectable designs`);
+  }
+
+  // every shell is the assembled shell, byte for byte, and its sidecar matches
+  for (const panel of buildablePanelIds()) {
+    for (const id of availableTemplateIds()) {
+      const file = readFileSync(join(shellRoot, panel, id, 'shell.html'));
+      const text = file.toString('utf8');
+      const expected = Buffer.from(assembleShell(panel, id).html);
+      assert.equal(file.equals(expected), true,
+        `${panel}/${id} must be the current assembled shell`);
+
+      const sha = createHash('sha256').update(file).digest('hex');
+      const sidecar = readFileSync(join(shellRoot, panel, id, 'shell.html.sha256'), 'utf8');
+      assert.ok(sidecar.startsWith(sha), `${panel}/${id} sidecar matches its shell`);
+
+      // complete, and in that panel's own dialect. The reference panel's emitter
+      // IS Go, so its shell correctly carries Go syntax — the "no Go" assertions
+      // apply only to the dialects that must have been rewritten.
+      assert.equal(text.includes('/*__STYLES__*/'), false, `${panel}/${id} has no unfilled token`);
+      if (emitterFor(panel) === 'go') {
+        assert.ok(text.includes('{{'), `${panel}/${id} is a Go shell and keeps Go syntax`);
+      } else {
+        assert.equal(/\{\{\s*\.[A-Za-z]/.test(text), false, `${panel}/${id} carries no Go field syntax`);
+        assert.equal(/\{\{\s*(?:if|else|end|range)\b/.test(text), false, `${panel}/${id} carries no Go tag`);
+        assert.ok(text.includes('{% if '), `${panel}/${id} carries block syntax`);
+        assert.equal(text.includes('data-template="__TEMPLATE_ID__"'), false,
+          `${panel}/${id} has no unfilled template id`);
+      }
+    }
   }
 });
 
 test('the release tarball is byte-deterministic', () => {
-  const a = mkdtempSync(join(tmpdir(), 'row-rel-a-'));
+  /* Compared against the SHARED build rather than making two more: the shared
+     one is already on disk, so this costs one extra build instead of two. The
+     comparison is identical — two independent runs, byte for byte. */
+  const { out: sharedOut } = sharedPayload();
   const b = mkdtempSync(join(tmpdir(), 'row-rel-b-'));
   try {
-    assert.equal(makeRelease(a).status, 0);
     assert.equal(makeRelease(b).status, 0);
     const version = readFileSync(join(ROOT, 'VERSION'), 'utf8').trim();
-    const ta = readFileSync(join(a, `row-template-${version}.tar.gz`));
+    const ta = readFileSync(join(sharedOut, `row-template-${version}.tar.gz`));
     const tb = readFileSync(join(b, `row-template-${version}.tar.gz`));
     assert.equal(ta.equals(tb), true, 'two release runs must produce identical tarballs');
   } finally {
-    rmSync(a, { recursive: true, force: true });
     rmSync(b, { recursive: true, force: true });
   }
 });
