@@ -950,10 +950,22 @@ test('the recursive-delete root guard is present and strict', () => {
     'and must refuse / explicitly, since containment cannot prove anything about it');
 });
 
-test('no transaction engine exists', () => {
+test('the format-2 writer does not reference a transaction engine', () => {
+  /* P2's original claim here was "no transaction engine exists".
+     P4 (2026-09-23) is the phase that adds one -- in its own file, with a loader
+     in LIB -- so that claim can no longer be made about LIB as a whole. It is
+     restated for the boundary that now exists, and the restatement is the one
+     P2 actually cared about: the WRITER must not have grown a dependency on the
+     transaction engine. The block is bounded from the format-2 writer to the
+     next top-level section, so it excludes both later loaders. */
   const lib = readFileSync(LIB, 'utf8');
-  assert.deepEqual(lib.match(/rt_[a-z_]*transaction[a-z_]*/g) || [], [],
-    'P2 adds no transaction engine');
+  const start = lib.indexOf('rt_backup_create_v2() {');
+  const end = lib.indexOf('\nrt_require_root() {');
+  assert.ok(start > 0 && end > start,
+    'the format-2 writer block must be locatable, or this check is vacuous');
+  const writer = lib.slice(start, end);
+  assert.deepEqual(writer.match(/rt_[a-z_]*transaction[a-z_]*/g) || [], [],
+    'the format-2 writer must not reference the transaction engine');
   assert.deepEqual(lib.match(/rt_[a-z_]*two_phase[a-z_]*/g) || [], []);
   assert.deepEqual(lib.match(/rt_[a-z_]*journal[a-z_]*/g) || [], []);
   /* And no panel adapter tree was created. */

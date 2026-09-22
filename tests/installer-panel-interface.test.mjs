@@ -507,10 +507,19 @@ test('no activation exists in the interface', () => {
   assert.deepEqual(calls, [], 'no activation function may be called');
 });
 
-test('no transaction engine exists', () => {
-  const all = read(LIB) + read(IFACE) + read(INDEX);
-  assert.deepEqual(all.match(/rt_[a-z_]*transaction[a-z_]*/g) || [], [],
-    'P3 adds no transaction engine');
+test('the P3 layer contains no transaction engine', () => {
+  /* P3's own purity claim, kept as P3 made it: the FROZEN LAYER must contain no
+     transaction engine.
+     P4 (2026-09-23) is the phase that adds one -- in its own file,
+     installer/lib/transaction.sh -- together with a loader in row-template.sh.
+     So LIB is no longer part of THIS check. Narrowing the subject is the honest
+     correction rather than a weakening: the original assertion was a statement
+     about the phase that wrote it, and that phase has ended. */
+  const p3 = read(IFACE) + read(INDEX);
+  assert.deepEqual(p3.match(/rt_[a-z_]*transaction[a-z_]*/g) || [], [],
+    'the frozen P3 layer must contain no transaction engine');
+  /* These four names must still not exist ANYWHERE, LIB included. */
+  const all = read(LIB) + p3;
   assert.deepEqual(all.match(/rt_[a-z_]*two_phase[a-z_]*/g) || [], []);
   assert.deepEqual(all.match(/rt_[a-z_]*journal[a-z_]*/g) || [], []);
   assert.deepEqual(all.match(/rt_[a-z_]*single_flight[a-z_]*/g) || [], []);

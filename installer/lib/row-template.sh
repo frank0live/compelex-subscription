@@ -3181,4 +3181,37 @@ if ! rt_panels_load; then
   return 1 2>/dev/null || exit 1
 fi
 
+# --- transaction engine (P4) --------------------------------------------------
+# The generic transaction engine: lock, capture, snapshot, mutate, verify,
+# commit -- and roll back exactly once when a failure lands after mutation has
+# begun. It orchestrates the frozen P3 interface and implements no panel
+# behaviour of its own; see installer/lib/transaction.sh for the contract.
+#
+# Loaded eagerly and AFTER the panel layer, for the same reason the panel layer
+# is loaded eagerly: a caller of rt_transaction_run must be able to assume the
+# engine is present rather than remembering to load it. The order is not
+# load-bearing -- neither file reads the other at load time, and the engine
+# resolves rt_panel_* at CALL time -- but a missing engine must fail loudly at
+# source time rather than surfacing as an undefined command at run time, which
+# is an exit 127 no return-code contract describes.
+rt_transaction_load() {
+  # Source the transaction engine exactly once. Idempotent, so a re-source of
+  # this library cannot double-define anything.
+  [ -n "${RT_TRANSACTION_LOADED:-}" ] && return 0
+  local dir
+  dir="$(dirname "${BASH_SOURCE[0]}")"
+  [ -f "$dir/transaction.sh" ] || {
+    rt_err "transaction engine missing: $dir/transaction.sh"; return 1; }
+  . "$dir/transaction.sh" || { rt_err "could not load the transaction engine"; return 1; }
+  RT_TRANSACTION_LOADED=1
+  return 0
+}
+RT_TRANSACTION_LOADED=""
+if ! rt_transaction_load; then
+  # Sourced: abort the source so the caller sees a failure. Executed directly:
+  # exit, since there is no caller to return to. Both paths end the run rather
+  # than leaving an engine half-loaded behind.
+  return 1 2>/dev/null || exit 1
+fi
+
 
