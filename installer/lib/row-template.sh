@@ -3139,19 +3139,46 @@ rt_install_success_screen() {
     rt_ui_kv "Enter exactly" "$RT_ROOT"
   fi
 }
+# --- panel interface (P3) -----------------------------------------------------
+# The frozen installer-side panel contract. It is sourced EXPLICITLY, not
+# globbed: the set of files that can alter installer behaviour must be fixed
+# and reviewable, and a directory glob would let a stray file join it. Both
+# files are inert at load time  --  they define functions and constants only, and
+# every public entry point reports UNAVAILABLE until P5 implements a panel.
+#
+# The order matters in one direction only: interface.sh defines the contract
+# and the internal stubs; index.sh defines the registry and dispatch that
+# interface.sh resolves against at CALL time. Neither reads the other at load
+# time, so the order is a readability choice, not a load-bearing one.
+#
+# This layer must not be sourced by a build that has no panels/ directory
+# (an older payload). That is a FAILURE rather than a silent skip: a caller
+# must never reach a panel operation and find the function simply absent,
+# because "command not found" is an exit 127 that no return-code contract
+# describes. Detectable failure beats an undefined symbol.
+rt_panels_load() {
+  # Source the frozen panel interface layer exactly once. Idempotent, so a
+  # re-source of this library cannot double-define anything.
+  [ -n "${RT_PANELS_LOADED:-}" ] && return 0
+  local dir
+  dir="$(dirname "${BASH_SOURCE[0]}")/../panels"
+  [ -d "$dir" ] || { rt_err "panel interface missing: $dir"; return 1; }
+  . "$dir/interface.sh" || { rt_err "could not load panel interface"; return 1; }
+  . "$dir/index.sh"     || { rt_err "could not load panel registry";   return 1; }
+  RT_PANELS_LOADED=1
+  return 0
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Loaded eagerly, because every caller of a panel operation should be able to
+# assume the contract is present rather than remembering to load it. A failure
+# here is loud and fatal at source time -- the same posture as a missing
+# row-template.sh in the payload -- rather than deferred to first use.
+RT_PANELS_LOADED=""
+if ! rt_panels_load; then
+  # Sourced: abort the source so the caller sees a failure. Executed
+  # directly: exit, since there is no caller to return to. Both paths end
+  # the run rather than leaving a half-loaded interface behind.
+  return 1 2>/dev/null || exit 1
+fi
 
 
