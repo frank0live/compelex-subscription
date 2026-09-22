@@ -131,11 +131,15 @@ const VERDICT = 'v="$(rt_backup_format "$SNAP" 2>/dev/null)" && printf \'%s\\n\'
 
 /* --- 2. an unknown format is rejected ------------------------------------ */
 
-test('an unknown or future format is rejected, not ignored', () => {
-  for (const raw of ['2', '3', '99', '0', 'two', '1x', '-1']) {
+test('formats 1 and 2 are readable; unknown or future formats are refused', () => {
+  /* P2 raised RT_BACKUP_FORMAT_READABLE to 2, so format 2 is now READ. This
+     test changed with the ceiling, not independently of it. */
+  for (const raw of ['3', '99', '0', 'two', '1x', '-1']) {
     const r = withSnapshot({ ...format1Files(), 'meta': `created=x\nformat=${raw}\n` }, VERDICT);
     assert.equal(r.out, 'REJECTED', `format=${raw} must be refused`);
   }
+  const two = withSnapshot({ ...format1Files(), 'meta': 'created=x\nformat=2\n' }, VERDICT);
+  assert.equal(two.out, '2', 'format 2 is readable once its reader exists');
 });
 
 test('format=1 is still accepted when written explicitly', () => {
@@ -166,7 +170,7 @@ test('a manifest that is present but unreadable fails the check', () => {
 });
 
 test('a manifest listing a file that is not there fails the check', () => {
-  const r = withSnapshot({ ...format1Files(), 'manifest': `${sha('x')} panels/3xui/state\n` },
+  const r = withSnapshot({ ...format1Files(), 'manifest': `${sha('x')}  panels/3xui/missing\n` },
     'rt_backup_manifest_check "$SNAP" && echo OK || echo FAILED');
   assert.equal(r.out, 'FAILED', 'a missing listed file must fail');
 });
@@ -192,8 +196,10 @@ test('a manifest mismatch is detected even when the artifact is intact', () => {
      file the manifest covers has changed. */
   const files = format1Files();
   const tpl = files['template.html'];
-  files['panels/3xui/state'] = 'subThemeDir=/wrong\n';
-  files['manifest'] = `${sha(tpl)} template.html\n${sha('something else')} panels/3xui/state\n`;
+  files['panels/3xui/selection.state'] = 'present\n';
+  files['panels/3xui/selection'] = '/etc/3x-ui/tampered\n';
+  files['manifest'] =
+    `${sha(tpl)}  template.html\n${sha('something else')}  panels/3xui/selection\n`;
   const r = withSnapshot(files, `
     rt_backup_validate "$SNAP" && echo validate-ok || echo validate-failed
     rt_backup_manifest_check "$SNAP" && echo manifest-ok || echo manifest-failed
@@ -207,7 +213,7 @@ test('a manifest mismatch is detected even when the artifact is intact', () => {
 
 test('a manifest path escaping the snapshot is refused', () => {
   for (const rel of ['../outside', '/etc/passwd', 'panels/../../escape']) {
-    const r = withSnapshot({ ...format1Files(), 'manifest': `${sha('x')} ${rel}\n` },
+    const r = withSnapshot({ ...format1Files(), 'manifest': `${sha('x')}  ${rel}\n` },
       'rt_backup_manifest_check "$SNAP" && echo OK || echo FAILED');
     assert.equal(r.out, 'FAILED', `${rel} must be refused`);
   }
@@ -216,13 +222,23 @@ test('a manifest path escaping the snapshot is refused', () => {
 /* --- panel state reading ------------------------------------------------- */
 
 test('panel state is read as data and never evaluated', () => {
+  /* The P2 layout: `selection.state` holds one of absent|empty|present, and
+     `selection` holds the raw value. The value below is a command substitution,
+     which must come back verbatim rather than being executed. */
   const files = format1Files();
-  files['panels/3xui/state'] = 'mechanism=db\nwas_running=1\nsubThemeDir=/etc/3x-ui/x\n';
+  files['panels/3xui/selection.state'] = 'present\n';
+  files['panels/3xui/selection'] = '/etc/3x-ui/$(touch /tmp/row-p2-reader-nope)/x';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=1\n';
   const r = withSnapshot(files, `
-    rt_backup_panels "$SNAP" | head -c0
-    rt_backup_panel_state "$SNAP" 3xui | tr '\\n' ';'
+    echo "panels:"$(rt_backup_panels "$SNAP")
+    echo "state:"$(rt_backup_panel_state "$SNAP" 3xui)
+    echo "value:"$(rt_backup_panel_selection "$SNAP" 3xui)
+    echo "evaluated:"$([ -e /tmp/row-p2-reader-nope ] && echo HAPPENED || echo none)
   `);
-  assert.match(r.out, /subThemeDir=\/etc\/3x-ui\/x/);
+  assert.match(r.out, /panels:3xui/);
+  assert.match(r.out, /state:present/);
+  assert.match(r.out, /value:\/etc\/3x-ui\/\$\(touch \/tmp\/row-p2-reader-nope\)\/x/);
+  assert.match(r.out, /evaluated:none/, 'a selection value is data, never code');
 });
 
 test('an untagged panel id is refused, so a state path cannot be crafted', () => {
@@ -240,22 +256,27 @@ test('a panel the snapshot did not touch reads as empty, not as an error', () =>
 
 /* --- 5. no writer exists without a reader -------------------------------- */
 
-test('no snapshot writer exists that the reader cannot read', () => {
-  /* THE GUARD. Phase 8D found `meta` was written by rt_backup_create and read by
-     nothing. This asserts the inverse discipline holds for the new format: no
-     code writes a `format` key, and every reader the format model needs exists.
-     If someone adds a format=2 writer without the readers, this fails. */
+test('the writer and the reader agree on the format ceiling', () => {
+  /* THE GUARD, IN ITS P2 FORM. Phase 8D found `meta` was written by
+     rt_backup_create and read by nothing. P1 asserted the inverse discipline —
+     no writer before a reader — which is why this file had to exist first. P2
+     adds the writer, so the guard moves to the property that must now hold: the
+     ceiling, the reader and the writer all name the SAME format, and the format
+     still never goes into `meta`. */
   const lib = readFileSync(LIB, 'utf8');
 
-  const writers = lib.match(/printf[^\n]*format=/g) || [];
-  assert.deepEqual(writers, [],
-    'no code may write a snapshot format key until the corresponding reader is tested');
+  assert.match(lib, /RT_BACKUP_FORMAT_READABLE=2/,
+    'the readable ceiling is 2, raised only alongside its reader');
 
-  assert.equal(/RT_BACKUP_FORMAT_READABLE=2/.test(lib), false,
-    'the readable ceiling must not be raised to 2 before a format-2 reader exists');
+  assert.ok(lib.includes(`printf '2\\n' > "$tmp/format"`),
+    'the v2 writer must emit the canonical marker file');
+
+  assert.deepEqual(lib.match(/printf[^\n]*format=/g) || [], [],
+    'no code may write a format key into meta — the marker is its own file');
 
   for (const fn of ['rt_backup_format', 'rt_backup_meta', 'rt_backup_panels',
-    'rt_backup_panel_state', 'rt_backup_manifest_check', 'rt_backup_snapshot_check']) {
+    'rt_backup_panel_state', 'rt_backup_manifest_check', 'rt_backup_snapshot_check',
+    'rt_backup_create_v2']) {
     assert.ok(new RegExp(`^${fn}\\(\\)`, 'm').test(lib), `${fn} must be defined`);
     assert.ok(ok(`type -t ${fn} >/dev/null && echo defined`), `${fn} must be sourceable`);
   }

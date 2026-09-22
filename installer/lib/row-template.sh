@@ -56,6 +56,8 @@ RT_CONFIG="$RT_ROOT/config.env"             # admin branding config (data)
 RT_VERSION_FILE="$RT_ROOT/VERSION"
 RT_LIB_DIR="$RT_ROOT/lib"
 RT_BACKUPS="$RT_ROOT/backups"
+RT_BACKUPS_V2="$RT_ROOT/backups.v2"           # format-2 snapshots (P2 only)
+RT_PANEL_STAGE="$RT_ROOT/.panel-stage"        # where an adapter stages panel state (P2)
 
 # Limits.
 RT_LOGO_MAX_BYTES=$((256 * 1024))           # raw image cap before base64
@@ -731,7 +733,11 @@ rt_safe_rmdir() {
   local d="$1"
   [ -n "$d" ] || return 1
   rt_assert_not_symlink "$d" || return 1
-  if ! rt_is_within "$RT_BACKUPS" "$d"; then
+  # Containment is required against EITHER namespace: the format-1 backups root
+  # or the format-2 one. This is a second explicitly permitted root, not a
+  # relaxation — a path inside neither is still refused, and the base itself is
+  # still refused because rt_is_within demands strict containment.
+  if ! rt_is_within "$RT_BACKUPS" "$d" && ! rt_is_within "$RT_BACKUPS_V2" "$d"; then
     rt_err "refusing to recursively delete path outside backups: $d"; return 1
   fi
   rm -rf -- "$d"
@@ -739,6 +745,23 @@ rt_safe_rmdir() {
 
 rt_backup_create() {
   # snapshot the current install into a new timestamped dir; echo its path.
+  #
+  # TWO MODES, and the default is the one every production caller uses:
+  #
+  #   rt_backup_create                 format 1, under $RT_BACKUPS. UNCHANGED.
+  #   rt_backup_create v2 [PANEL…]     format 2, under $RT_BACKUPS_V2. (P2)
+  #
+  # The mode is explicit and has NO default. Switching the no-argument form to
+  # v2 would move every new snapshot out of the directory that rt_backup_latest,
+  # rt_backups_prune and rt_cmd_rollback read — a rollback behaviour change, and
+  # P2 is required to leave rollback exactly as it is. Format-2 snapshots are
+  # also deliberately invisible to a 1.1.0 library, which discovers only
+  # $RT_BACKUPS/*/ and would otherwise half-restore one.
+  if [ "${1:-}" = "v2" ]; then
+    shift
+    rt_backup_create_v2 "$@"
+    return $?
+  fi
   local ts dir ver
   [ -f "$RT_DIST" ] || { rt_err "nothing to back up: $RT_DIST missing"; return 1; }
   ver="$(cat "$RT_VERSION_FILE" 2>/dev/null || echo unknown)"
@@ -801,39 +824,118 @@ rt_backups_prune() {
   done < <(rt_backups_list)
 }
 
-# --- snapshot reading (Phase 8E) ---------------------------------------------
-# READER ONLY. Nothing here writes a snapshot, and nothing here is called by an
-# existing code path — install, activate, rollback and uninstall behave exactly
-# as before. These functions exist so that a snapshot WRITER can be added later
-# without repeating the defect this section was written to avoid.
-#
+# --- snapshot format model (Phase 8E reader, P2 writer) -----------------------
 # THE DEFECT, RECORDED SO IT IS NOT REPEATED: `meta` is written by
 # rt_backup_create and read by nothing. A grep of this library returns only the
 # two writes. Anything a future format stores must be readable FIRST — a value
 # written into a file no code reads is a value no rollback can use.
 #
 # FORMAT MODEL
-#   1  the shipped 1.1.0 snapshot. No `format` key, no `manifest`, no `panels/`.
-#      ABSENT `format` MEANS FORMAT 1 — treating "absent" as "unknown" would make
-#      every existing backup unreadable.
-#   2  reserved for panel state. NOT WRITTEN BY THIS LIBRARY. A library that can
-#      read format 2 must be deployed before anything writes it.
+#   1  the shipped 1.1.0 snapshot. No `format` marker, no `manifest`, no
+#      `panels/`. ABSENT MEANS FORMAT 1 — treating "absent" as "unknown" would
+#      make every existing backup unreadable.
+#   2  panel state, a manifest, and a canonical `format` marker file. Written
+#      only under $RT_BACKUPS_V2, and only by rt_backup_create_v2.
+#
+# NAMESPACES
+#   $RT_BACKUPS      format-1 snapshots. The shipped 1.1.0 library discovers
+#                    this and nothing else, so a format-2 snapshot must never
+#                    land here: the old library would find a valid template.html
+#                    + sidecar, restore them, and leave the panel selection
+#                    pointing at the directory it just replaced. That is the
+#                    half-rollback, and a separate namespace prevents it
+#                    structurally rather than by convention.
+#   $RT_BACKUPS_V2   format-2 snapshots. Only a library that understands format
+#                    2 reads it.
+#
+# P2 IS INERT WITH RESPECT TO ROLLBACK. rt_backup_latest, rt_backups_prune and
+# rt_cmd_rollback are untouched and still read $RT_BACKUPS only. The v2
+# discovery helpers below exist for tests and for the phase that wires rollback
+# to v2; no production path calls them.
 
-# The highest snapshot format this library can READ. Raised only when the
-# corresponding reader exists and is tested.
-RT_BACKUP_FORMAT_READABLE=1
+# The highest snapshot format this library can READ. Raised to 2 in P2 — after
+# the format-2 reader existed and its tests passed, never before.
+RT_BACKUP_FORMAT_READABLE=2
+
+# The panel ids this library will record state for. A CLOSED SET: an id outside
+# it is refused rather than sanitised, because a panel directory we do not
+# understand is exactly the case where a rollback would act on the wrong thing.
+RT_PANEL_IDS="3xui pasarguard rebecca"
+
+rt_panel_id_ok() {
+  # 0 only for an id in the closed set above. Rejects uppercase, spaces, empty,
+  # traversal and unknown ids in one comparison — there is no partial match and
+  # no normalisation, so nothing is silently rewritten into something valid.
+  [ -n "${1:-}" ] || return 1
+  case " $RT_PANEL_IDS " in
+    *" $1 "*) return 0 ;;
+    *)        return 1 ;;
+  esac
+}
+
+rt_backup_relpath_ok() {
+  # The CLOSED grammar a snapshot manifest entry may use. The writer and the
+  # reader BOTH call this, so a path the writer emits can never be one the
+  # reader refuses — the two cannot drift apart.
+  #
+  #   allowed: A-Z a-z 0-9 . _ - /
+  #   refused: absolute, trailing slash, "." or "..", an empty component,
+  #            a "." or ".." component, >= 256 bytes, and anything outside the
+  #            allowed set — which covers every control character and space
+  local p="${1:-}"
+  [ -n "$p" ] || return 1
+  [ "${#p}" -lt 256 ] || return 1
+  case "$p" in
+    /*)                              return 1 ;;   # absolute
+    */)                              return 1 ;;   # trailing slash => directory
+    .|..)                            return 1 ;;
+    *//*)                            return 1 ;;   # empty component
+    ./|./*)                          return 1 ;;   # leading "." component
+    */./*|*/.|*/..|*/../*|../*|..)   return 1 ;;   # "." / ".." component
+  esac
+  case "$p" in
+    *[!A-Za-z0-9._/-]*)              return 1 ;;   # space, control chars, anything else
+  esac
+  return 0
+}
 
 rt_backup_format() {
   # echo the snapshot's format number (1 or 2). Return 1 — printing nothing —
-  # when the value is malformed or names a format this library cannot read.
+  # when the value is malformed, names a format this library cannot read, or
+  # when two records of the same fact disagree.
+  #
+  # SOURCES, in order of authority:
+  #   1. <snapshot>/format    the canonical marker (format 2+). Content "2\n".
+  #   2. meta's `format` key  a legacy record, read for compatibility only.
+  #   3. neither              format 1 — the shipped 1.1.0 snapshot.
+  #
   # Refusing is deliberate: ignoring the parts of an unknown format we do not
-  # understand is exactly the silent half-rollback the format marker prevents.
-  local dir="$1" raw
+  # understand is exactly the silent half-rollback the marker exists to prevent.
+  local dir="$1" canon legacy raw nbytes
   [ -d "$dir" ] || return 1
-  raw="$(rt_manifest_get format "$dir/meta")"
+
+  canon=""
+  if [ -f "$dir/format" ]; then
+    [ -L "$dir/format" ] && return 1                 # a symlinked marker is refused
+    canon="$(cat -- "$dir/format" 2>/dev/null || true)"
+    # The marker is exactly one line of digits. $(…) strips trailing newlines,
+    # so re-adding the one newline must reproduce the file's byte count: that
+    # rejects a second line, a stray CR, and a trailing blank line alike.
+    nbytes="$(wc -c < "$dir/format" 2>/dev/null | LC_ALL=C tr -cd '0-9')"
+    [ -n "$nbytes" ] || return 1
+    [ "$nbytes" -eq $(( ${#canon} + 1 )) ] 2>/dev/null || return 1
+  fi
+  legacy="$(rt_manifest_get format "$dir/meta")"
+
+  if [ -n "$canon" ] && [ -n "$legacy" ] && [ "$canon" != "$legacy" ]; then
+    rt_err "snapshot records two different formats (format file '$canon', meta '$legacy')"
+    return 1
+  fi
+
+  raw="${canon:-$legacy}"
   [ -n "$raw" ] || { printf '1'; return 0; }          # absent => format 1
   case "$raw" in
-    *[!0-9]*) return 1 ;;                              # malformed, e.g. "two"
+    *[!0-9]*) return 1 ;;                             # malformed: "two", " 1", "1 "
   esac
   [ "$raw" -ge 1 ] 2>/dev/null || return 1
   [ "$raw" -le "$RT_BACKUP_FORMAT_READABLE" ] 2>/dev/null || return 1
@@ -847,22 +949,96 @@ rt_backup_meta() {
 }
 
 rt_backup_panels() {
-  # echo the comma-separated panels this snapshot recorded as TOUCHED. Empty for
-  # a format-1 snapshot, and empty for a format-2 snapshot that touched none —
-  # the two are distinguished by rt_backup_format, never by this being empty.
-  rt_backup_meta panels "$1"
+  # echo the comma-separated panels this snapshot RECORDS STATE FOR.
+  #
+  # THE FILESYSTEM IS THE AUTHORITY, never a `panels=` key in meta. A key can
+  # claim a panel whose state is not on disk, and a rollback would then try to
+  # restore from nothing; a directory can only exist if something wrote it.
+  #
+  # Empty for a format-1 snapshot — but "empty" and "format 1" are different
+  # facts, and only rt_backup_format distinguishes them.
+  #
+  # An unknown or malformed panel directory makes the snapshot INVALID rather
+  # than being skipped: silently ignoring a panel directory we do not understand
+  # is the half-restore this model exists to prevent.
+  local dir="$1" d name out=""
+  [ -d "$dir" ] || return 1
+  [ -d "$dir/panels" ] || return 0
+  for d in "$dir/panels"/*; do
+    [ -e "$d" ] || [ -L "$d" ] || continue
+    [ -L "$d" ] && return 1                            # symlinked panel dir
+    [ -d "$d" ] || return 1                            # a file in panels/
+    name="${d##*/}"
+    rt_panel_id_ok "$name" || return 1                 # unknown / malformed id
+    if [ -n "$out" ]; then out="$out,$name"; else out="$name"; fi
+  done
+  printf '%s' "$out"
 }
 
 rt_backup_panel_state() {
-  # echo the recorded state file for PANEL. Empty when the panel was not touched.
-  # Parsed with rt_manifest_get so a state file is DATA, never evaluated.
-  local dir="$1" panel="$2"
+  # echo the SELECTION STATE recorded for PANEL: absent, empty or present.
+  # Empty output when the transaction did not touch the panel.
+  #
+  # The state file holds a bare word, read as DATA. It is never sourced and
+  # never evaluated — a snapshot is untrusted input like any other file.
+  #
+  # The three states are not decoration:
+  #   absent   the setting did not exist   -> restore by REMOVING it
+  #   empty    the setting existed, empty  -> restore by WRITING an empty value
+  #   present  the setting had a value     -> restore that value
+  # `absent` and `empty` both have no `selection` file, and that is correct:
+  # what differs is the ACTION a restore takes, which is what this file records.
+  # There are deliberately NO sentinel values inside `selection` itself —
+  # writing the word ABSENT there would conflate "the setting was empty" with
+  # "the setting's value is the literal string ABSENT".
+  local dir="$1" panel="${2:-}" st
   [ -n "$panel" ] || return 1
-  case "$panel" in
-    *[!a-z0-9]*) return 1 ;;                           # plain panel ids only
+  rt_panel_id_ok "$panel" || return 1
+  [ -d "$dir/panels/$panel" ] || return 0              # not touched
+  [ -L "$dir/panels/$panel/selection.state" ] && return 1
+  [ -f "$dir/panels/$panel/selection.state" ] || return 1
+  st="$(cat -- "$dir/panels/$panel/selection.state" 2>/dev/null || true)"
+  case "$st" in
+    absent|empty|present) : ;;
+    *) return 1 ;;
   esac
-  [ -f "$dir/panels/$panel/state" ] || return 0
-  cat -- "$dir/panels/$panel/state"
+  if [ "$st" = "present" ]; then
+    [ -L "$dir/panels/$panel/selection" ] && return 1
+    [ -f "$dir/panels/$panel/selection" ] || return 1
+  else
+    if [ -e "$dir/panels/$panel/selection" ] || [ -L "$dir/panels/$panel/selection" ]; then
+      return 1                                         # absent/empty => no selection file
+    fi
+  fi
+  printf '%s' "$st"
+}
+
+rt_backup_panel_selection() {
+  # echo the raw selection VALUE for PANEL, or nothing when the state is not
+  # `present`. Emitted verbatim as data; it is never evaluated.
+  local dir="$1" panel="${2:-}" st
+  [ -n "$panel" ] || return 1
+  st="$(rt_backup_panel_state "$dir" "$panel")" || return 1
+  [ "$st" = "present" ] || return 0
+  cat -- "$dir/panels/$panel/selection"
+}
+
+rt_backup_panel_meta_check() {
+  # 0 when a touched panel's meta is present and within the closed value sets.
+  # `mechanism` names the path a restore must use — a restore through a
+  # different path can fail in ways the original never would. `was_running` is
+  # what tells a rollback whether to restart the service or leave it stopped;
+  # without it a rollback can only guess, and guessing means either a stopped
+  # panel or starting a service the operator had deliberately shut down.
+  local dir="$1" panel="${2:-}" m w
+  [ -n "$panel" ] || return 1
+  [ -L "$dir/panels/$panel/meta" ] && return 1
+  [ -f "$dir/panels/$panel/meta" ] || return 1
+  m="$(rt_manifest_get mechanism "$dir/panels/$panel/meta")"
+  w="$(rt_manifest_get was_running "$dir/panels/$panel/meta")"
+  case "$m" in db|env|api) : ;; *) return 1 ;; esac
+  case "$w" in 0|1) : ;; *) return 1 ;; esac
+  return 0
 }
 
 rt_backup_manifest_check() {
@@ -870,19 +1046,26 @@ rt_backup_manifest_check() {
   # matches. A snapshot with NO manifest is format 1 and is accepted — the
   # shipped library writes none, so requiring one would refuse every existing
   # backup. 1 when a manifest is present but fails, which is a real corruption.
+  #
+  # The grammar here is rt_backup_relpath_ok, the SAME function the writer uses.
   local dir="$1" line want rel f
   [ -d "$dir" ] || return 1
+  [ -L "$dir/manifest" ] && return 1
   [ -f "$dir/manifest" ] || return 0                 # format 1: no manifest
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    want="${line%% *}"
-    rel="${line#* }"
+    want="${line%%  *}"                              # before the FIRST two spaces
+    rel="${line#*  }"                                # after it
     [ -n "$want" ] && [ -n "$rel" ] && [ "$rel" != "$line" ] || return 1
-    case "$rel" in
-      /*|*..*) return 1 ;;                           # absolute or traversal
+    case "$want" in
+      *[!0-9a-f]*) return 1 ;;                       # lowercase hex only
     esac
+    [ "${#want}" -eq 64 ] || return 1
+    [ "$rel" = "manifest" ] && return 1              # never hashes itself
+    rt_backup_relpath_ok "$rel" || return 1
     f="$dir/$rel"
-    [ -f "$f" ] || return 1
+    [ -L "$f" ] && return 1                          # symlinks are refused
+    [ -f "$f" ] || return 1                          # files only, and present
     rt_verify_sha256 "$f" "$want" >/dev/null 2>&1 || return 1
   done < "$dir/manifest"
   return 0
@@ -890,13 +1073,247 @@ rt_backup_manifest_check() {
 
 rt_backup_snapshot_check() {
   # the composite a future rollback will call: the existing artifact validation,
-  # then the format, then the manifest. Kept separate from rt_backup_validate so
-  # that function's behaviour is untouched.
-  local dir="$1" fmt
+  # then the format, then the manifest, then the panel state. Kept separate from
+  # rt_backup_validate so that function's behaviour is untouched.
+  #
+  # Panel state is validated here and not in rt_backup_validate, because
+  # rt_backup_validate is what the LIVE rollback path calls and P2 must not
+  # change what rollback accepts.
+  local dir="$1" panels p
   rt_backup_validate "$dir" || return 1
-  fmt="$(rt_backup_format "$dir")" || return 1
+  rt_backup_format "$dir" >/dev/null || return 1
   rt_backup_manifest_check "$dir" || return 1
+  panels="$(rt_backup_panels "$dir")" || return 1
+  [ -n "$panels" ] || return 0
+  local IFS=','
+  for p in $panels; do
+    rt_backup_panel_state "$dir" "$p" >/dev/null || return 1
+    rt_backup_panel_meta_check "$dir" "$p" || return 1
+  done
   return 0
+}
+
+# --- format-2 snapshot writer (P2) -------------------------------------------
+# INFRASTRUCTURE ONLY. This writes format-2 snapshots; it does not activate a
+# panel, restore a panel, or change what rollback reads. rt_cmd_rollback,
+# rt_backup_latest and rt_backups_prune are untouched and still see $RT_BACKUPS
+# only — see the namespace note above for why that is not an oversight.
+
+rt_backups_list_v1() {
+  # the format-1 namespace, explicitly named. Identical to rt_backups_list,
+  # which is left untouched because rollback reads it; this alias exists so the
+  # v1/v2 split is visible at every call site rather than implied.
+  rt_backups_list
+}
+
+rt_backups_list_v2() {
+  # print valid format-2 snapshot dirs, newest first. Reads $RT_BACKUPS_V2 ONLY.
+  [ -d "$RT_BACKUPS_V2" ] || return 0
+  local d
+  for d in "$RT_BACKUPS_V2"/*/; do
+    [ -d "$d" ] || continue
+    d="${d%/}"
+    case "${d##*/}" in .tmp.*) continue ;; esac      # never a half-built snapshot
+    rt_backup_snapshot_check "$d" >/dev/null 2>&1 && printf '%s\n' "$d"
+  done | LC_ALL=C sort -r
+}
+
+rt_backups_list_all() {
+  # both namespaces, newest first. NOT called by any production path in P2.
+  { rt_backups_list_v1; rt_backups_list_v2; } | LC_ALL=C sort -r
+}
+
+rt_backup_resolve() {
+  # Resolve SELECTOR to a snapshot directory, refusing anything that is not a
+  # valid format-2 snapshot inside $RT_BACKUPS_V2. A path is accepted only after
+  # containment is proven, so a caller cannot be talked into addressing a
+  # snapshot outside the namespace — which is what keeps a v2 path from being
+  # reachable through a v1-shaped code path.
+  local sel="${1:-}" d
+  [ -n "$sel" ] || return 1
+  case "$sel" in
+    /*) d="$sel" ;;
+    *)  d="$RT_BACKUPS_V2/$sel" ;;
+  esac
+  [ -d "$d" ] || return 1
+  rt_assert_not_symlink "$d" || return 1
+  rt_is_within "$RT_BACKUPS_V2" "$d" || return 1
+  rt_backup_snapshot_check "$d" >/dev/null 2>&1 || return 1
+  printf '%s' "$d"
+}
+
+rt_backup_panel_write() {
+  # Write one panel's snapshot data into a staging directory. This is the ONLY
+  # way panel state can enter a snapshot, so the closed value sets are enforced
+  # here and nothing can bypass them.
+  #
+  #   rt_backup_panel_write <stagedir> <panel> <state> [value] [mechanism] [was_running]
+  #
+  #   state        absent | empty | present
+  #   value        required iff state=present; ignored otherwise
+  #   mechanism    db | env | api            (required)
+  #   was_running  0 | 1                     (required)
+  #
+  # NO SENTINEL VALUES. `absent` and `empty` both leave the `selection` file
+  # absent; what differs is the state word, which is the instruction a restore
+  # follows.
+  #
+  # SECRETS ARE NEVER WRITTEN HERE. The function accepts no free-form key/value
+  # input at all — it writes exactly the files below, from exactly these
+  # arguments. There is no path by which an activation token could reach a
+  # snapshot, which is the property B5 requires and the reason this takes
+  # positional arguments rather than a caller-supplied meta file.
+  local snap="${1:-}" panel="${2:-}" state="${3:-}" value="${4:-}"
+  local mech="${5:-}" running="${6:-}" d
+  [ -n "$snap" ] || { rt_err "panel write: no staging directory given"; return 1; }
+  rt_panel_id_ok "$panel" || { rt_err "panel write: unknown panel id: $panel"; return 1; }
+  case "$state" in
+    absent|empty|present) : ;;
+    *) rt_err "panel write: state must be absent|empty|present, got '$state'"; return 1 ;;
+  esac
+  case "$mech" in
+    db|env|api) : ;;
+    *) rt_err "panel write: mechanism must be db|env|api, got '$mech'"; return 1 ;;
+  esac
+  case "$running" in
+    0|1) : ;;
+    *) rt_err "panel write: was_running must be 0 or 1, got '$running'"; return 1 ;;
+  esac
+  if [ "$state" = "present" ] && [ -z "$value" ]; then
+    rt_err "panel write: state=present requires a value"; return 1
+  fi
+
+  d="$snap/$panel"
+  mkdir -p "$d" || return 1
+  rm -f -- "$d/selection"
+  printf '%s\n' "$state" > "$d/selection.state" || return 1
+  if [ "$state" = "present" ]; then
+    # written with NO trailing newline: the file holds the raw value, so a
+    # restore writes back exactly what the panel reported
+    printf '%s' "$value" > "$d/selection" || return 1
+  fi
+  printf 'mechanism=%s\n' "$mech"      > "$d/meta"  || return 1
+  printf 'was_running=%s\n' "$running" >> "$d/meta" || return 1
+  return 0
+}
+
+rt_backup_manifest_write() {
+  # Write SNAPDIR/manifest: one "<sha256>  <relative-path>" line per captured
+  # file, LC_ALL=C sorted, never including the manifest itself.
+  #
+  # Deterministic: the same snapshot content always produces byte-identical
+  # output, so two snapshots of the same state compare equal.
+  #
+  # Called LAST, after every other file exists, so it cannot omit a file that
+  # was written afterwards.
+  local dir="$1" rel f
+  [ -d "$dir" ] || return 1
+  [ -L "$dir" ] && return 1
+
+  # A symlink anywhere in the snapshot is refused outright. `find -type f` does
+  # NOT report symlinks, so without this check a symlink would be silently
+  # omitted from the manifest instead of rejected.
+  if [ -n "$(cd "$dir" && find . -type l -print -quit 2>/dev/null)" ]; then
+    rt_err "refusing to manifest a snapshot containing a symlink"
+    return 1
+  fi
+
+  : > "$dir/manifest" || return 1
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    rel="${rel#./}"
+    [ "$rel" = "manifest" ] && continue              # never hashes itself
+    rt_backup_relpath_ok "$rel" || {
+      rt_err "path cannot be represented in a manifest: $rel"; return 1; }
+    f="$dir/$rel"
+    [ -f "$f" ] || continue
+    printf '%s  %s\n' "$(rt_sha256 "$f")" "$rel" >> "$dir/manifest" || return 1
+  done < <(cd "$dir" && find . -type f -print 2>/dev/null | LC_ALL=C sort)
+  return 0
+}
+
+rt_backup_create_v2() {
+  # Create a format-2 snapshot under $RT_BACKUPS_V2 and echo its final path.
+  #
+  # ATOMIC. Everything is built inside $RT_BACKUPS_V2/.tmp.XXXXXX and renamed
+  # into place only once it fully validates. The temporary name begins with a dot
+  # and is skipped by rt_backups_list_v2, so a snapshot is never visible in a
+  # half-built state: a reader sees the whole snapshot or nothing at all.
+  #
+  # PANEL STATE IS WRITTEN ONLY FOR THE PANELS NAMED, and only from what an
+  # adapter staged through rt_backup_panel_write. P2 has no adapters and
+  # auto-detects nothing: a writer that guessed which panels were touched would
+  # record state it cannot vouch for, and a rollback would act on the guess.
+  #
+  # Usage: rt_backup_create_v2 [PANEL…]
+  local tmp final ts ver tpl_id panel src d f
+  [ -f "$RT_DIST" ] || { rt_err "nothing to back up: $RT_DIST missing"; return 1; }
+
+  # 1. the namespace, safely
+  [ -L "$RT_BACKUPS_V2" ] && { rt_err "refusing to write through a symlink: $RT_BACKUPS_V2"; return 1; }
+  mkdir -p "$RT_BACKUPS_V2" || return 1
+  chmod 700 "$RT_BACKUPS_V2" 2>/dev/null || true
+
+  # 2/3. the temporary snapshot, mode 700 from the moment it exists
+  tmp="$(mktemp -d "$RT_BACKUPS_V2/.tmp.XXXXXX")" \
+    || { rt_err "could not create a temporary snapshot"; return 1; }
+  chmod 700 "$tmp" 2>/dev/null || true
+
+  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  ver="$(cat "$RT_VERSION_FILE" 2>/dev/null || echo unknown)"
+  ver="$(printf '%s' "$ver" | LC_ALL=C tr -cd 'A-Za-z0-9._-')"
+  [ -n "$ver" ] || ver="unknown"
+
+  # 4. the Row-Template state — exactly what the format-1 writer captures
+  cp -- "$RT_DIST" "$tmp/template.html" || { rt_safe_rmdir "$tmp"; return 1; }
+  rt_sha256 "$tmp/template.html" > "$tmp/template.html.sha256" \
+    || { rt_safe_rmdir "$tmp"; return 1; }
+  [ -f "$RT_CONFIG" ]       && cp -- "$RT_CONFIG" "$tmp/config.env"
+  [ -f "$RT_VERSION_FILE" ] && cp -- "$RT_VERSION_FILE" "$tmp/VERSION"
+  { printf 'created=%s\n' "$ts"; printf 'version=%s\n' "$ver"; } > "$tmp/meta" \
+    || { rt_safe_rmdir "$tmp"; return 1; }
+  tpl_id="$(rt_template_id_for_artifact "$RT_DIST")"
+  [ -n "$tpl_id" ] && printf 'template=%s\n' "$tpl_id" >> "$tmp/meta"
+  # NOTE: no `format=` key is written into meta, and no `panels=` key either.
+  # The format lives in its own canonical file; the panel list is the
+  # filesystem, because a key can claim a panel whose state is not on disk.
+
+  # 5. panel state, only for the panels named, only from the staged copy
+  for panel in "$@"; do
+    [ -n "$panel" ] || continue
+    rt_panel_id_ok "$panel" || { rt_err "unknown panel id: $panel"; rt_safe_rmdir "$tmp"; return 1; }
+    src="$RT_PANEL_STAGE/$panel"
+    [ -d "$src" ] || { rt_err "no staged state for panel: $panel"; rt_safe_rmdir "$tmp"; return 1; }
+    d="$tmp/panels/$panel"
+    mkdir -p "$d" || { rt_safe_rmdir "$tmp"; return 1; }
+    for f in selection.state selection meta; do
+      [ -e "$src/$f" ] || [ -L "$src/$f" ] || continue
+      [ -L "$src/$f" ] && { rt_err "refusing to stage a symlink: $panel/$f"; rt_safe_rmdir "$tmp"; return 1; }
+      cp -- "$src/$f" "$d/$f" || { rt_safe_rmdir "$tmp"; return 1; }
+    done
+  done
+
+  # 6. the canonical format marker: this file, and nothing else
+  printf '2\n' > "$tmp/format" || { rt_safe_rmdir "$tmp"; return 1; }
+
+  # 7. the manifest, generated last so it cannot omit a later file
+  rt_backup_manifest_write "$tmp" || { rt_safe_rmdir "$tmp"; return 1; }
+
+  # 8. the snapshot must FULLY validate before it is exposed
+  if ! rt_backup_snapshot_check "$tmp" >/dev/null 2>&1; then
+    rt_err "the new snapshot failed validation and was discarded"
+    rt_safe_rmdir "$tmp"; return 1
+  fi
+
+  # 9. permissions, then the atomic rename
+  chmod 700 "$tmp" 2>/dev/null || true
+  [ -f "$tmp/config.env" ] && chmod 640 "$tmp/config.env" 2>/dev/null || true
+  final="$RT_BACKUPS_V2/${ts}__${ver}"
+  [ -e "$final" ] && { rt_err "snapshot already exists: $final"; rt_safe_rmdir "$tmp"; return 1; }
+  mv -- "$tmp" "$final" || { rt_safe_rmdir "$tmp"; return 1; }
+
+  # 10.
+  printf '%s' "$final"
 }
 
 # --- 3x-ui discovery ---------------------------------------------------------
