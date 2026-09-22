@@ -692,12 +692,25 @@ rt_realpath_m() {
 }
 
 rt_is_within() {
-  # succeed when PATH resolves inside BASE (both normalized). Guards every
-  # recursive delete so nothing outside Row-Template's own tree is ever removed.
+  # succeed when PATH resolves STRICTLY INSIDE BASE (both normalized). Guards
+  # every recursive delete so nothing outside Row-Template's own tree is ever
+  # removed.
+  #
+  # STRICT means the base itself is NOT within itself. The previous version
+  # appended a slash to PATH and matched "$BASE"/*, which accepts PATH == BASE
+  # (the trailing-glob branch matches the empty string) — so rt_safe_rmdir
+  # would delete the backups root itself. That was a real defect: the claim
+  # "rt_is_within demands strict containment" appeared in three places (this
+  # library's rt_safe_rmdir comment, the P2 commit message, and
+  # INSTALLER-BACKUP-REVIEW.md B8) while the code did not implement it. The
+  # equality refusal below is the whole fix; the suffix test is unchanged, so
+  # a sibling directory that merely shares the prefix ("$BASE-other") is still
+  # correctly refused.
   local rb rp
   rb="$(rt_realpath_m "$1")" || return 1
   rp="$(rt_realpath_m "$2")" || return 1
   [ -n "$rb" ] && [ -n "$rp" ] || return 1
+  [ "$rb" = "$rp" ] && return 1
   case "$rp/" in "$rb"/*) return 0;; *) return 1;; esac
 }
 
@@ -728,15 +741,29 @@ rt_atomic_install() {
 # lexical sort is chronological.
 
 rt_safe_rmdir() {
-  # rm -rf a directory ONLY after positively confirming it is inside RT_BACKUPS
-  # and is not a symlink. This is the single choke point for recursive deletes.
+  # rm -rf a directory ONLY after positively confirming it is a STRICT
+  # descendant of a permitted backups root, and that it is not a symlink. This
+  # is the single choke point for recursive deletes.
+  #
+  # Refused, and each for a reason:
+  #   ""                an unset variable must never mean "delete something"
+  #   "/"               every path is inside it, so containment proves nothing
+  #   $RT_ROOT          the whole install tree
+  #   $RT_BACKUPS       the format-1 root itself — see the strictness note on
+  #   $RT_BACKUPS_V2    rt_is_within: containment is now strict, so the base is
+  #                     refused by the containment test, not by a special case
+  #
+  # Deleting a backups ROOT would destroy every snapshot at once, which is the
+  # one thing a rollback safety net must never do. Only descendants are
+  # removable; the roots are recreated by rt_layout_ensure when absent.
   local d="$1"
   [ -n "$d" ] || return 1
+  [ "$d" = "/" ] && { rt_err "refusing to recursively delete /"; return 1; }
   rt_assert_not_symlink "$d" || return 1
   # Containment is required against EITHER namespace: the format-1 backups root
   # or the format-2 one. This is a second explicitly permitted root, not a
   # relaxation — a path inside neither is still refused, and the base itself is
-  # still refused because rt_is_within demands strict containment.
+  # refused because rt_is_within now demands STRICT containment.
   if ! rt_is_within "$RT_BACKUPS" "$d" && ! rt_is_within "$RT_BACKUPS_V2" "$d"; then
     rt_err "refusing to recursively delete path outside backups: $d"; return 1
   fi
@@ -836,6 +863,21 @@ rt_backups_prune() {
 #      make every existing backup unreadable.
 #   2  panel state, a manifest, and a canonical `format` marker file. Written
 #      only under $RT_BACKUPS_V2, and only by rt_backup_create_v2.
+#
+# A TOUCHED PANEL DIRECTORY (format 2) HOLDS EXACTLY THESE, and a directory
+# missing any of them is an incomplete snapshot rather than a panel with nothing
+# to record:
+#   selection.state   absent | empty | present  — the ACTION a restore takes
+#   selection         the raw previous value, only when state=present
+#   meta              mechanism=db|env|api and was_running=0|1
+#   files             the relative paths we placed, one per line, always written
+#                     (empty when we placed nothing). Both target panels resolve
+#                     templates relative to their own directory, so the paths are
+#                     RELATIVE — an absolute path could not be checked against a
+#                     recorded root before removal (B11) and would invite a
+#                     removal outside the panel's tree.
+# The `files` list is what makes rollback remove OUR file without ever removing
+# the operator's directory, which may hold templates that are not ours.
 #
 # NAMESPACES
 #   $RT_BACKUPS      format-1 snapshots. The shipped 1.1.0 library discovers
@@ -1023,6 +1065,74 @@ rt_backup_panel_selection() {
   cat -- "$dir/panels/$panel/selection"
 }
 
+rt_backup_panel_files() {
+  # echo the PLACED-FILE LIST recorded for PANEL: the relative paths Row-Template
+  # created inside that panel's managed root, one per line, in the order stored.
+  # Empty output when the panel was not touched, or was touched but placed
+  # nothing (3X-UI).
+  #
+  # WHY THIS EXISTS. PasarGuard and Rebecca both place a file into a directory
+  # the operator also owns. Rollback must remove OUR file and must never remove
+  # the DIRECTORY — an operator's custom template directory holds their own
+  # work. Without a record of which files we placed, rollback has no way to
+  # distinguish them, and the only options left are "delete the directory"
+  # (destroys operator content) or "delete nothing" (leaves our file behind and
+  # the panel pointing at it). Neither is a rollback. See
+  # INSTALLER-BACKUP-REVIEW.md §1 and INSTALLER-MULTIPANEL-DESIGN.md §9 rule 1.
+  #
+  # PATHS ARE RELATIVE, to the panel's own managed root, and are validated by
+  # rt_backup_relpath_ok — the SAME closed grammar the writer uses, so a path
+  # the writer emits can never be one the reader refuses. An absolute path is
+  # NOT stored: it cannot be checked against a recorded root at restore time,
+  # and both target panels resolve templates relative to their directory anyway.
+  #
+  # Read as DATA. The file is never sourced and never evaluated; a snapshot is
+  # untrusted input like any other file.
+  #
+  # Exit: 0 with the list (possibly empty) when valid; 1 when malformed. A
+  # touched panel directory WITHOUT a `files` file is malformed — the writer
+  # always emits one, so its absence means the snapshot is incomplete, not that
+  # no files were placed. That distinction is the whole reason an empty file is
+  # written rather than omitted.
+  local dir="$1" panel="${2:-}" f line seen
+  [ -n "$panel" ] || return 1
+  rt_panel_id_ok "$panel" || return 1
+  [ -d "$dir/panels/$panel" ] || return 0              # not touched
+  f="$dir/panels/$panel/files"
+  [ -L "$f" ] && return 1                              # a symlinked list is refused
+  [ -f "$f" ] || return 1                              # touched => files must exist
+  #
+  # AN EMPTY LIST IS VALID, and it is the NORMAL case: 3X-UI places no file, so
+  # a 3X-UI panel's record is legitimately zero bytes. The early return states
+  # that explicitly rather than leaving it to the loop falling through, so the
+  # next reader does not have to reason about what a `while` over an empty
+  # stream does. An ABSENT file is still refused below: the writer always emits
+  # one, so its absence means the record is incomplete, not that nothing was
+  # placed.
+  [ -s "$f" ] || return 0
+  seen=""
+  #
+  # The `|| [ -n "$line" ]` terminator is DEFENCE IN DEPTH. `read` returns false
+  # when it hits EOF without a newline, so a `while` loop silently DROPS an
+  # unterminated final line — and a truncated record then reads as a SHORTER
+  # record rather than as a damaged one. That is the dangerous direction: a
+  # rollback would leave our last placed file behind while reporting that it had
+  # removed everything it placed. The writer always terminates every line it
+  # emits, so this guards a damaged or foreign snapshot rather than a case the
+  # writer produces. A blank line still fails the `[ -n "$line" ]` test above
+  # and is refused as before.
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ -n "$line" ] || return 1                         # no blank lines
+    rt_backup_relpath_ok "$line" || return 1           # closed grammar
+    case ",$seen," in
+      *",$line,"*) return 1 ;;                         # no duplicates
+    esac
+    seen="${seen:+$seen,}$line"
+    printf '%s\n' "$line"
+  done < "$f"
+  return 0
+}
+
 rt_backup_panel_meta_check() {
   # 0 when a touched panel's meta is present and within the closed value sets.
   # `mechanism` names the path a restore must use — a restore through a
@@ -1079,6 +1189,13 @@ rt_backup_snapshot_check() {
   # Panel state is validated here and not in rt_backup_validate, because
   # rt_backup_validate is what the LIVE rollback path calls and P2 must not
   # change what rollback accepts.
+  #
+  # A TOUCHED PANEL MUST BE STRUCTURALLY COMPLETE: selection.state, the
+  # selection rules that follow from it, meta, and files. A panel directory
+  # missing any of them is an incomplete snapshot, not a panel with nothing to
+  # restore — a rollback that read a truncated record would act on it. The
+  # `files` check is what makes "we placed nothing" (an empty file, valid)
+  # distinguishable from "the record is missing" (invalid).
   local dir="$1" panels p
   rt_backup_validate "$dir" || return 1
   rt_backup_format "$dir" >/dev/null || return 1
@@ -1089,6 +1206,7 @@ rt_backup_snapshot_check() {
   for p in $panels; do
     rt_backup_panel_state "$dir" "$p" >/dev/null || return 1
     rt_backup_panel_meta_check "$dir" "$p" || return 1
+    rt_backup_panel_files "$dir" "$p" >/dev/null || return 1
   done
   return 0
 }
@@ -1147,12 +1265,25 @@ rt_backup_panel_write() {
   # way panel state can enter a snapshot, so the closed value sets are enforced
   # here and nothing can bypass them.
   #
-  #   rt_backup_panel_write <stagedir> <panel> <state> [value] [mechanism] [was_running]
+  #   rt_backup_panel_write <stagedir> <panel> <state> [value] [mechanism] [was_running] [place-file...]
   #
   #   state        absent | empty | present
   #   value        required iff state=present; ignored otherwise
   #   mechanism    db | env | api            (required)
   #   was_running  0 | 1                     (required)
+  #   place-file   zero or more relative paths we placed inside the panel's
+  #                managed root; each validated by rt_backup_relpath_ok
+  #
+  # PLACED FILES. The trailing arguments are the files Row-Template created
+  # inside the panel's own directory — a Jinja2 shell under PasarGuard's
+  # custom_templates_directory, a pongo2 shell inside Rebecca's. A rollback
+  # removes exactly these and never the containing directory, because the
+  # operator's own templates live there. 3X-UI places no file and passes none.
+  #
+  # PATHS ARE RELATIVE and are refused unless they satisfy the closed grammar
+  # shared with the reader. An absolute path is rejected outright rather than
+  # stored: it cannot be verified against a recorded root before removal (B11),
+  # and storing one would invite a removal outside the panel's own tree.
   #
   # NO SENTINEL VALUES. `absent` and `empty` both leave the `selection` file
   # absent; what differs is the state word, which is the instruction a restore
@@ -1162,9 +1293,11 @@ rt_backup_panel_write() {
   # input at all — it writes exactly the files below, from exactly these
   # arguments. There is no path by which an activation token could reach a
   # snapshot, which is the property B5 requires and the reason this takes
-  # positional arguments rather than a caller-supplied meta file.
+  # positional arguments rather than a caller-supplied meta file. The trailing
+  # place-file arguments are paths, not contents: nothing a caller passes here
+  # can carry file bytes, so the property survives this addition.
   local snap="${1:-}" panel="${2:-}" state="${3:-}" value="${4:-}"
-  local mech="${5:-}" running="${6:-}" d
+  local mech="${5:-}" running="${6:-}" d p sorted
   [ -n "$snap" ] || { rt_err "panel write: no staging directory given"; return 1; }
   rt_panel_id_ok "$panel" || { rt_err "panel write: unknown panel id: $panel"; return 1; }
   case "$state" in
@@ -1182,6 +1315,12 @@ rt_backup_panel_write() {
   if [ "$state" = "present" ] && [ -z "$value" ]; then
     rt_err "panel write: state=present requires a value"; return 1
   fi
+  shift 6
+  for p in "$@"; do
+    [ -n "$p" ] || { rt_err "panel write: empty placed-file path"; return 1; }
+    rt_backup_relpath_ok "$p" || {
+      rt_err "panel write: placed file is not a legal relative path: $p"; return 1; }
+  done
 
   d="$snap/$panel"
   mkdir -p "$d" || return 1
@@ -1194,6 +1333,20 @@ rt_backup_panel_write() {
   fi
   printf 'mechanism=%s\n' "$mech"      > "$d/meta"  || return 1
   printf 'was_running=%s\n' "$running" >> "$d/meta" || return 1
+  # THE `files` FILE IS ALWAYS WRITTEN, even when empty. An absent file would
+  # be indistinguishable from an incomplete snapshot, and the reader refuses
+  # that — so "we placed nothing" must be recorded, not implied. Sorted
+  # LC_ALL=C and de-duplicated, so the same placement always yields the same
+  # bytes and two snapshots of the same state compare equal.
+  if [ "$#" -eq 0 ]; then
+    : > "$d/files" || return 1
+  else
+    sorted="$(for p in "$@"; do printf '%s\n' "$p"; done | LC_ALL=C sort | LC_ALL=C uniq)"
+    # the terminator is part of the FORMAT, not of "$sorted": $( ) strips
+    # the final newline, so a format of '%s' would write the last entry with
+    # no terminator at all
+    printf '%s\n' "$sorted" > "$d/files" || return 1
+  fi
   return 0
 }
 
@@ -1286,8 +1439,15 @@ rt_backup_create_v2() {
     [ -d "$src" ] || { rt_err "no staged state for panel: $panel"; rt_safe_rmdir "$tmp"; return 1; }
     d="$tmp/panels/$panel"
     mkdir -p "$d" || { rt_safe_rmdir "$tmp"; return 1; }
-    for f in selection.state selection meta; do
-      [ -e "$src/$f" ] || [ -L "$src/$f" ] || continue
+    for f in selection.state selection meta files; do
+      [ -e "$src/$f" ] || [ -L "$src/$f" ] || {
+        # `files` is REQUIRED for a touched panel; the other three are
+        # conditional on the state word. A staged panel without a files list
+        # is an incomplete record, and copying it "as absent" would produce a
+        # snapshot whose only symptom is a reader refusal at restore time.
+        [ "$f" = "files" ] && { rt_err "panel $panel: staged state has no files list"; rt_safe_rmdir "$tmp"; return 1; }
+        continue
+      }
       [ -L "$src/$f" ] && { rt_err "refusing to stage a symlink: $panel/$f"; rt_safe_rmdir "$tmp"; return 1; }
       cp -- "$src/$f" "$d/$f" || { rt_safe_rmdir "$tmp"; return 1; }
     done

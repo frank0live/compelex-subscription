@@ -17,6 +17,98 @@ implemented, nothing committed.**
 
 ---
 
+## Correction — 2026-09-22 (P2 follow-up)
+
+> **Additive record. Nothing below was rewritten; every original finding, figure and snapshot
+> above stands as written.** Where this section disagrees with the body, this section is the
+> current truth and the body is preserved as the evidence that the disagreement existed.
+
+Applied in commit `fix(installer): complete backup v2 rollback state` (P2 follow-up), which was
+authorised to close two blockers found by the Post-P2 Acceptance Audit.
+
+### C1 — `<panel>.files` is **relative**, not absolute
+
+| | |
+|---|---|
+| **Was** (§1 `files` layout and `### files format`) | *"the files we placed, one absolute path per line"* — and explicitly, *"**Absolute, not relative.** A relative path needs a recorded base, and a wrong base turns a removal into a removal of the wrong file."* |
+| **Now** | **One RELATIVE path per line**, relative to the panel's own managed root. |
+
+The original reasoning was sound in the abstract and wrong for these two panels. An absolute path
+has to be stored, and a stored absolute path is exactly what **B11** says must then be checked
+against a recorded root before removal — so the absolute form *creates* the check it was meant to
+avoid, while adding a path that no longer means anything if the operator moves their directory.
+Both target panels resolve templates relative to their own directory anyway
+(`INSTALLER-MULTIPANEL-DESIGN.md`: PasarGuard places a Jinja2 file *under*
+`custom_templates_directory`; Rebecca **rejects absolute paths outright** via `safeJoin`), so the
+relative form is the one that matches the panel's own model.
+
+The stored value is therefore a name *inside* a root the restore already knows, and
+`rt_backup_relpath_ok` — the closed grammar already shared with the manifest — validates it in both
+the writer and the reader.
+
+**On-disk form, now pinned down.** One path per line, each line newline-terminated; the file is
+`LC_ALL=C` sorted and de-duplicated so the same placement always yields the same bytes. An **empty
+file is valid and normal** — 3X-UI places nothing — while an **absent** file is malformed, because
+the writer always emits one.
+
+The reader treats an *unterminated* final line as a record rather than dropping it. `read` returns
+false at EOF without a terminator, so a `while IFS= read -r` loop silently discards the last entry —
+and a truncated record then reads as a **shorter** record rather than as a damaged one. For a list
+of placed files that is the dangerous direction: a rollback would leave our last file behind while
+reporting that it had removed everything it placed. Found while implementing this section, not by
+inspection, and covered by a test asserting both that the unterminated entry is read in full and
+that an unterminated *illegal* entry is still refused rather than skipped.
+
+### C2 — `rt_is_within` was **not** strict, so the base **could** be deleted
+
+| | |
+|---|---|
+| **Was** (B8, §9) | *"`rt_safe_rmdir` is **the single choke point** — all new removals route through it, and `rt_is_within` requires strict containment (the base itself is refused)"* |
+| **Now** | Containment **is** strict, and this is now true rather than merely asserted. |
+
+The claim was **false when written**. `rt_is_within` appended a slash to the path and matched
+`"$BASE"/*`, which accepts `PATH == BASE` because the glob branch matches the empty remainder —
+so `rt_safe_rmdir "$RT_BACKUPS"` and `rt_safe_rmdir "$RT_BACKUPS_V2"` both **deleted the backups
+root itself**. Measured directly: `is_within BASE BASE` returned WITHIN, and both roots were
+removed. P2 propagated the comment verbatim while adding the second permitted root, and the
+existing test `recursive delete is refused outside the backups tree` did not catch it because its
+negative cases were `RT_ROOT`, `/tmp` and `""` — never the base.
+
+Fixed by an equality refusal in `rt_is_within` (`[ "$rb" = "$rp" ] && return 1`), plus an explicit
+`/` refusal in `rt_safe_rmdir` (containment can prove nothing about `/`). Three places carried the
+false claim — this document's B8, the library comment in `rt_safe_rmdir`, and the P2 commit
+message. The library comment was corrected in place; the commit message is immutable and is
+superseded by this record. A behavioural test now asserts all five refusals *and* that strict
+descendants remain deletable, so a future refactor cannot silently restore the loose match.
+
+### C3 — a pre-existing destination file is **refused**, not backed up and not overwritten
+
+| | |
+|---|---|
+| **Was** | 8B §12 S4 said *"refuse if a file already exists there"* (PasarGuard only); 8C §2 said *"Record the files we placed"* and listed what is deliberately **not** captured. Neither stated a general policy for the other panels, and the review did not resolve the collision rule. |
+| **Now** | **General and explicit: activation must REFUSE to overwrite a pre-existing operator file.** |
+
+If the destination already exists before Row-Template activation, activation refuses. P2 therefore
+captures **no original bytes** — deliberately no `.orig` storage, no shadow copy.
+
+This resolves the one gap the Post-P2 Audit could not close from the specification: `files` records
+which file we may remove, but it cannot restore content we never captured, so a rollback that
+deleted a pre-existing operator file would leave a hole it cannot fill. Refusing up front removes
+the case instead of mishandling it. The consequences, now part of the contract:
+
+1. every path in `files` names a file **Row-Template created** — never one it found;
+2. rollback removes **only** those recorded files;
+3. rollback **never** removes the containing directory, which may hold the operator's own work
+   (B2, unchanged and still absolute);
+4. an operator who wants their own file at that name must move it first, and the refusal must say
+   so — naming the path, since a silent refusal is indistinguishable from an installer bug.
+
+`files` is written for **every touched panel, even when empty**. 3X-UI places no file and records
+an empty list; the empty record is the only representation that keeps *"we placed nothing"*
+distinguishable from *"the record is missing"*, which is a malformed snapshot.
+
+---
+
 ## 0. What the code review found
 
 These are findings about the **existing** code that the 8C design assumed differently. Each one

@@ -17,6 +17,75 @@ nothing committed.**
 
 ---
 
+## Correction — 2026-09-22 (P2 follow-up)
+
+> **Additive record. Nothing below was rewritten; every original finding, figure and snapshot above
+> stands as written.** Where this section disagrees with the body, this section is the current truth
+> and the body is preserved as the evidence that the disagreement existed. This is the same
+> convention `INSTALLER-BACKUP-REVIEW.md` carries for the identical three items.
+
+Applied in commit `fix(installer): complete backup v2 rollback state` (P2 follow-up), which closed
+two blockers found by the Post-P2 Acceptance Audit.
+
+### D1 — the placed-file record is **relative**, not "paths relative to a recorded root" left open
+
+| | |
+|---|---|
+| **Was** (§1 shape) | `files` — *"the files we placed (paths, relative to a recorded root)"* — relative in intent, but 8D §1 then specified **absolute** paths, so the two documents contradicted each other and left the format undecided. |
+| **Now** | **One relative path per line, relative to the panel's own managed root.** Decided, implemented, and validated by `rt_backup_relpath_ok` in both the writer and the reader. |
+
+The relative form is the one that matches both target panels: PasarGuard places a Jinja2 file
+*under* `custom_templates_directory`, and Rebecca **rejects absolute paths outright** through
+`safeJoin` / `normalizeTemplateName`. A stored absolute path would also be exactly what **B11**
+requires be re-validated against a recorded root before removal — so storing the absolute form
+creates the check it was supposed to avoid, and adds a value that stops meaning anything if the
+operator relocates their directory. See C1 in `INSTALLER-BACKUP-REVIEW.md` for the same decision
+recorded against the specification that carried it.
+
+**On-disk form.** One path per line, each newline-terminated, `LC_ALL=C` sorted and de-duplicated.
+An **empty file is valid** (3X-UI places nothing); an **absent** file is malformed. The reader also
+accepts an unterminated final line as a record instead of dropping it — a `while read` loop discards
+a final line with no terminator, which would turn a truncated record into a silently shorter one.
+See C1 in `INSTALLER-BACKUP-REVIEW.md` for why that direction of failure is the dangerous one.
+
+### D2 — the base directory **was** deletable; the strict-containment claim was false
+
+| | |
+|---|---|
+| **Was** (§10 B8) | *"the existing `rt_is_within "$RT_BACKUPS"` containment check is preserved, and extended to any new removal path"* — with the strict-containment property asserted in 8D B8 and in the P2 library comment. |
+| **Now** | `rt_is_within` refuses `BASE == PATH`; `rt_safe_rmdir` additionally refuses `/`; the two backups roots are **not** deletable; strict descendants remain deletable. |
+
+`rt_is_within` matched `"$BASE"/*` against a slash-suffixed path, which accepts `PATH == BASE`
+because the glob branch matches the empty remainder. Measured: `is_within BASE BASE` returned
+WITHIN and `rt_safe_rmdir "$RT_BACKUPS"` **removed the root**. Deleting a backups root destroys
+every snapshot at once — the one outcome a rollback safety net must never produce. Fixed by the
+equality refusal in `rt_is_within` plus an explicit `/` refusal in `rt_safe_rmdir`, with a
+behavioural test asserting all five refusals and that descendants still delete.
+
+### D3 — a pre-existing destination file is **refused**, and P2 captures **no** original bytes
+
+| | |
+|---|---|
+| **Was** (§6 invariant 3) | *"**Never delete a directory.** Only the files recorded in `files`."* — correct and still in force, but silent on what happens when a file is already there, and 8C §2's "deliberately NOT captured" list did not name the case. |
+| **Now** | **Activation must REFUSE to overwrite a pre-existing operator file.** No `.orig` storage, no shadow copy, no content capture in P2. |
+
+Without a capture, `files` can record *which* file we may remove but cannot restore content we never
+took — so deleting a pre-existing operator file would leave a hole no rollback can fill. Refusing
+up front removes the case rather than mishandling it. 8B §12 S4 already required exactly this
+refusal for PasarGuard; the correction makes it general and explicit for every panel, and this
+document's §6 invariants are hereby read as including it:
+
+- every path in `files` names a file **Row-Template created** — never one it found;
+- rollback removes **only** those recorded files;
+- rollback **never** removes the containing directory (invariant 3, unchanged and still absolute);
+- the refusal must **name the path**, because a silent refusal is indistinguishable from a bug.
+
+`files` is written for **every touched panel, even when empty** — 3X-UI places no file and records
+an empty list. The empty record is what keeps *"we placed nothing"* distinguishable from *"the
+record is missing"*; the latter is a malformed snapshot, not a clean install.
+
+---
+
 ## 0. Why this document exists
 
 Phase 8A §6 S1 found the gap, and it is worth restating plainly because everything below follows

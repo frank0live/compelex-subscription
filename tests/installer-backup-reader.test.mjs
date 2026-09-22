@@ -27,22 +27,54 @@ import { createHash } from 'node:crypto';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LIB = join(ROOT, 'installer', 'lib', 'row-template.sh');
 
-/* Same harness shape as tests/installer.test.mjs: a throwaway RT_ROOT, the
-   shipped library sourced, cleanup on exit. */
+/* HARNESS COST NOTE. Every bash spawn on this host costs ~470 ms, and a
+   bash-side `rm -rf` of a temp tree costs ~7,200 ms because the sandbox
+   intercepts it (a Node-side `rmSync` of the same tree costs ~125 ms). The
+   original preamble ran `mktemp -d` plus an EXIT-trap `rm -rf`, so EVERY case
+   paid the recursive-delete cost whether or not it created anything.
+
+   RT_ROOT is therefore created from Node and handed in as a path that already
+   exists; Node removes it in `sh()`'s `finally`. Nothing is created or deleted
+   bash-side, so the only cost is the spawn itself. Fixtures still live in the OS
+   temp dir. */
 const PREAMBLE = [
   'set -Eeuo pipefail',
-  'export RT_ROOT="$(mktemp -d)/rt"',
-  'mkdir -p "$RT_ROOT"',
   'source installer/lib/row-template.sh',
-  'cleanup(){ rm -rf "$(dirname "$RT_ROOT")"; }',
-  'trap cleanup EXIT',
   '',
 ].join('\n');
 
-function sh(body) {
-  const r = spawnSync('bash', ['-c', PREAMBLE + body], { cwd: ROOT, encoding: 'utf8' });
-  if (r.error) throw r.error;
-  return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+function sh(body, snapshot = null) {
+  /* The RT_ROOT tree is built and removed from Node. `cygpath` converts the
+     Windows path outside bash; on a POSIX host it is absent and the path is
+     already usable.
+
+     When `snapshot` is given, its files are written into a `snap` directory
+     beside RT_ROOT before the spawn, and `$SNAP` is exported to point at it —
+     one Node-side rmSync then removes everything. */
+  const base = mkdtempSync(join(tmpdir(), 'row-reader-'));
+  try {
+    const rt = join(base, 'rt');
+    mkdirSync(rt, { recursive: true });
+    let head = '';
+    if (snapshot) {
+      const snap = join(base, 'snap');
+      for (const [rel, content] of Object.entries(snapshot)) {
+        const full = join(snap, rel);
+        mkdirSync(dirname(full), { recursive: true });
+        writeFileSync(full, content);
+      }
+      const sw = snap.split('\\').join('/');
+      head += `SNAP="$(cygpath -u '${sw}' 2>/dev/null || printf '%s' '${sw}')"\nexport SNAP\n`;
+    }
+    const win = rt.split('\\').join('/');
+    head += `RT_ROOT="$(cygpath -u '${win}' 2>/dev/null || printf '%s' '${win}')"\nexport RT_ROOT\n`;
+    const r = spawnSync('bash', ['-c', head + PREAMBLE + body],
+      { cwd: ROOT, encoding: 'utf8' });
+    if (r.error) throw r.error;
+    return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
 }
 
 const ok = (body) => sh(body).code === 0;
@@ -61,20 +93,12 @@ const ok = (body) => sh(body).code === 0;
  * same conversion for the same reason. On a POSIX host cygpath is absent and the
  * path is already usable as-is. */
 function withSnapshot(files, body) {
-  const dir = mkdtempSync(join(tmpdir(), 'row-snap-'));
-  try {
-    for (const [rel, content] of Object.entries(files)) {
-      const full = join(dir, rel);
-      mkdirSync(dirname(full), { recursive: true });
-      writeFileSync(full, content);
-    }
-    const raw = JSON.stringify(dir);
-    return sh(
-      `SNAP="$(cygpath -u ${raw} 2>/dev/null || printf '%s' ${raw})"\n${body}`,
-    );
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  /* Files are laid out by sh() itself, into a tree that one Node-side rmSync
+     removes. The path is converted with cygpath because a Node-side mkdtemp
+     gives a WINDOWS path (D:\...) that bash cannot resolve — and under `set -e`
+     a failing `rt_backup_format` then aborts the whole snippet, which reads as a
+     reader failure when it is a harness failure. */
+  return sh(body, files);
 }
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
@@ -198,6 +222,8 @@ test('a manifest mismatch is detected even when the artifact is intact', () => {
   const tpl = files['template.html'];
   files['panels/3xui/selection.state'] = 'present\n';
   files['panels/3xui/selection'] = '/etc/3x-ui/tampered\n';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=1\n';
+  files['panels/3xui/files'] = '';
   files['manifest'] =
     `${sha(tpl)}  template.html\n${sha('something else')}  panels/3xui/selection\n`;
   const r = withSnapshot(files, `
@@ -229,6 +255,7 @@ test('panel state is read as data and never evaluated', () => {
   files['panels/3xui/selection.state'] = 'present\n';
   files['panels/3xui/selection'] = '/etc/3x-ui/$(touch /tmp/row-p2-reader-nope)/x';
   files['panels/3xui/meta'] = 'mechanism=db\nwas_running=1\n';
+  files['panels/3xui/files'] = '';
   const r = withSnapshot(files, `
     echo "panels:"$(rt_backup_panels "$SNAP")
     echo "state:"$(rt_backup_panel_state "$SNAP" 3xui)
@@ -252,6 +279,151 @@ test('an untagged panel id is refused, so a state path cannot be crafted', () =>
 test('a panel the snapshot did not touch reads as empty, not as an error', () => {
   const r = withSnapshot(format1Files(), 'rt_backup_panel_state "$SNAP" rebecca; echo "|done"');
   assert.equal(r.out, '|done');
+});
+
+/* --- placed-file list (P2 follow-up) -------------------------------------- */
+
+test('the recorded placed-file list round-trips as data, one path per line', () => {
+  const files = format1Files();
+  files['panels/pasarguard/selection.state'] = 'present\n';
+  files['panels/pasarguard/selection'] = 'subscription/index.html';
+  files['panels/pasarguard/meta'] = 'mechanism=env\nwas_running=1\n';
+  files['panels/pasarguard/files'] = 'aa/first.html\nzz/last.html\n';
+  const r = withSnapshot(files, `
+    rt_backup_panel_files "$SNAP" pasarguard
+    echo "|done"
+  `);
+  assert.equal(r.out, 'aa/first.html\nzz/last.html\n|done');
+});
+
+test('an empty placed-file list is valid and reads as nothing', () => {
+  /* 3X-UI places no file. The empty list is a RECORD, not an absence — which
+     is why the writer always emits the file. */
+  const files = format1Files();
+  files['panels/3xui/selection.state'] = 'absent\n';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+  files['panels/3xui/files'] = '';
+  const r = withSnapshot(files, 'rt_backup_panel_files "$SNAP" 3xui; echo "|rc=$?"');
+  assert.equal(r.out, '|rc=0', 'empty is valid, not an error');
+});
+
+test('a touched panel without a files list is malformed, not "placed nothing"', () => {
+  const files = format1Files();
+  files['panels/3xui/selection.state'] = 'absent\n';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+  const r = withSnapshot(files, 'rt_backup_panel_files "$SNAP" 3xui >/dev/null 2>&1 && echo OK || echo REFUSED');
+  assert.equal(r.out, 'REFUSED', 'a missing list is an incomplete snapshot');
+});
+
+test('a malformed placed-file list is refused entry by entry', () => {
+  const bad = [
+    '/etc/passwd',            /* absolute */
+    '../escape.html',         /* traversal */
+    'a/../../b',              /* traversal inside */
+    'dir/',                   /* trailing slash => directory */
+    'a//b',                   /* empty component */
+    'a/./b',                  /* "." component */
+    './a',                    /* leading "." component */
+    'a b.html',               /* whitespace */
+    'a\tb.html',              /* control char */
+    'x' + String.fromCharCode(127) + '.html',  /* DEL */
+  ];
+  for (const entry of bad) {
+    const files = format1Files();
+    files['panels/3xui/selection.state'] = 'absent\n';
+    files['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+    files['panels/3xui/files'] = entry + '\n';
+    const r = withSnapshot(files,
+      'rt_backup_panel_files "$SNAP" 3xui >/dev/null 2>&1 && echo OK || echo REFUSED');
+    assert.equal(r.out, 'REFUSED', `${JSON.stringify(entry)} must be refused`);
+  }
+});
+
+test('a duplicate placed-file entry is refused', () => {
+  const files = format1Files();
+  files['panels/3xui/selection.state'] = 'absent\n';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+  files['panels/3xui/files'] = 'a.html\nb.html\na.html\n';
+  const r = withSnapshot(files,
+    'rt_backup_panel_files "$SNAP" 3xui >/dev/null 2>&1 && echo OK || echo REFUSED');
+  assert.equal(r.out, 'REFUSED', 'a duplicate is a malformed record');
+});
+
+test('a blank line in a placed-file list is refused', () => {
+  const files = format1Files();
+  files['panels/3xui/selection.state'] = 'absent\n';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+  files['panels/3xui/files'] = 'a.html\n\nb.html\n';
+  const r = withSnapshot(files,
+    'rt_backup_panel_files "$SNAP" 3xui >/dev/null 2>&1 && echo OK || echo REFUSED');
+  assert.equal(r.out, 'REFUSED');
+});
+
+test('an unterminated final entry is read in full, not silently dropped', () => {
+  /* `read` returns false when it reaches EOF without a terminator, so a
+     `while IFS= read -r` loop drops an unterminated final line. For a list of
+     PLACED FILES that failure is quiet and dangerous: a truncated record would
+     read as a SHORTER record rather than as a damaged one, so a rollback would
+     leave our last file behind while believing it had removed everything it
+     placed. The loop must therefore treat a non-empty unterminated final line
+     as a record. */
+  const files = format1Files();
+  files['panels/3xui/selection.state'] = 'absent\n';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+  /* deliberately NO trailing newline on the last entry */
+  files['panels/3xui/files'] = 'a.html\nb.html';
+  const r = withSnapshot(files, `
+    echo "count:$(rt_backup_panel_files "$SNAP" 3xui | wc -l)"
+    echo "joined:[$(rt_backup_panel_files "$SNAP" 3xui | tr '\\n' ' ')]"
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /count:2/, 'both entries are read, including the unterminated last one');
+  assert.match(r.out, /joined:\[a\.html b\.html \]/, 'and in order');
+
+  /* The same truncation must not become an escape hatch: an unterminated
+     ILLEGAL entry is still refused rather than skipped. */
+  const bad = format1Files();
+  bad['panels/3xui/selection.state'] = 'absent\n';
+  bad['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+  bad['panels/3xui/files'] = 'good.html\n../escape';
+  const rb = withSnapshot(bad,
+    'rt_backup_panel_files "$SNAP" 3xui >/dev/null 2>&1 && echo OK || echo REFUSED');
+  assert.equal(rb.out, 'REFUSED', 'an unterminated traversal must not be skipped over');
+});
+
+test('a symlinked placed-file list is refused', (t) => {
+  /* A symlink is refused rather than followed, so a snapshot cannot redirect
+     the read at an arbitrary file. The link must be created where the snapshot
+     lives, which a plain fixture map cannot express — so the case is skipped
+     where symlinks are unavailable. */
+  const files = format1Files();
+  files['panels/3xui/selection.state'] = 'absent\n';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+  const r = withSnapshot(files, `
+    if ln -s /etc/passwd "$SNAP/panels/3xui/files" 2>/dev/null; then
+      rt_backup_panel_files "$SNAP" 3xui >/dev/null 2>&1 && echo OK || echo REFUSED
+    else
+      echo NOLINK
+    fi
+  `);
+  if (r.out === 'NOLINK') { t.skip('symlinks unavailable on this host'); return; }
+  assert.equal(r.out, 'REFUSED');
+});
+
+test('a malformed placed-file list makes the composite validation fail', () => {
+  const files = format1Files();
+  files['panels/3xui/selection.state'] = 'absent\n';
+  files['panels/3xui/meta'] = 'mechanism=db\nwas_running=0\n';
+  files['panels/3xui/files'] = '/etc/passwd\n';
+  const r = withSnapshot(files, `
+    rt_backup_validate "$SNAP" && echo validate-ok || echo validate-failed
+    rt_backup_snapshot_check "$SNAP" && echo composite-ok || echo composite-failed
+  `);
+  const lines = r.out.split('\n');
+  assert.ok(lines.includes('validate-ok'),
+    'the existing validator is untouched and must not see panel state');
+  assert.ok(lines.includes('composite-failed'),
+    'the composite refuses a snapshot with a malformed file list');
 });
 
 /* --- 5. no writer exists without a reader -------------------------------- */
@@ -325,4 +497,55 @@ test('the snapshot format model matches what the shipped library writes', () => 
   assert.match(r.out, /format:1/, 'a snapshot the shipped writer makes reads as format 1');
   assert.match(r.out, /panels:/, 'and records no panels');
   assert.match(r.out, /composite:ok/, 'and passes the composite check');
+});
+
+/* --- 6. recursive-delete containment (P2 follow-up) ----------------------- */
+
+test('rt_is_within is strict: a base is not within itself', () => {
+  /* The P2 follow-up. The previous implementation appending a slash and
+     matching "$BASE"/* accepted PATH == BASE, so rt_safe_rmdir could delete the
+     backups root. Both directions are asserted, because a fix that made
+     containment strict by breaking the child case would be worse than the bug. */
+  const r = sh(`
+    mkdir -p "$RT_BACKUPS/a/b"
+    rt_is_within "$RT_BACKUPS" "$RT_BACKUPS"            && echo base-base:WITHIN || echo base-base:REFUSED
+    rt_is_within "$RT_BACKUPS" "$RT_BACKUPS/a/b"        && echo child:WITHIN || echo child:REFUSED
+    rt_is_within "$RT_BACKUPS" "$RT_BACKUPS-other"      && echo prefix:WITHIN || echo prefix:REFUSED
+    rt_is_within "$RT_BACKUPS" "$RT_BACKUPS/../evil"    && echo traversal:WITHIN || echo traversal:REFUSED
+    rt_is_within "$RT_BACKUPS" "/etc/passwd"            && echo outside:WITHIN || echo outside:REFUSED
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /base-base:REFUSED/, 'the base is not within itself');
+  assert.match(r.out, /child:WITHIN/, 'a real descendant is still within');
+  assert.match(r.out, /prefix:REFUSED/, 'a prefix sibling is not within');
+  assert.match(r.out, /traversal:REFUSED/, 'traversal is still refused');
+  assert.match(r.out, /outside:REFUSED/, 'an unrelated path is still refused');
+});
+
+test('rt_safe_rmdir refuses every root, and still deletes strict descendants', () => {
+  const r = sh(`
+    mkdir -p "$RT_BACKUPS/20260101T000000Z__x" "$RT_BACKUPS_V2/20260101T000000Z__x" "$RT_BACKUPS_V2/a/b"
+    r(){ "$@" >/dev/null 2>&1 && echo REMOVED || echo REFUSED; }
+    echo "empty:$(r rt_safe_rmdir '')"
+    echo "slash:$(r rt_safe_rmdir /)"
+    echo "rt_root:$(r rt_safe_rmdir "$RT_ROOT")"
+    echo "v1_base:$(r rt_safe_rmdir "$RT_BACKUPS")"
+    echo "v2_base:$(r rt_safe_rmdir "$RT_BACKUPS_V2")"
+    echo "v1_snapshot:$(r rt_safe_rmdir "$RT_BACKUPS/20260101T000000Z__x")"
+    echo "v2_snapshot:$(r rt_safe_rmdir "$RT_BACKUPS_V2/20260101T000000Z__x")"
+    echo "v2_nested:$(r rt_safe_rmdir "$RT_BACKUPS_V2/a/b")"
+    echo "v1_base_still_there:$([ -d "$RT_BACKUPS" ] && echo yes || echo no)"
+    echo "v2_base_still_there:$([ -d "$RT_BACKUPS_V2" ] && echo yes || echo no)"
+    echo "rt_root_still_there:$([ -d "$RT_ROOT" ] && echo yes || echo no)"
+  `);
+  assert.equal(r.code, 0, r.err);
+  for (const c of ['empty', 'slash', 'rt_root', 'v1_base', 'v2_base']) {
+    assert.match(r.out, new RegExp(`^${c}:REFUSED$`, 'm'), `${c} must be refused`);
+  }
+  for (const c of ['v1_snapshot', 'v2_snapshot', 'v2_nested']) {
+    assert.match(r.out, new RegExp(`^${c}:REMOVED$`, 'm'), `${c} must still be deletable`);
+  }
+  assert.match(r.out, /v1_base_still_there:yes/, 'the v1 root survived');
+  assert.match(r.out, /v2_base_still_there:yes/, 'the v2 root survived');
+  assert.match(r.out, /rt_root_still_there:yes/, 'the install tree survived');
 });

@@ -244,19 +244,23 @@ test('absent, empty and present round-trip as three distinct states, and are nev
   /* No sentinel values: `absent` and `empty` both leave the selection file
      absent, and what differs is the state word — which is the instruction a
      restore follows. Writing the literal ABSENT into the selection file would
-     conflate "the setting was empty" with "the value is the word ABSENT". */
+     conflate "the setting was empty" with "the value is the word ABSENT".
+
+     The three snapshots deliberately COEXIST rather than being removed between
+     cases: each lands in its own timestamped directory, so there is nothing to
+     clean up, and a bash-side `rm -rf` costs ~8.3s on this host because the
+     sandbox intercepts recursive deletes. Removing them would have added ~17s
+     to this test for no change in coverage. */
   const r = sh(`
     rt_backup_panel_write "$RT_PANEL_STAGE" 3xui absent "" db 1
     a="$(rt_backup_create v2 3xui)"
     echo "absent-state:"$(rt_backup_panel_state "$a" 3xui)
     echo "absent-sel:"$([ -e "$a/panels/3xui/selection" ] && echo exists || echo absent)
-    rt_safe_rmdir "$a"
 
     rt_backup_panel_write "$RT_PANEL_STAGE" 3xui empty "" db 1
     b="$(rt_backup_create v2 3xui)"
     echo "empty-state:"$(rt_backup_panel_state "$b" 3xui)
     echo "empty-sel:"$([ -e "$b/panels/3xui/selection" ] && echo exists || echo absent)
-    rt_safe_rmdir "$b"
 
     rt_backup_panel_write "$RT_PANEL_STAGE" 3xui present '/etc/3x-ui/$(touch /tmp/row-p2-nope)/x' db 1
     c="$(rt_backup_create v2 3xui)"
@@ -396,6 +400,165 @@ test('the panel writer refuses values outside the closed sets', () => {
   assert.match(r.out, /done/);
 });
 
+/* --- 7b. the placed-file list (P2 follow-up) ------------------------------ */
+
+test('the placed-file list round-trips through a snapshot, one path per line', () => {
+  /* PasarGuard and Rebecca both place a file into a directory the operator also
+     owns. Without this record a rollback must choose between deleting the
+     directory (destroys operator content) and deleting nothing (leaves our file
+     and the panel pointing at it). The record is what makes "remove exactly our
+     files, never the directory" possible. */
+  const r = sh(`
+    rt_backup_panel_write "$RT_PANEL_STAGE" pasarguard present subscription/index.html env 1 \\
+      subscription/index.html
+    d="$(rt_backup_create v2 pasarguard)"
+    echo "on-disk:"; cat "$d/panels/pasarguard/files"
+    echo "count:$(rt_backup_panel_files "$d" pasarguard | wc -l)"
+    echo "reader:[$(rt_backup_panel_files "$d" pasarguard)]"
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /on-disk:\nsubscription\/index\.html\n/, 'the path is stored');
+  assert.match(r.out, /count:1/, 'exactly one path is recorded');
+  /* Bracket the value rather than trailing a space after it: the harness trims
+     the whole output, so a trailing space on the LAST line would be trimmed
+     away and the assertion would fail for a reason unrelated to the record. */
+  assert.match(r.out, /reader:\[subscription\/index\.html\]/, 'and read back as data');
+});
+
+test('an empty placed-file list is written, not omitted', () => {
+  /* 3X-UI places no file. An OMITTED file would be indistinguishable from an
+     incomplete snapshot, and the reader refuses that — so the empty record is
+     the only representation that keeps "we placed nothing" knowable. */
+  const r = sh(`
+    rt_backup_panel_write "$RT_PANEL_STAGE" 3xui absent "" db 0
+    echo "staged-bytes:$(wc -c < "$RT_PANEL_STAGE/3xui/files")"
+    d="$(rt_backup_create v2 3xui)"
+    echo "snapshot-bytes:$(wc -c < "$d/panels/3xui/files")"
+    echo "lists-it:$(grep -c '  panels/3xui/files$' "$d/manifest" || true)"
+    rt_backup_snapshot_check "$d" >/dev/null 2>&1 && echo "valid:yes" || echo "valid:no"
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /staged-bytes:0/, 'an empty list is written for a touched panel');
+  assert.match(r.out, /snapshot-bytes:0/, 'and survives into the snapshot');
+  assert.match(r.out, /lists-it:1/, 'and the manifest covers it');
+  assert.match(r.out, /valid:yes/, 'and the snapshot is therefore valid');
+});
+
+test('the placed-file list is de-duplicated and LC_ALL=C sorted', () => {
+  /* Determinism: the same placement in any iteration order must produce
+     byte-identical output, or two snapshots of one state would compare unequal
+     and the manifest would differ for no reason. */
+  const r = sh(`
+    rt_backup_panel_write "$RT_PANEL_STAGE" rebecca present t api 1 \\
+      zz/last.html aa/first.html mm/mid.html zz/last.html aa/first.html
+    echo "sorted:"; cat "$RT_PANEL_STAGE/rebecca/files"
+    rt_backup_panel_write "$RT_ROOT/stage2" rebecca present t api 1 \\
+      mm/mid.html zz/last.html aa/first.html
+    cmp -s "$RT_PANEL_STAGE/rebecca/files" "$RT_ROOT/stage2/rebecca/files" \\
+      && echo "deterministic:yes" || echo "deterministic:NO"
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /sorted:\naa\/first\.html\nmm\/mid\.html\nzz\/last\.html\n/,
+    'sorted C-order with duplicates collapsed');
+  assert.match(r.out, /deterministic:yes/, 'input order does not affect the bytes');
+});
+
+test('a placed-file path outside the closed grammar is refused at write time', () => {
+  /* Refusing at WRITE time matters even though the reader also refuses: a
+     writer that emitted a path the reader rejects would produce a snapshot that
+     fails validation only after it is built, and the failure would name the
+     snapshot rather than the caller that supplied the bad path. */
+  const r = sh(`
+    for p in "/etc/passwd" "../../etc/passwd" "a//b" "a/./b" "a/../b" "a/" "." ".." "a b"; do
+      if rt_backup_panel_write "$RT_PANEL_STAGE" 3xui absent "" db 0 "$p" 2>/dev/null; then
+        echo "ACCEPTED:[$p]"
+      fi
+    done
+    echo "done"
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(/ACCEPTED/.test(r.out), false, 'no illegal path may be stored:\n' + r.out);
+  assert.match(r.out, /done/);
+});
+
+test('an absolute placed-file path is never stored in a snapshot', () => {
+  /* Stated separately from the grammar table because it is the specific
+     property B11 depends on: an absolute path cannot be checked against a
+     recorded root before removal, so it must not be storable at all. */
+  const r = sh(`
+    if rt_backup_panel_write "$RT_PANEL_STAGE" pasarguard present x env 1 /etc/pasarguard/tpl.html 2>/dev/null; then
+      echo "STORED-ABSOLUTE"
+    fi
+    echo "done"
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(/STORED-ABSOLUTE/.test(r.out), false);
+  assert.match(r.out, /done/);
+});
+
+test('a legal placed-file path is accepted', () => {
+  const r = sh(`
+    for p in "subscription/index.html" "a.html" "dir/sub/file-1_2.html"; do
+      rt_backup_panel_write "$RT_PANEL_STAGE" 3xui absent "" db 0 "$p" 2>/dev/null \\
+        && echo "ok:[$p]" || echo "REFUSED(bad!):[$p]"
+    done
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(/REFUSED/.test(r.out), false, 'legal paths must be accepted:\n' + r.out);
+  assert.match(r.out, /ok:\[subscription\/index\.html\]/);
+});
+
+test('the writer refuses a staged panel that has no files list', () => {
+  /* The staged directory is the contract between an adapter and the writer. A
+     panel staged without a list is an incomplete record, and copying it as
+     absent would produce a snapshot whose only symptom is a reader refusal at
+     restore time — far from the cause. */
+  const r = sh(`
+    mkdir -p "$RT_PANEL_STAGE/rebecca"
+    printf 'absent\\n' > "$RT_PANEL_STAGE/rebecca/selection.state"
+    printf 'mechanism=api\\nwas_running=1\\n' > "$RT_PANEL_STAGE/rebecca/meta"
+    rt_backup_create v2 rebecca >/dev/null 2>&1 && echo "CREATED" || echo "refused"
+    echo "leftovers:"$(find "$RT_BACKUPS_V2" -mindepth 1 -maxdepth 1 -name '.tmp.*' | wc -l)
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /refused/, 'a staged panel without a files list is refused');
+  assert.match(r.out, /leftovers:0/, 'and the temp directory is cleaned up');
+});
+
+test('a symlinked files list cannot be staged into a snapshot', () => {
+  const r = sh(`
+    mkdir -p "$RT_PANEL_STAGE/rebecca"
+    printf 'absent\\n' > "$RT_PANEL_STAGE/rebecca/selection.state"
+    printf 'mechanism=api\\nwas_running=1\\n' > "$RT_PANEL_STAGE/rebecca/meta"
+    if ln -s /etc/passwd "$RT_PANEL_STAGE/rebecca/files" 2>/dev/null; then
+      rt_backup_create v2 rebecca >/dev/null 2>&1 && echo "CREATED" || echo "refused-symlink"
+      echo "leftovers:"$(find "$RT_BACKUPS_V2" -mindepth 1 -maxdepth 1 -name '.tmp.*' | wc -l)
+    else
+      echo "NOLINK"
+    fi
+  `);
+  assert.equal(r.code, 0, r.err);
+  if (r.out === 'NOLINK') return;
+  assert.match(r.out, /refused-symlink/, 'a symlink is refused, not followed');
+  assert.match(r.out, /leftovers:0/);
+});
+
+test('two panels in one snapshot each carry their own file list', () => {
+  const r = sh(`
+    rt_backup_panel_write "$RT_PANEL_STAGE" pasarguard present subscription/index.html env 1 \\
+      subscription/index.html
+    rt_backup_panel_write "$RT_PANEL_STAGE" 3xui absent "" db 0
+    d="$(rt_backup_create v2 pasarguard 3xui)"
+    echo "pg:[$(rt_backup_panel_files "$d" pasarguard | tr '\\n' ' ')]"
+    echo "xui:[$(rt_backup_panel_files "$d" 3xui)]"
+    rt_backup_snapshot_check "$d" >/dev/null 2>&1 && echo "valid:yes" || echo "valid:no"
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /pg:\[subscription\/index\.html \]/);
+  assert.match(r.out, /xui:\[\]/, '3X-UI places nothing and records that');
+  assert.match(r.out, /valid:yes/);
+});
+
 /* --- 8. secrets ----------------------------------------------------------- */
 
 test('secrets are never serialized into a snapshot', () => {
@@ -464,12 +627,21 @@ test('an incomplete snapshot fails validation', () => {
 });
 
 test('a failed write leaves no temporary directory and no snapshot behind', () => {
+  /* THREE cleanup paths, each a DIFFERENT rt_safe_rmdir call site inside
+     rt_backup_create_v2, so all three are kept: an unknown panel id (fails in
+     the panel loop), an unstaged panel (fails on the staged-state probe), and a
+     staged symlink (fails after the temp dir and the panel dir both exist).
+     Each costs ~8.3s here because the sandbox intercepts the recursive delete
+     the library performs to clean up — that is the behaviour under test, so it
+     cannot be batched away.
+
+     The `RT_DIST` missing case is NOT repeated here: it returns before the temp
+     dir is ever created, so it exercises none of this cleanup, and the v1 writer
+     (rt_backup_create) carries the identical guard under its own test. */
   const r = sh(`
     rt_backup_panel_write "$RT_PANEL_STAGE" 3xui present /etc/x db 1
     rt_backup_create v2 ../evil    >/dev/null 2>&1 || true
-    rt_backup_create v2 nginx      >/dev/null 2>&1 || true
     rt_backup_create v2 pasarguard >/dev/null 2>&1 || true
-    RT_DIST=/nonexistent rt_backup_create v2 >/dev/null 2>&1 || true
 
     # a staged symlink aborts the build after the temp dir already exists
     mkdir -p "$RT_PANEL_STAGE/rebecca"
@@ -499,17 +671,55 @@ test('a half-built snapshot is invisible to v2 discovery while it is being built
   assert.match(r.out, /all:0/);
 });
 
-/* --- 10. format handling -------------------------------------------------- */
+/* --- 9b. the record names only files we created --------------------------- */
 
-test('unsupported and malformed formats are refused', () => {
+test('the placed-file record cannot express a pre-existing operator file', () => {
+  /* THE PRE-EXISTING-FILE POLICY, as an assertion rather than a comment. The
+     approved policy is that activation REFUSES to overwrite a file the operator
+     already has, so P2 captures no original bytes — there is no .orig storage
+     and no shadow copy anywhere. That policy is only sound while every path in
+     `files` names a file Row-Template itself created; if the record could carry
+     an operator path, a rollback would delete content it never captured and
+     could not restore.
+
+     Asserted structurally, because there is nothing to execute yet: the writer
+     has no argument that can mark a path as pre-existing, and the snapshot it
+     builds contains no file we did not put there. */
+  const pw = codeOf(fnBody('rt_backup_panel_write'));
+  assert.equal(/orig|existing|preexist|shadow|operator/i.test(pw), false,
+    'the panel writer must have no notion of a pre-existing file to record');
+  assert.equal(/\.orig|backup_of|copy_of/.test(pw), false,
+    'and must not invent .orig storage');
+
+  /* Everything under panels/<panel>/ is a file we wrote, byte-for-byte: the
+     four record files and nothing else. A stray capture would show up here. */
   const r = sh(`
+    rt_backup_panel_write "$RT_PANEL_STAGE" pasarguard present subscription/index.html env 1 \\
+      subscription/index.html
+    d="$(rt_backup_create v2 pasarguard)"
+    echo "entries:"; (cd "$d/panels/pasarguard" && find . -type f | LC_ALL=C sort)
+    echo "bytes:"$(find "$d/panels/pasarguard" -type f | wc -l)
+  `);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /entries:\n\.\/files\n\.\/meta\n\.\/selection\n\.\/selection\.state\n/,
+    'a touched panel holds exactly the four record files');
+  assert.match(r.out, /bytes:4/, 'and nothing else was captured');
+});
+
+/* --- 10. format handling -------------------------------------------------- */
+test('unsupported and malformed formats are refused', () => {
+  /* ONE directory, cleared with `rm -f` on the single file it holds. A
+     bash-side `rm -rf` costs ~7.2s on this host because the sandbox intercepts
+     recursive deletes; `rm -f` is not intercepted and the coverage is identical,
+     since the only thing ever inside `$d` is the one `format` file. */
+  const r = sh(`
+    d="$RT_ROOT/f"; mkdir -p "$d"
     for f in 3 99 0 two 1x -1 " 1" "1 "; do
-      d="$RT_ROOT/f"; rm -rf "$d"; mkdir -p "$d"
       printf "%s\\n" "$f" > "$d/format"
       if rt_backup_format "$d" >/dev/null 2>&1; then echo "ACCEPTED:[$f]"; fi
     done
     # a trailing blank line and a CR are not the marker we wrote
-    d="$RT_ROOT/f"; rm -rf "$d"; mkdir -p "$d"; printf "2\\n\\n" > "$d/format"
+    printf "2\\n\\n" > "$d/format"
     if rt_backup_format "$d" >/dev/null 2>&1; then echo "ACCEPTED:[blank-line]"; fi
     printf "2\\r\\n" > "$d/format"
     if rt_backup_format "$d" >/dev/null 2>&1; then echo "ACCEPTED:[crlf]"; fi
@@ -650,14 +860,94 @@ test('config.env is still captured and still deliberately NOT restored', () => {
 });
 
 test('no activation function is called from the P2 writer', () => {
-  const p2 = ['rt_backup_create_v2', 'rt_backup_panel_write', 'rt_backup_manifest_write',
-    'rt_backups_list_v2', 'rt_backups_list_all', 'rt_backups_list_v1', 'rt_backup_resolve',
-    'rt_backup_panel_state', 'rt_backup_panel_selection', 'rt_backup_panel_meta_check',
-    'rt_backup_manifest_check', 'rt_backup_snapshot_check', 'rt_backup_panels']
-    .map(fnBody).join('\n');
-  const code = codeOf(p2);
-  assert.equal(/rt_activate|rt_panel_activate|rt_service_start|rt_service_stop|rt_subtheme_set/.test(code),
+  /* The read-only helpers and the staging writers are asserted separately,
+     because they have different obligations. A blanket "no mutating command in
+     P2" would be FALSE: rt_backup_create_v2 legitimately cp/mkdir/mv/chmod while
+     assembling its temporary snapshot. What must hold is narrower and more
+     useful — the readers never mutate, and the writers never mutate anything
+     outside their own staging area. */
+  const READERS = ['rt_backups_list_v2', 'rt_backups_list_all', 'rt_backups_list_v1',
+    'rt_backup_resolve', 'rt_backup_panel_state', 'rt_backup_panel_selection',
+    'rt_backup_panel_meta_check', 'rt_backup_panel_files', 'rt_backup_manifest_check',
+    'rt_backup_snapshot_check', 'rt_backup_panels'];
+  const WRITERS = ['rt_backup_create_v2', 'rt_backup_panel_write', 'rt_backup_manifest_write'];
+
+  const all = codeOf([...WRITERS, ...READERS].map(fnBody).join('\n'));
+  assert.equal(/rt_activate|rt_panel_activate|rt_service_start|rt_service_stop|rt_subtheme_set/.test(all),
     false, 'P2 must not activate, deactivate or restart anything');
+
+  /* READ-ONLY MEANS READ-ONLY. These are called on a snapshot to inspect it, so
+     a mutating command in one of them would mean merely looking at a backup
+     could change the filesystem. Word-boundary matching matters here: the
+     functions' own trailing comments say "not touched", and a loose /touch/ or
+     /\bcp\b/ would match that prose instead of code. */
+  const readerCode = codeOf(READERS.map(fnBody).join('\n'));
+  assert.equal(/\b(rm|mv|cp|mkdir|touch|chmod)\b/.test(readerCode), false,
+    'the v2 readers must not mutate anything:\n' + readerCode);
+
+  /* THE WRITERS STAGE. They may create and move files, but only inside
+     backups.v2 — never into the format-1 namespace, and never into the live
+     install tree. */
+  const writerCode = codeOf(WRITERS.map(fnBody).join('\n'));
+  assert.equal(/\$RT_BACKUPS(?!_V2)/.test(writerCode), false,
+    'the staging writers must never touch the format-1 namespace');
+  assert.equal(/>\s*"\$RT_(DIST|CONFIG|VERSION_FILE|ROOT)/.test(writerCode), false,
+    'and must never redirect into the live install tree');
+  /* Every recursive delete goes through the guarded helper, which is the only
+     thing in the library that proves containment before deleting. A targeted
+     `rm -f` of one staging file is fine; an `rm -rf` here would not be. */
+  assert.equal(/rm\s+-[a-zA-Z]*r/.test(writerCode), false,
+    'recursive deletion must go through rt_safe_rmdir, not a bare rm -rf');
+  assert.match(writerCode, /rt_safe_rmdir/,
+    'and the writers must actually use the guarded helper for cleanup');
+  /* The placed-file list is a RECORD, not an instruction: the follow-up adds a
+     path a rollback may later remove, and must not itself remove, create or
+     touch anything. */
+  const panelWrite = codeOf(fnBody('rt_backup_panel_write'));
+  assert.equal(/\brm\s+-[a-zA-Z]*r/.test(panelWrite), false,
+    'the panel writer must not delete recursively');
+});
+
+test('the placed-file list is the only new panel record, and rollback still ignores v2', () => {
+  /* The follow-up added `files`. It must not have added a second mechanism, and
+     it must not have wired v2 into any production path — the namespaces note is
+     a claim about code, so it is asserted against code. */
+  const lib = readFileSync(LIB, 'utf8');
+  const rollback = fnBody('rt_cmd_rollback');
+  assert.equal(/RT_BACKUPS_V2|rt_backups_list_v2|rt_backup_resolve/.test(rollback), false,
+    'rt_cmd_rollback must not read the format-2 namespace');
+
+  const latest = fnBody('rt_backup_latest');
+  assert.equal(/RT_BACKUPS_V2|_v2/.test(latest), false,
+    'rt_backup_latest must still resolve within the format-1 namespace only');
+
+  const prune = fnBody('rt_backups_prune');
+  assert.equal(/RT_BACKUPS_V2|rt_backups_list_v2/.test(prune), false,
+    'rt_backups_prune must not prune the format-2 namespace');
+
+  /* A touched panel's record is exactly these four files and no more, so the
+     format cannot quietly grow a field nothing validates. */
+  const pw = codeOf(fnBody('rt_backup_panel_write'));
+  for (const f of ['selection.state', 'selection', 'meta', 'files']) {
+    assert.ok(pw.includes(f), `rt_backup_panel_write must write ${f}`);
+  }
+  assert.equal(/printf[^\n]*\$value[^\n]*>\s*"\$d\/files"/.test(pw), false,
+    'a selection VALUE must never be written into the placed-file list');
+});
+
+test('the recursive-delete root guard is present and strict', () => {
+  /* The follow-up's second blocker. Asserted at source level as well as by
+     behaviour, so a later refactor that restores the loose match is caught even
+     if the behavioural case is skipped. */
+  const within = codeOf(fnBody('rt_is_within'));
+  assert.ok(/\[ "\$rb" = "\$rp" \] && return 1/.test(within),
+    'rt_is_within must refuse a base that equals the path');
+
+  const rmdir = codeOf(fnBody('rt_safe_rmdir'));
+  assert.ok(/rt_is_within/.test(rmdir), 'rt_safe_rmdir must still prove containment');
+  assert.ok(/rt_assert_not_symlink/.test(rmdir), 'and must still refuse symlinks');
+  assert.ok(/refusing to recursively delete \//.test(rmdir),
+    'and must refuse / explicitly, since containment cannot prove anything about it');
 });
 
 test('no transaction engine exists', () => {
