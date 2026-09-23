@@ -222,6 +222,13 @@ function sh(body, { args = [], useShim = true, doubles = false, fixture = null, 
  * scenario: the scenarios that abort BEFORE the capture step must leave it
  * alone, and the first scenario that reaches the capture step must clear it.
  * That turns stage hygiene into a per-scenario observation at no extra cost.
+ *
+ * ORDER IS LOAD-BEARING, in one direction. The marker is planted ONCE and the
+ * first scenario that reaches capture clears it for good, so every scenario
+ * that must be observed as "never touched the stage" has to appear BEFORE the
+ * first scenario that does reach capture. Keep the refusal cases above the
+ * first accepting case; an accepting case inserted too high silently turns
+ * later refusals into false "absent" readings.
  */
 const SCENARIOS = [
   /* label                    panel    assignments */
@@ -231,9 +238,24 @@ const SCENARIOS = [
   ['detect-unavailable',      '3xui',  ['D_DETECT=2']],
   ['capabilities-unavailable', '3xui', ['D_CAPS_RC=2']],
   ['capability-unknown',      '3xui',  ['D_CAPS=file_placement static_verify invented_capability']],
-  ['capability-required-missing', '3xui', ['D_CAPS=static_verify']],
+  /* No apply capability at all: static_verify alone is not enough, because the
+   * engine would have nothing to perform. Refused BEFORE mutation. And neither
+   * apply mechanism is enough on its own without static_verify: the two kinds of
+   * requirement are independent, so satisfying one must not satisfy the other.
+   *
+   * These refusals stay ABOVE the first accepting scenario -- see the ordering
+   * note above SCENARIOS. */
+  ['no-apply-capability',     '3xui',  ['D_CAPS=static_verify']],
   ['capability-no-static-verify', '3xui', ['D_CAPS=file_placement']],
+  ['selection-no-static-verify', '3xui', ['D_CAPS=selection_write']],
   ['capability-empty',        '3xui',  ['D_CAPS=']],
+  /* The apply requirement is mechanism-INDEPENDENT: each of these is a
+   * complete answer on its own, and neither may be required by name.
+   * `apply-by-selection` mirrors the `ok` scenario exactly except for the apply
+   * mechanism, so the two call sequences are directly comparable -- that is the
+   * strongest form of "the engine does not care which mechanism it got". */
+  ['apply-by-selection',      '3xui',  ['D_CAPS=selection_write static_verify live_verify']],
+  ['apply-by-both',           '3xui',  ['D_CAPS=file_placement selection_write static_verify']],
   ['capture-fail',            '3xui',  ['D_BACKUP=1']],
   ['snapshot-fail',           '3xui',  ['D_SNAP=1']],
   ['ok',                      '3xui',  []],
@@ -464,13 +486,46 @@ test('capabilities are read and validated before anything is mutated', () => {
   assert.equal(R('capability-unknown').rc, 1);
   assert.equal(R('capability-unknown').mutated, 0);
 
-  /* A missing REQUIRED capability is refused BEFORE mutating, rather than
-   * mutating and then being forced to roll back. */
-  for (const label of ['capability-required-missing', 'capability-no-static-verify', 'capability-empty']) {
+  /* A missing requirement is refused BEFORE mutating, rather than mutating and
+   * then being forced to roll back. This list covers both KINDS of requirement:
+   * no apply capability at all, no static_verify, an empty set, and
+   * selection_write without static_verify. */
+  for (const label of ['no-apply-capability', 'capability-no-static-verify',
+    'capability-empty', 'selection-no-static-verify']) {
     assert.equal(R(label).rc, 1, label);
     assert.equal(R(label).mutated, 0, label);
     assert.deepEqual(calls(label), ['detect', 'capabilities'], `${label}: refused before capture`);
   }
+});
+
+test('the apply requirement is satisfied by either mechanism, and by both', () => {
+  /* THE CORRECTION THIS SUITE EXISTS TO PIN. The engine needs proof that a
+   * template CAN be applied, and must not care HOW. Requiring file_placement by
+   * name was a mechanism leak that made a selection-only panel impossible to
+   * drive; each of these is now a complete answer. */
+  for (const label of ['apply-by-selection', 'apply-by-both']) {
+    const row = R(label);
+    assert.equal(row.rc, 0, `${label} must be accepted`);
+    assert.equal(row.state, 'COMMITTED', label);
+    assert.equal(row.mutated, 1, label);
+  }
+  /* ...and a selection-based panel takes the IDENTICAL generic path. */
+  assert.deepEqual(calls('apply-by-selection'), calls('ok'),
+    'a selection-based panel must not be routed differently');
+});
+
+test('the two kinds of capability requirement are independent', () => {
+  /* Satisfying the apply requirement does not satisfy static_verify, and vice
+   * versa. Each is checked on its own, so neither can be traded for the other. */
+  assert.equal(R('selection-no-static-verify').rc, 1,
+    'selection_write alone must not be accepted');
+  assert.equal(R('selection-no-static-verify').mutated, 0);
+  assert.equal(R('capability-no-static-verify').rc, 1,
+    'file_placement alone must not be accepted');
+  assert.equal(R('capability-no-static-verify').mutated, 0);
+  assert.equal(R('no-apply-capability').rc, 1,
+    'static_verify alone must not be accepted');
+  assert.equal(R('no-apply-capability').mutated, 0);
 });
 
 test('a capture failure aborts before mutation', () => {
@@ -636,12 +691,13 @@ test('the stage is cleared before capture, and only from the capture step onward
    * BEFORE the capture step must leave it untouched; the first scenario that
    * reaches the capture step must clear it. */
   for (const label of ['bad-panel', 'detect-fail', 'detect-not-applicable', 'detect-unavailable',
-    'capabilities-unavailable', 'capability-unknown', 'capability-required-missing',
-    'capability-empty', 'capability-no-static-verify']) {
+    'capabilities-unavailable', 'capability-unknown', 'no-apply-capability',
+    'capability-empty', 'capability-no-static-verify', 'selection-no-static-verify']) {
     assert.equal(R(label).stage, 'present',
       `${label} aborts before capture, so it must not have touched the stage`);
   }
-  for (const label of ['capture-fail', 'snapshot-fail', 'ok', 'install-fail']) {
+  for (const label of ['capture-fail', 'snapshot-fail', 'ok', 'install-fail',
+    'apply-by-selection', 'apply-by-both']) {
     assert.equal(R(label).stage, 'absent',
       `${label} reaches capture, so the stale stage must be gone`);
   }
@@ -841,10 +897,57 @@ test('the engine does not redefine the P3 return codes', () => {
   }
 });
 
-test('the required capabilities are the two the engine cannot proceed without', () => {
-  const m = read(TXN).match(/^RT_TXN_REQUIRED_CAPABILITIES="([^"]+)"/m);
-  assert.ok(m, 'the required capability set must be declared');
-  assert.deepEqual(m[1].split(' '), ['file_placement', 'static_verify']);
+test('the engine separates universal requirements from the apply requirement', () => {
+  /* Two sets, two KINDS of requirement. static_verify is universal; the apply
+   * operation is proved by at least one mechanism from a set, so the engine
+   * never names a mechanism it actually does not care about. */
+  const universal = read(TXN).match(/^RT_TXN_REQUIRED_CAPABILITIES="([^"]+)"/m);
+  assert.ok(universal, 'the universal requirement set must be declared');
+  assert.deepEqual(universal[1].split(' '), ['static_verify'],
+    'static_verify is the only universally required capability');
+
+  const apply = read(TXN).match(/^RT_TXN_REQUIRED_APPLY_CAPABILITIES="([^"]+)"/m);
+  assert.ok(apply, 'the apply capability set must be declared');
+  assert.deepEqual(apply[1].split(' '), ['file_placement', 'selection_write'],
+    'the recognised apply mechanisms are file placement and selection');
+
+  /* Both sets must draw only on the FROZEN P3 vocabulary. This correction adds
+   * no token: it changes what the engine requires, not what a panel may say. */
+  for (const tok of [...universal[1].split(' '), ...apply[1].split(' ')]) {
+    assert.equal(/^[a-z_]+$/.test(tok), true, `token must be well formed: ${tok}`);
+  }
+});
+
+test('the apply-requirement helper matches whole tokens and fails closed', () => {
+  /* CAPS arrives as the output of rt_panel_capabilities: ONE TOKEN PER LINE.
+   * The newline shape is load-bearing, not cosmetic -- the vocabulary check in
+   * rt_transaction_body reads it line by line, so a space-separated list is
+   * already refused as an unknown token before the requirement checks run.
+   * These probes therefore use the real shape. */
+  const body = [
+    'probe() { local rc=0; rt_transaction_has_any_capability "$1" "$2" || rc=$?; printf "%s|%s\\n" "$3" "$rc"; }',
+    'probe "$(printf "file_placement\\nstatic_verify")" "file_placement selection_write" "has-file"',
+    'probe "$(printf "selection_write\\nstatic_verify")" "file_placement selection_write" "has-selection"',
+    'probe "$(printf "static_verify")" "file_placement selection_write" "has-neither"',
+    'probe "" "file_placement selection_write" "has-empty-caps"',
+    'probe "$(printf "file_placement\\nstatic_verify")" "" "empty-set"',
+    'probe "$(printf "file_placement_extra\\nstatic_verify")" "file_placement selection_write" "prefix-not-a-match"',
+    'probe "$(printf "file_placement\\nstatic_verify")" "file_placement" "single-member-set"',
+    'probe "$(printf "file_placement selection_write\\nstatic_verify")" "file_placement selection_write" "space-joined-is-not-a-token"',
+    'exit 0',
+  ].join('\n');
+  const r = sh(body);
+  assert.equal(r.code, 0, r.err);
+  const got = new Map(r.out.split('\n').filter(Boolean).map((l) => l.split('|')));
+  assert.equal(got.get('has-file'), '0');
+  assert.equal(got.get('has-selection'), '0');
+  assert.equal(got.get('has-neither'), '1', 'neither mechanism must be refused');
+  assert.equal(got.get('has-empty-caps'), '1', 'a panel declaring nothing must be refused');
+  assert.equal(got.get('empty-set'), '1', 'a misconfigured set must refuse, not permit');
+  assert.equal(got.get('prefix-not-a-match'), '1', 'a set member is a whole token, not a prefix');
+  assert.equal(got.get('single-member-set'), '0');
+  assert.equal(got.get('space-joined-is-not-a-token'), '1',
+    'a capability list that is not one-token-per-line must not satisfy the requirement');
 });
 
 test('the engine emits only the documented event vocabulary', () => {

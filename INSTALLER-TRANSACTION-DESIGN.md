@@ -69,7 +69,8 @@ BEGIN                     rt_transaction_event begin
   +-- detect              rt_panel_detect                      READ-ONLY
   |
   +-- capabilities        rt_panel_capabilities                every token validated
-  |                       required capabilities present
+  |                       static_verify present
+  |                       >=1 apply capability present          (section 11)
   |
   +-- capture             rt_transaction_stage_reset           clear stale state
   |                       rt_panel_backup_state               fills RT_PANEL_STAGE
@@ -395,13 +396,45 @@ Capabilities are read before anything is mutated, and every emitted token is che
 closed P3 vocabulary. A token the engine has never heard of cannot be branched on, and silently
 ignoring it would let a panel claim a capability the engine then fails to honour.
 
-Two capabilities are **required**, because the engine's promise to its caller is "the template is in
-place *and* it was verified":
+The engine has **two requirements, of two different kinds**, because its promise to its caller is
+"the template is applied *and* it was verified":
 
-| capability | why it is required |
+**1. A universal requirement.** Every token in this set must be present.
+
+| capability | why it is universally required |
 |---|---|
-| `file_placement` | without it there is no operation to perform |
-| `static_verify` | without it the mandatory verification can never pass |
+| `static_verify` | without it the mandatory verification can never pass, so the transaction would mutate and then be forced to roll back — a guaranteed round trip that risks data to learn nothing |
+
+**2. The apply requirement, which is mechanism-independent.** **At least one** token from this set
+must be present.
+
+| capability | the mechanism it proves |
+|---|---|
+| `file_placement` | the panel applies a template by placing a file into its own tree |
+| `selection_write` | the panel applies a template by pointing its own selection at Row-Template |
+
+The engine needs proof that a template **can be applied**. It must not care *how*, because that is
+the panel's business and it is exactly the kind of detail that belongs behind P3. A file-oriented
+panel satisfies the requirement with `file_placement`; a selection-oriented panel satisfies it with
+`selection_write`; a panel offering neither has nothing for the engine to perform and is refused
+**before** the capture, not after a mutation it cannot use.
+
+> **Why this is a set and not a single token (P4.1, 2026-09-23).** It used to require
+> `file_placement` by name, and that was a **mechanism leak**: a panel-agnostic engine was
+> requiring one specific mechanism. 3X-UI is a real, already-working panel that applies a template
+> purely by selection and places **no** panel-side file — a fact the frozen P2/P3 documents state
+> themselves ("3X-UI places no file", `INSTALLER-PANEL-INTERFACE.md` §9). Requiring
+> `file_placement` therefore made a truthful 3X-UI adapter impossible to drive: it could only
+> proceed by declaring a capability describing filesystem behaviour it does not have. The engine
+> now requires *an* apply mechanism, which is the mechanism-independent statement of what it
+> actually needs.
+
+**The P3 vocabulary is unchanged.** No token was added, and `file_placement` was **not** redefined —
+it still means exactly *"installs a template file into the panel's own tree"*. This correction is
+entirely on the engine side: it changes what the engine *requires*, not what a panel may *say*.
+
+Neither check consults the panel's name. The engine branches on what a panel **declared**, never on
+which panel it is, so adding a panel still requires no change here.
 
 Every other capability is optional and only selects generic behaviour. `live_verify` in particular:
 its absence removes a source of evidence, it does not invalidate the transaction.
@@ -455,8 +488,11 @@ properties, and P5 must not break them:
 1. **`rt_panel_detect` stays read-only** and identifies a panel from corroborated evidence, not from
    a directory name, a binary name or a weak heuristic alone.
 2. **`rt_panel_capabilities` stays honest.** A capability that is declared must work; one that does
-   not work must not be declared. The engine refuses to start on a missing required capability, so
-   an over-claimed capability produces a failure rather than a silent partial install.
+   not work must not be declared. The engine refuses to start when a requirement is unmet — either a
+   missing universal capability or no apply mechanism at all — so an over-claimed capability
+   produces a failure rather than a silent partial install. Conversely, an **under**-claimed
+   capability is not a safe hedge: a panel that omits the apply mechanism it really has will be
+   refused, not accommodated.
 3. **`rt_panel_backup_state` fills `RT_PANEL_STAGE` through `rt_backup_panel_write`** and writes no
    secret, credential or token. The engine passes no free-form data into the stage.
 4. **`rt_panel_install_template` refuses an existing destination** and records every placed file
@@ -505,6 +541,8 @@ properties, and P5 must not break them:
 | snapshot validated before restore | first step of `rt_transaction_rollback` |
 | static verification mandatory | `rt_transaction_static_verify`; caller treats any non-zero as failure |
 | live UNAVAILABLE is not a rollback trigger | `case` arm in `rt_transaction_body` |
+| static verification universally required | `RT_TXN_REQUIRED_CAPABILITIES` (checked token by token) |
+| an apply mechanism is required, but not named | `RT_TXN_REQUIRED_APPLY_CAPABILITIES` + `rt_transaction_has_any_capability` |
 | rollback attempted once | three call sites, none in a command substitution, none recursive |
 | rollback failure reported separately | `rt_transaction_rollback_report_failure` |
 | stage cleared safely | `rt_transaction_stage_reset` (strict containment, pinned basename) |

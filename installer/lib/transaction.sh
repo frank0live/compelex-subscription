@@ -56,20 +56,45 @@ RT_TXN_SNAPSHOT=""
 RT_TXN_PANEL=""
 RT_TXN_CAPS=""
 
-# The capabilities a transaction CANNOT proceed without. Both are required for
-# the same reason: the engine's contract with its caller is "the template is in
-# place AND it was verified", and a panel that can do neither of those cannot
-# honour it.
+# WHAT THE ENGINE NEEDS PROVED. Two things, and they are different KINDS of
+# requirement. The engine's contract with its caller is "the template is applied
+# AND it was verified", so:
 #
-#   file_placement  without it there is no operation to perform
-#   static_verify   without it the mandatory verification can never pass, so the
-#                   transaction would mutate and then be forced to roll back --
-#                   a guaranteed round trip that risks data to learn nothing
+#   static_verify   UNIVERSALLY REQUIRED. Without it the mandatory verification
+#                   can never pass, so the transaction would mutate and then be
+#                   forced to roll back -- a guaranteed round trip that risks
+#                   data to learn nothing.
+#
+#   an apply        REQUIRED, BUT MECHANISM-INDEPENDENT. The engine needs proof
+#   operation       that the panel can have this template APPLIED. HOW it is
+#                   applied is the panel's business, and the engine must not
+#                   care: a file-oriented panel places a template file, a
+#                   selection-oriented panel points its own selection at
+#                   Row-Template, and either is a complete answer.
+#
+# WHY THE APPLY REQUIREMENT IS A SET AND NOT A SINGLE TOKEN. It used to be
+# `file_placement`, and that was a MECHANISM LEAK: a panel-agnostic engine was
+# requiring one specific mechanism by name. 3X-UI is a real, already-working
+# panel that applies a template purely by selection and places no panel-side
+# file -- a fact the frozen P2/P3 documents state themselves ("3X-UI places no
+# file"). Requiring `file_placement` therefore made a truthful 3X-UI adapter
+# impossible to drive: it could only proceed by declaring a capability that
+# describes filesystem behaviour it does not have. The engine now requires AT
+# LEAST ONE apply capability, which is the mechanism-independent statement of
+# what it actually needs.
+#
+# THE P3 VOCABULARY IS UNCHANGED. No token was added, and `file_placement` was
+# not redefined -- it still means exactly "installs a template file into the
+# panel's own tree". The correction is entirely on the engine side.
 #
 # Every OTHER capability is optional and only selects generic behaviour. In
 # particular live_verify is optional: its absence removes a source of evidence,
 # it does not invalidate the transaction.
-RT_TXN_REQUIRED_CAPABILITIES="file_placement static_verify"
+RT_TXN_REQUIRED_CAPABILITIES="static_verify"
+
+# At least ONE of these must be present. Each token is a different, sufficient
+# way for a panel to prove it can apply a template.
+RT_TXN_REQUIRED_APPLY_CAPABILITIES="file_placement selection_write"
 
 rt_transaction_state_ok() {
   case " $RT_TXN_STATES " in
@@ -298,6 +323,28 @@ rt_transaction_capability_present() {
   return 1
 }
 
+rt_transaction_has_any_capability() {
+  # 0 when CAPS contains AT LEAST ONE of the space-separated tokens in SET.
+  #
+  # This is the mechanism-independent half of the capability requirement: the
+  # engine needs to know that SOME way of applying a template exists, not which
+  # one. Each candidate is checked with rt_transaction_capability_present, so an
+  # exact-match rule applies here too -- a set member is a whole token, never a
+  # prefix.
+  #
+  # An empty or unset SET matches nothing and therefore returns 1, which is the
+  # safe direction: a misconfigured set must refuse a transaction rather than
+  # wave one through.
+  local caps="${1:-}" set="${2:-}" tok
+  [ -n "$set" ] || return 1
+  for tok in $set; do
+    if rt_transaction_capability_present "$caps" "$tok"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 # --- verification -----------------------------------------------------------
 rt_transaction_static_verify() {
   # rt_transaction_static_verify PANEL -- returns the panel's static status.
@@ -492,9 +539,23 @@ rt_transaction_body() {
   done <<< "$caps"
   RT_TXN_CAPS="$caps"
 
-  #    Refuse BEFORE mutating when a required capability is absent. This is the
+  #    Refuse BEFORE mutating when a requirement is unmet. This is the
   #    difference between a transaction that fails cheaply and one that mutates
   #    and is then forced to roll back.
+  #
+  #    Two different KINDS of requirement, and the difference matters:
+  #
+  #      1. universal capabilities -- EVERY token in the set must be present.
+  #         static_verify lives here: it is mandatory for every panel, with no
+  #         mechanism-dependent alternative.
+  #      2. the apply operation -- AT LEAST ONE token from the set must be
+  #         present. This is where the engine proves only that a template CAN be
+  #         applied, deliberately without naming how. A panel that offers no
+  #         apply mechanism at all has nothing for the engine to perform, and is
+  #         refused here rather than after a capture it cannot use.
+  #
+  #    Neither check consults the panel's NAME. The engine branches on what a
+  #    panel declared, never on which panel it is.
   for need in $RT_TXN_REQUIRED_CAPABILITIES; do
     if ! rt_transaction_capability_present "$caps" "$need"; then
       rt_err "transaction: panel '$panel' does not declare the required capability '$need'"
@@ -502,6 +563,12 @@ rt_transaction_body() {
       return "$RT_PANEL_FAIL"
     fi
   done
+
+  if ! rt_transaction_has_any_capability "$caps" "$RT_TXN_REQUIRED_APPLY_CAPABILITIES"; then
+    rt_err "transaction: panel '$panel' declares no apply capability (needs one of: $RT_TXN_REQUIRED_APPLY_CAPABILITIES)"
+    rt_transaction_state_set FAILED >/dev/null 2>&1 || true
+    return "$RT_PANEL_FAIL"
+  fi
 
   # 4. STAGE HYGIENE, then CAPTURE. Clearing first means the snapshot records
   #    what THIS transaction observed; a stale record from an earlier run would
