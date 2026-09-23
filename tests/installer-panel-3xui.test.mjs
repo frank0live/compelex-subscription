@@ -44,11 +44,36 @@ const codeOf = (src) => src.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n
 const sha256 = (b) => createHash('sha256').update(b).digest('hex');
 const u = (p) => p.split('\\').join('/');
 
+function workingProgram(candidates, args = ['--version']) {
+  for (const candidate of candidates) {
+    const r = spawnSync(candidate, args, { encoding: 'utf8' });
+    if (!r.error && r.status === 0) return candidate;
+  }
+  throw new Error(`none of these programs is usable: ${candidates.join(', ')}`);
+}
+
+function bashProgram() {
+  if (process.platform !== 'win32') return workingProgram(['bash']);
+  if (process.env.BASH_PATH) return workingProgram([process.env.BASH_PATH]);
+
+  /* Git for Windows ships the POSIX Bash this fixture needs. Derive it from
+   * Git's installation rather than baking one machine's drive into the test. */
+  const git = spawnSync('git', ['--exec-path'], { encoding: 'utf8' });
+  if (!git.error && git.status === 0) {
+    const candidate = resolve(git.stdout.trim(), '..', '..', '..', 'bin', 'bash.exe');
+    if (existsSync(candidate)) return workingProgram([candidate]);
+  }
+  return workingProgram(['bash']);
+}
+
+const BASH = bashProgram();
+const PYTHON = workingProgram(process.platform === 'win32' ? ['python', 'python3'] : ['python3', 'python']);
+
 /* The adapter writes the value the SHELL holds, which is the cygpath-converted
  * (POSIX) form of RT_ROOT -- not the Windows path Node built the fixture with.
  * Assertions about the stored value must use the same form the adapter saw. */
 const toPosix = (p) => {
-  const r = spawnSync('bash', ['-c', `cygpath -u ${JSON.stringify(p)} 2>/dev/null || printf '%s' ${JSON.stringify(p)}`], { encoding: 'utf8' });
+  const r = spawnSync(BASH, ['-c', `cygpath -u ${JSON.stringify(p)} 2>/dev/null || printf '%s' ${JSON.stringify(p)}`], { encoding: 'utf8' });
   return (r.stdout || '').trim();
 };
 
@@ -70,7 +95,7 @@ fi
 # The shell hands us an MSYS path; Python is a native Windows binary and cannot
 # open one. Convert at the boundary rather than making the adapter care.
 db="\$(cygpath -w "\$1" 2>/dev/null || printf '%s' "\$1")"
-python3 - "\$db" "\$2" <<'PYEOF'
+"\$RT_3XUI_PYTHON" - "\$db" "\$2" <<'PYEOF'
 import sqlite3, sys
 con = sqlite3.connect(sys.argv[1])
 try:
@@ -160,12 +185,26 @@ function makeArtifact() {
 /* fixture                                                                  */
 /* ------------------------------------------------------------------------ */
 
+/* A fixture that cannot be built must not be left behind. The throw happens
+ * BEFORE the caller's try/finally exists, so nothing else would remove the
+ * tree. Leaked trees accumulate across runs until process creation itself
+ * begins failing with EBUSY -- which reads as a code failure and is not one.
+ * (22 such trees were found in the temp directory after one such run.) */
+function makeFixture(opts = {}) {
+  const base = mkdtempSync(join(tmpdir(), 'row-3xui-'));
+  try {
+    return makeFixtureInto(base, opts);
+  } catch (e) {
+    rmSync(base, { recursive: true, force: true });
+    throw e;
+  }
+}
+
 /* `signals` is a BITMASK: 1 = binary, 2 = systemd unit, 4 = panel database.
  * The default is all three, because a fixture without a database cannot
  * exercise any verb that touches the selection -- detection tests pass an
  * explicit mask to pin a specific evidence count. */
-function makeFixture({ rows = [['subThemeDir', '/somewhere/else']], service = 'active', units = 'x-ui.service enabled\n', signals = 7 } = {}) {
-  const base = mkdtempSync(join(tmpdir(), 'row-3xui-'));
+function makeFixtureInto(base, { rows = [['subThemeDir', '/somewhere/else']], service = 'active', units = 'x-ui.service enabled\n', signals = 7 } = {}) {
   const rt = join(base, 'rt');
   const bin = join(base, 'bin');
   const work = join(base, 'work');
@@ -199,7 +238,7 @@ function makeFixture({ rows = [['subThemeDir', '/somewhere/else']], service = 'a
   if (signals & 4) {
     const py = join(work, 'makedb.py');
     writeFileSync(py, MAKEDB_PY);
-    const r = spawnSync('python3', [py, db, JSON.stringify(rows)], { encoding: 'utf8' });
+    const r = spawnSync(PYTHON, [py, db, JSON.stringify(rows)], { encoding: 'utf8' });
     if (r.status !== 0) throw new Error('fixture db: ' + r.stderr);
   }
   writeFileSync(join(work, 'svc'), service === 'active' ? 'active\n' : 'inactive\n');
@@ -222,9 +261,9 @@ function sh(body, { fx = null, args = [], env = {} } = {}) {
       `D_WORK="$(cygpath -u '${u(f.work)}' 2>/dev/null || printf '%s' '${u(f.work)}' )"\nexport D_WORK\n` +
       `: > "$RT_3XUI_SQL_LOG"\n`;
     const preamble = 'set -Eeuo pipefail\nsource installer/lib/row-template.sh\n';
-    const r = spawnSync('bash', ['-c', head + preamble + body, 'row-3xui-test', ...args], {
+    const r = spawnSync(BASH, ['-c', head + preamble + body, 'row-3xui-test', ...args], {
       cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
-      env: { ...process.env, ...env },
+      env: { ...process.env, RT_3XUI_PYTHON: PYTHON, ...env },
     });
     if (r.error) throw r.error;
     return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
@@ -236,14 +275,14 @@ function sh(body, { fx = null, args = [], env = {} } = {}) {
 function dbRows(f) {
   const py = join(f.work, 'readdb.py');
   writeFileSync(py, READDB_PY);
-  const r = spawnSync('python3', [py, f.db], { encoding: 'utf8' });
+  const r = spawnSync(PYTHON, [py, f.db], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error('readdb: ' + r.stderr);
   return JSON.parse(r.stdout.trim());
 }
 function setRows(f, rows) {
   const py = join(f.work, 'makedb.py');
   writeFileSync(py, MAKEDB_PY);
-  const r = spawnSync('python3', [py, f.db, JSON.stringify(rows)], { encoding: 'utf8' });
+  const r = spawnSync(PYTHON, [py, f.db, JSON.stringify(rows)], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error('setRows: ' + r.stderr);
 }
 const svcState = (f) => readFileSync(join(f.work, 'svc'), 'utf8').trim();
@@ -338,7 +377,7 @@ test('detection is read-only: no file, database or service state changes', () =>
 });
 
 function readdirSafe(dir) {
-  const r = spawnSync('bash', ['-c', `find "$(cygpath -u '${u(dir)}')" -type f | LC_ALL=C sort`], { encoding: 'utf8' });
+  const r = spawnSync(BASH, ['-c', `find "$(cygpath -u '${u(dir)}')" -type f | LC_ALL=C sort`], { encoding: 'utf8' });
   return (r.stdout || '').trim();
 }
 

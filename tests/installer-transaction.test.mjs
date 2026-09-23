@@ -723,7 +723,10 @@ test('stage reset refuses every path that is not the owned staging tree', () => 
     'else',
     '  printf "%s|%s\\n" "symlink" "SKIP"',
     'fi',
-    'rm -f "$RT_ROOT/.panel-stage"',
+    /* Git Bash on Windows may materialise this as a directory-style link that
+     * does not satisfy -L and cannot be removed with rm -f. RT_ROOT is the
+     * isolated fixture tree, so remove either representation before continuing. */
+    'rm -rf -- "$RT_ROOT/.panel-stage"',
     'mkdir -p "$RT_ROOT/.panel-stage/deep/deeper"',
     'RT_PANEL_STAGE="$RT_ROOT/.panel-stage"',
     'rc2=0; rt_transaction_stage_reset 2>/dev/null || rc2=$?',
