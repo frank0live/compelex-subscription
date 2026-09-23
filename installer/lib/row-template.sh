@@ -1532,18 +1532,26 @@ rt_check_min_version() {
 }
 
 rt_detect_xui_db() {
-  # sets RT_XUI_DB if a panel database can be located. Absence is not fatal — it
-  # only means subThemeDir must be set manually rather than programmatically.
+  # sets RT_XUI_DB if a panel database can be located. Absence is not fatal —
+  # it only means subThemeDir must be set manually rather than programmatically.
   RT_XUI_DB=""
   local candidates=() c
   [ -n "${XUI_DB_FOLDER:-}" ] && candidates+=("$XUI_DB_FOLDER/x-ui.db")
   candidates+=(/etc/x-ui/x-ui.db /usr/local/x-ui/x-ui.db /etc/3x-ui/x-ui.db)
+
   for c in "${candidates[@]}"; do
-    if [ -f "$c" ]; then RT_XUI_DB="$c"; return 0; fi
+    if [ -f "$c" ]; then
+      local magic
+      magic="$(head -c 16 -- "$c" 2>/dev/null || true)"
+      if [ "$magic" = "SQLite format 3" ]; then
+        RT_XUI_DB="$c"
+        return 0
+      fi
+    fi
   done
+
   return 1
 }
-
 # --- service safety ----------------------------------------------------------
 
 rt_service_active() {
