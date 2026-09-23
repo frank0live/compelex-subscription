@@ -193,34 +193,72 @@ test('the four return-code constants are stable and distinct', () => {
 });
 
 test('a known panel with no implementation is UNAVAILABLE, never SUCCESS and never NOT_APPLICABLE', () => {
-  /* The single most important behavioural property of P3. There is no
-     implementation yet, so the honest answer is "the capability is absent".
+  /* The single most important behavioural property of the contract. For a panel
+     with no implementation the honest answer is "the capability is absent".
      NOT_APPLICABLE would be a claim about the PANEL that this layer has not
      established (it performs no detection); SUCCESS would be a fabrication a
-     transaction engine cannot detect. */
+     transaction engine cannot detect.
+
+     P5A (2026-09-23) implements 3X-UI, so this sweep runs against the panels
+     that are STILL unimplemented. It is narrowed, not weakened: the property is
+     unchanged, and the 3X-UI side of it is asserted positively below rather than
+     dropped. Requiring a REAL adapter's verbs to return UNAVAILABLE would now be
+     asserting that working code is broken. */
+  const UNIMPLEMENTED = ['pasarguard', 'rebecca'];
   const verbs = [
-    ['detect', '3xui'],
-    ['capabilities', '3xui'],
-    ['backup_state', '3xui'],
-    ['install_template', '3xui', '/tmp/src'],
-    ['verify', '3xui', 'static'],
-    ['verify', '3xui', 'live'],
-    ['restore_state', '3xui', '/tmp/snap'],
-    ['uninstall_template', '3xui'],
+    ['detect'],
+    ['capabilities'],
+    ['backup_state'],
+    ['install_template', '/tmp/src'],
+    ['verify', 'static'],
+    ['verify', 'live'],
+    ['restore_state', '/tmp/snap'],
+    ['uninstall_template'],
   ];
-  const label = (v) => v[0] + '-' + v[1] + (v[2] ? '-' + v[2] : '');
-  const rows = verbs.map((v) => [label(v), 'rt_panel_' + v[0], ...v.slice(1)].join('\t'));
+  const rows = [];
+  for (const p of UNIMPLEMENTED) {
+    for (const v of verbs) {
+      rows.push([p + '-' + v[0] + (v[1] ? '-' + v[1] : ''), 'rt_panel_' + v[0], p, ...v.slice(1)].join('\t'));
+    }
+  }
   const got = statusTable(rows);
-  for (const v of verbs) {
-    assert.equal(got[label(v)], 2,
-      `rt_panel_${v[0]} ${v.slice(1).join(' ')} must be UNAVAILABLE (2), got ${got[label(v)]}`);
+  for (const p of UNIMPLEMENTED) {
+    for (const v of verbs) {
+      const k = p + '-' + v[0] + (v[1] ? '-' + v[1] : '');
+      assert.equal(got[k], 2,
+        `rt_panel_${v[0]} ${p} ${v.slice(1).join(' ')} must be UNAVAILABLE (2), got ${got[k]}`);
+    }
   }
-  /* The same for every panel in the enum, so this cannot pass by accident on 3xui. */
-  const all = ['3xui', 'pasarguard', 'rebecca'].map((p) => [p, 'rt_panel_detect', p].join('\t'));
-  const got2 = statusTable(all);
-  for (const p of ['3xui', 'pasarguard', 'rebecca']) {
-    assert.equal(got2[p], 2, p + ' must be UNAVAILABLE while unimplemented');
-  }
+});
+
+test('the implemented panel is driven, and the unimplemented ones are still refused', () => {
+  /* The positive half of the property above, so the narrowing cannot hide a
+     regression: 3X-UI must reach its REAL adapter, and the other two must still
+     stop at the registry. */
+  const r = sh(`
+    for p in 3xui pasarguard rebecca; do
+      printf 'impl-%s|%s\\n' "$p" "$(rt_panel_impl_for "$p" || true)"
+    done
+    rc=0; rt_panel_capabilities 3xui >/dev/null 2>&1 || rc=$?
+    printf 'caps-3xui|%s\\n' "$rc"
+    rc=0; rt_panel_capabilities pasarguard >/dev/null 2>&1 || rc=$?
+    printf 'caps-pasarguard|%s\\n' "$rc"
+    rc=0; rt_panel_capabilities rebecca >/dev/null 2>&1 || rc=$?
+    printf 'caps-rebecca|%s\\n' "$rc"
+    exit 0
+  `);
+  assert.equal(r.code, 0, r.err);
+  const got = new Map(r.out.split('\n').filter(Boolean).map((l) => {
+    const i = l.indexOf('|');
+    return [l.slice(0, i), l.slice(i + 1)];
+  }));
+  assert.equal(got.get('impl-3xui'), '3xui', '3xui must resolve to its real implementation');
+  assert.equal(got.get('impl-pasarguard'), '', 'pasarguard must resolve to nothing');
+  assert.equal(got.get('impl-rebecca'), '', 'rebecca must resolve to nothing');
+  /* 3X-UI reports its real capabilities; the other two never reach an adapter. */
+  assert.equal(got.get('caps-3xui'), '0');
+  assert.equal(got.get('caps-pasarguard'), '2');
+  assert.equal(got.get('caps-rebecca'), '2');
 });
 
 test('a malformed invocation is FAILURE, distinct from UNAVAILABLE', () => {
@@ -383,16 +421,26 @@ test('capability output is deterministic and machine-readable', () => {
      `sh()` trims stdout, so the exit status is captured separately rather than
      echoed into the same stream — mixing the two made an earlier version of
      this case assert against its own probe output instead of the interface's. */
-  const a = sh('rt_panel_capabilities 3xui 2>/dev/null || true');
-  const b = sh('rt_panel_capabilities 3xui 2>/dev/null || true');
+  const a = sh('rt_panel_capabilities pasarguard 2>/dev/null || true');
+  const b = sh('rt_panel_capabilities pasarguard 2>/dev/null || true');
   assert.equal(a.out, b.out, 'two runs must produce identical bytes');
   assert.equal(a.out, '', 'an unimplemented panel must print NOTHING on stdout');
-  const st = statusTable([['caps', 'rt_panel_capabilities', '3xui'].join('\t')]);
+  const st = statusTable([['caps', 'rt_panel_capabilities', 'pasarguard'].join('\t')]);
   assert.equal(st.caps, 2, 'and must report UNAVAILABLE');
+  /* An IMPLEMENTED panel prints exactly its tokens and nothing else: no prose,
+     no header, no decoration, byte-identical across runs. Narrowed to a panel
+     that is still unimplemented above rather than weakened -- the machine-channel
+     property is asserted for BOTH kinds of panel. */
+  const c = sh('rt_panel_capabilities 3xui 2>/dev/null || true');
+  const d = sh('rt_panel_capabilities 3xui 2>/dev/null || true');
+  assert.equal(c.out, d.out, 'an implemented panel must be deterministic too');
+  for (const line of c.out.split('\n').filter(Boolean)) {
+    assert.match(line, /^[a-z_]+$/, `only bare tokens may reach the machine channel: ${line}`);
+  }
   /* No prose may ever reach the machine channel from any verb. */
   const r = sh(`
     for v in detect capabilities backup_state verify restore_state uninstall_template; do
-      out="$(rt_panel_$v 3xui 2>/dev/null || true)"
+      out="$(rt_panel_$v pasarguard 2>/dev/null || true)"
       [ -n "$out" ] && echo "STDOUT-FROM:$v[$out]"
     done
     echo "clean"
@@ -477,22 +525,28 @@ test('the interface never evals, sources or reconstructs a command', () => {
   assert.ok(libSources.length >= 1, 'the library must source the interface explicitly');
 });
 
-test('no panel-specific implementation exists in P3', () => {
+test('the panels directory holds the contract plus exactly the authorised adapter', () => {
   /* A stub that pretends to be an implementation is how a temporary shim
-     becomes permanent, and P5 must not be able to inherit one. */
+     becomes permanent, and no phase may inherit one. The claim is therefore
+     kept and made PRECISE rather than dropped: the directory is the two frozen
+     contract files plus exactly the adapters a phase has been authorised to
+     add -- one, as of P5A (2026-09-23). A second file appearing here is still a
+     failure, and the two panels with no adapter are still asserted absent. */
   const r = sh('ls installer/panels/');
   assert.equal(r.code, 0, r.err);
   const files = r.out.split('\n').map((s) => s.trim()).filter(Boolean).sort();
-  assert.deepEqual(files, ['index.sh', 'interface.sh'],
-    'only the two contract files may exist, found: ' + files.join(', '));
-  for (const f of ['3xui.sh', 'pasarguard.sh', 'rebecca.sh']) {
-    assert.equal(files.includes(f), false, f + ' must not exist in P3');
+  assert.deepEqual(files, ['3xui.sh', 'index.sh', 'interface.sh'],
+    'expected the two contract files plus the authorised 3xui adapter, found: ' + files.join(', '));
+  for (const f of ['pasarguard.sh', 'rebecca.sh']) {
+    assert.equal(files.includes(f), false, f + ' must not exist: no adapter is authorised for it');
   }
-  /* And the registry maps no panel to an implementation. */
+  /* And the registry names exactly one panel-specific implementation -- the
+     authorised one. The lookup itself is still the single decision point. */
   const idx = codeOf(read(INDEX));
   assert.match(idx, /rt_panel_impl_for/, 'the registry must expose one lookup');
-  assert.equal(/rt_panel_(3xui|pasarguard|rebecca)_/.test(idx), false,
-    'the registry must not name a panel-specific implementation function');
+  assert.equal(/rt_panel_(pasarguard|rebecca)_/.test(idx), false,
+    'the registry must name no implementation for an unimplemented panel');
+  assert.match(idx, /rt_panel_3xui_/, 'the registry must reach the authorised adapter');
 });
 
 test('no activation exists in the interface', () => {
@@ -532,17 +586,21 @@ test('the P3 layer contains no transaction engine', () => {
 
 test('verify supports static and live, and rejects any other mode', () => {
   const got = statusTable([
-    ['static', 'rt_panel_verify', '3xui', 'static'].join('\t'),
-    ['live', 'rt_panel_verify', '3xui', 'live'].join('\t'),
+    ['static', 'rt_panel_verify', 'pasarguard', 'static'].join('\t'),
+    ['live', 'rt_panel_verify', 'pasarguard', 'live'].join('\t'),
     ['both', 'rt_panel_verify', '3xui', 'static', 'live'].join('\t'),
     ['bogus', 'rt_panel_verify', '3xui', 'bogus'].join('\t'),
     ['upper', 'rt_panel_verify', '3xui', 'STATIC'].join('\t'),
     ['none', 'rt_panel_verify', '3xui'].join('\t'),
   ]);
   /* static and live are accepted modes: they reach the implementation and get
-     UNAVAILABLE (2), not FAILURE (1). A mode rejected by validation is 1. */
-  assert.equal(got.static, 2, 'static must be a valid mode (reaching impl => 2)');
-  assert.equal(got.live, 2, 'live must be a valid mode (reaching impl => 2)');
+     UNAVAILABLE (2), not FAILURE (1). A mode rejected by validation is 1.
+     Acceptance is asserted on a panel that is still UNIMPLEMENTED, because a
+     real adapter legitimately answers a valid mode with its own status rather
+     than UNAVAILABLE. Rejection is asserted on the IMPLEMENTED panel, which is
+     the stronger case: the real adapter must still refuse a bad mode. */
+  assert.equal(got.static, 2, 'static must be a valid mode (unimplemented panel => 2)');
+  assert.equal(got.live, 2, 'live must be a valid mode (unimplemented panel => 2)');
   assert.equal(got.bogus, 1);
   assert.equal(got.upper, 1, 'modes are a closed set, not case-folded');
   assert.equal(got.none, 1);

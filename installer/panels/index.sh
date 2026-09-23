@@ -20,6 +20,32 @@
 # pretends to be an implementation is how a "temporary" shim becomes permanent.
 # ---------------------------------------------------------------------------
 
+# --- implementation files ---------------------------------------------------
+# The adapter is sourced HERE, by the registry, and not by the orchestration
+# library. That is the property this file exists to provide: P5 adds an
+# implementation by changing the registry, without touching the contract.
+#
+# It is sourced by its EXPLICIT name, never by a glob -- the set of files that
+# can alter installer behaviour must be fixed and reviewable, and a glob would
+# let a stray file join it.
+#
+# ABSENT IS NOT FATAL, and it is not silent either. A payload without the
+# adapter simply has no 3xui implementation, which the registry reports as
+# "none" -- the honest answer, and one no caller can mistake for a working
+# implementation. Registering a panel whose file is missing would instead reach
+# an undefined function at call time, and "command not found" is an exit 127
+# that no return-code contract describes.
+RT_PANEL_3XUI_LOADED=""
+rt_panel_registry_dir="$(dirname "${BASH_SOURCE[0]}")"
+if [ -f "$rt_panel_registry_dir/3xui.sh" ]; then
+  if . "$rt_panel_registry_dir/3xui.sh"; then
+    RT_PANEL_3XUI_LOADED=1
+  else
+    rt_err "panel registry: the 3xui adapter exists but could not be loaded"
+  fi
+fi
+unset rt_panel_registry_dir
+
 # --- implementation registry -----------------------------------------------
 # Maps a panel id to the function that implements it, or to nothing at all.
 #
@@ -41,10 +67,22 @@ rt_panel_impl_for() {
   # differs per operation (UNAVAILABLE for most, NOT_APPLICABLE for detection).
   local panel="${1:-}"
   rt_panel_id_ok "$panel" || return 0
-  # P5: add one line per implemented panel here, e.g.
-  #   printf '%s\n' "3xui"   # once installer/panels/3xui.sh exists
-  # Until then every panel is unimplemented, and this function says so by
-  # printing nothing.
+  # P5A: 3X-UI is implemented. It is reported ONLY when its adapter actually
+  # loaded, so a payload missing the file reports "none" rather than sending a
+  # caller to a function that is not there.
+  #
+  # The other two panels are still ABSENT from this mapping on purpose. They are
+  # not mapped to a function that reports success, and not mapped to a shared
+  # fallback: absence is the representation of "not implemented", and an absent
+  # key is impossible to mistake for a working one.
+  case "$panel" in
+    3xui)
+      if [ -n "${RT_PANEL_3XUI_LOADED:-}" ]; then
+        printf '%s\n' "3xui"
+      fi
+      return 0 ;;
+  esac
+  # P5B/P5C: add one line per implemented panel here.
   return 0
 }
 
@@ -75,9 +113,46 @@ rt_panel_dispatch() {
     return "$RT_PANEL_UNAVAILABLE"
   fi
 
-  # P5: dispatch to rt_panel_${impl}_${verb} "$@" once implementations exist.
-  # Until then a non-empty implementation id is itself a bug in this file, and
-  # failing closed is the correct response to it.
-  rt_err "panel dispatch: no dispatch arm for implementation '$impl' verb '$verb'"
-  return "$RT_PANEL_FAIL"
+  # ONE ARM PER IMPLEMENTED OPERATION, written out rather than built from
+  # "$impl:$verb". A dynamically constructed command name is a call no reviewer
+  # can enumerate, and this layer's whole value is that its reachable behaviour
+  # is fixed text. A verb with no arm fails closed below.
+  #
+  # THE PANEL IS FORWARDED FIRST. The implementation seam is called with the
+  # same argument list the PUBLIC function received -- PANEL, then the rest --
+  # so an adapter verb's $1 is the panel exactly as it is in rt_panel_<verb>.
+  # Dropping it here would leave every adapter verb one argument short, which
+  # under `set -u` is an immediate unbound-variable abort rather than a wrong
+  # answer, but is a defect either way.
+  case "$impl:$verb" in
+    3xui:detect)             rt_panel_3xui_detect "$panel" "$@" ;;
+    3xui:capabilities)       rt_panel_3xui_capabilities "$panel" "$@" ;;
+    3xui:backup_state)       rt_panel_3xui_backup_state "$panel" "$@" ;;
+    3xui:install_template)   rt_panel_3xui_install_template "$panel" "$@" ;;
+    3xui:verify)             rt_panel_3xui_verify "$panel" "$@" ;;
+    3xui:restore_state)      rt_panel_3xui_restore_state "$panel" "$@" ;;
+    3xui:uninstall_template) rt_panel_3xui_uninstall_template "$panel" "$@" ;;
+    *)
+      rt_err "panel dispatch: no dispatch arm for implementation '$impl' verb '$verb'"
+      return "$RT_PANEL_FAIL" ;;
+  esac
 }
+
+# --- the implementation seam ------------------------------------------------
+# interface.sh declares each public operation as a call to ONE internal
+# rt_panel_impl_<verb>, and defines those there as UNAVAILABLE stubs: the
+# contract layer must not have to know that an implementation exists, and a
+# build with no adapters must still answer honestly.
+#
+# This file fills the seam in. Each router is a one-line pass-through to the
+# registry, so "is this panel implemented?" is decided in exactly ONE place
+# (rt_panel_impl_for) and cannot diverge between operations. The seven public
+# names, their signatures and their return codes are untouched -- this is the
+# restructuring P3 explicitly reserved for P5, not a change to the contract.
+rt_panel_impl_detect()             { rt_panel_dispatch detect "$@"; }
+rt_panel_impl_capabilities()       { rt_panel_dispatch capabilities "$@"; }
+rt_panel_impl_backup_state()       { rt_panel_dispatch backup_state "$@"; }
+rt_panel_impl_install_template()   { rt_panel_dispatch install_template "$@"; }
+rt_panel_impl_verify()             { rt_panel_dispatch verify "$@"; }
+rt_panel_impl_restore_state()      { rt_panel_dispatch restore_state "$@"; }
+rt_panel_impl_uninstall_template() { rt_panel_dispatch uninstall_template "$@"; }

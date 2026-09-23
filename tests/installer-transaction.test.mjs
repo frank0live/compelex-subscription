@@ -1002,16 +1002,25 @@ test('the user-facing rollback path is unchanged: it still reads the format-1 na
     'format 2 must still require an explicit mode');
 });
 
-test('no P5 implementation has appeared', () => {
+test('the panels directory holds exactly the authorised adapters', () => {
+  /* P4 added no adapter. P5A (2026-09-23) adds exactly one, and the claim is
+     kept PRECISE rather than dropped: a second adapter appearing without a
+     phase authorising it is still a failure, and the panels with no adapter are
+     still asserted absent. */
   const files = readdirSync(PANELS_DIR).sort();
-  assert.deepEqual(files, ['index.sh', 'interface.sh'],
-    'P4 must not add a panel adapter');
-  for (const name of ['3xui.sh', 'pasarguard.sh', 'rebecca.sh']) {
-    assert.equal(existsSync(join(PANELS_DIR, name)), false, `${name} must not exist`);
+  assert.deepEqual(files, ['3xui.sh', 'index.sh', 'interface.sh'],
+    'expected the two contract files plus the authorised 3xui adapter');
+  for (const name of ['pasarguard.sh', 'rebecca.sh']) {
+    assert.equal(existsSync(join(PANELS_DIR, name)), false,
+      `${name} must not exist: no adapter is authorised for it`);
   }
 });
 
-test('every panel is still unimplemented, so the registry cannot silently succeed', () => {
+test('the registry implements exactly the panels a phase has authorised', () => {
+  /* The registry is the single decision point, so this is where "implemented"
+     is either true or false for every panel in the enum. A panel with no
+     implementation must resolve to NOTHING -- never to a stub that reports
+     success, because a transaction engine cannot detect a fabricated one. */
   const body = [
     'for p in 3xui pasarguard rebecca; do',
     '  impl="$(rt_panel_impl_for "$p")"',
@@ -1021,15 +1030,19 @@ test('every panel is still unimplemented, so the registry cannot silently succee
   ].join('\n');
   const r = sh(body);
   assert.equal(r.code, 0, r.err);
-  for (const line of r.out.split('\n').filter(Boolean)) {
-    assert.match(line, /\|none$/, `no implementation may exist yet: ${line}`);
-  }
+  const got = new Map(r.out.split('\n').filter(Boolean).map((l) => l.split('|')));
+  assert.equal(got.get('3xui'), '3xui', '3xui must resolve to its real implementation');
+  assert.equal(got.get('pasarguard'), 'none', 'pasarguard must resolve to nothing');
+  assert.equal(got.get('rebecca'), 'none', 'rebecca must resolve to nothing');
 });
 
-test('a transaction against the real, unimplemented interface fails closed and mutates nothing', () => {
-  /* No doubles at all: this is the shipped state of the tree. The fixture
-   * already contains the snapshot directories this suite built, so the
-   * assertion is that the transaction ADDS nothing. */
+test('a transaction against the real interface, with no panel on this host, fails closed', () => {
+  /* No doubles at all: this is the shipped state of the tree. P5A implements
+   * 3X-UI, so the real adapter now runs -- and on a host with no panel binary,
+   * no unit and no database it must still refuse at DETECTION, before anything
+   * is captured or written. The fixture already contains the snapshot
+   * directories this suite built, so the assertion is that the transaction
+   * ADDS nothing. */
   const body = [
     'before="$(ls "$RT_BACKUPS_V2" 2>/dev/null | wc -l)"',
     'rc=0',
