@@ -1,0 +1,4 @@
+# Shows a "Sponsor" button on the repository. The crypto wallet addresses are
+# listed in the README's "Support the project" section.
+custom:
+  - https://nowpayments.io/donation/iitzfrank0live

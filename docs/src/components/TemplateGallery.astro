@@ -29,6 +29,8 @@ import data from "../data/templates.json";
 // component, so it cannot be used to locate the preview directory. The Astro build
 // runs with the docs workspace as its working directory, which is stable.
 const PREVIEW_DIR = join(process.cwd(), "public", "previews");
+// URL of the same folder once built: files in public/ are served under the site base.
+const PREVIEW_URL = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/previews`;
 
 const locale = Astro.currentLocale === "fa" ? "fa" : Astro.currentLocale === "ar" ? "ar" : "en";
 
@@ -142,7 +144,7 @@ const previews = Object.fromEntries(
         <div class="rt-previews">
           <figure class="rt-shot rt-shot-desktop">
             <img
-              src={`/previews/${tpl.id}-desktop.webp`}
+              src={`${PREVIEW_URL}/${tpl.id}-desktop.webp`}
               alt={t.altDesktop(tpl.name)}
               width="1440" height="1000"
               loading="lazy" decoding="async"
@@ -151,7 +153,7 @@ const previews = Object.fromEntries(
           </figure>
           <figure class="rt-shot rt-shot-mobile">
             <img
-              src={`/previews/${tpl.id}-mobile.webp`}
+              src={`${PREVIEW_URL}/${tpl.id}-mobile.webp`}
               alt={t.altMobile(tpl.name)}
               width="390" height="844"
               loading="lazy" decoding="async"

@@ -6,7 +6,7 @@ This directory is the documentation site. It is **separate from the product**.
 
 ```sh
 cd docs
-npm ci          # reproducible install — see PHASE-1-BOOTSTRAP-PLAN.md 2.7
+npm ci          # reproducible install — see design/PHASE-1-BOOTSTRAP-PLAN.md 2.7
 npm run build   # writes docs/dist/
 npm run dev     # local preview
 ```
@@ -24,7 +24,7 @@ npm run dev     # local preview
 
 ## Why Starlight
 
-See `../ADR-0001-DOCUMENTATION-FRAMEWORK.md`. The short version: Pagefind gives a
+See [`design/ADR-0001-DOCUMENTATION-FRAMEWORK.md`](design/ADR-0001-DOCUMENTATION-FRAMEWORK.md). The short version: Pagefind gives a
 build-time search index served from this site's own origin, which is the only option
 consistent with the product's promise that the artifact fetches nothing from anywhere.
 
@@ -38,6 +38,21 @@ consistent with the product's promise that the artifact fetches nothing from any
 | `src/styles/` | design tokens from the design system proposal |
 | `src/components/` | the design-system components |
 | `src/data/` | generated data (gallery, error center) — never hand-edited |
-| `public/` | static passthrough — favicons |
-| `brand/` | logo assets |
+| `public/` | static passthrough — template previews |
+| `plugins/` | build-time helpers (the site-base link rewriter) |
+| `assets/` | the banner and screenshots, shared by the repository README and the site |
+| `design/` | design records: audits, designs and decisions — [index](design/README.md) |
 | `dist/` | build output, gitignored |
+
+## Publishing
+
+`.github/workflows/docs.yml` builds this site on every pull request that touches
+`docs/`, and publishes it to GitHub Pages on every push to `main` that does:
+
+<https://iitzseridev.github.io/Row-Template/>
+
+The site is served under `/Row-Template/`, which `astro.config.mjs` sets as its
+`base`. Write links in content as root-relative paths (`/installation/`,
+`/fa/branding/`) and reference files in `public/` the same way;
+`plugins/base-links.mjs` and the components add the base at build time,
+so content never hard-codes it.
