@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { platform, tmpdir } from 'node:os';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 import { build } from '../tools/build.mjs';
@@ -1267,4 +1267,180 @@ test('reconciliation never recurses: one write, one reconcile, one TEMPLATE line
   assert.match(r.out, /tpl=editorial/);
   assert.match(r.out, /lines2=1/, 'repeated writes never duplicate or loop the selection');
   assert.match(r.out, /tpl2=editorial/);
+});
+
+/* --- the library and its companions are one unit (1.2.0 packaging) -------
+   lib/row-template.sh sources lib/transaction.sh and panels/ at load time. A
+   release ships them together and an install puts them together, but the
+   1.1.0 updater copies only the library and the CLI, so a host it updated has
+   the library alone. tests/release.test.mjs drives that path with the real
+   tarball and the real v1.1.0 updater; these pin the rules underneath it. */
+
+const COMPANION_FILES = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', 'panels/interface.sh'];
+
+/* The library plus the given companions, laid out as under RT_ROOT. */
+function libraryTree(root, companions) {
+  mkdirSync(join(root, 'lib'), { recursive: true });
+  copyFileSync(join(ROOT, 'installer', 'lib', 'row-template.sh'), join(root, 'lib', 'row-template.sh'));
+  for (const rel of companions) {
+    mkdirSync(dirname(join(root, rel)), { recursive: true });
+    copyFileSync(join(ROOT, 'installer', rel), join(root, rel));
+  }
+}
+
+/* Source a tree's library in a fresh bash and report how it loaded. */
+function loadTree(prepare) {
+  const root = mkdtempSync(join(tmpdir(), 'row-lib-')).replace(/\\/g, '/');
+  try {
+    prepare(root);
+    const r = spawnSync('bash', ['-c', [
+      'set -Eeuo pipefail',
+      'export RT_ROOT="$1"',
+      'if . "$RT_ROOT/lib/row-template.sh"; then',
+      '  echo "loaded panels=${RT_PANELS_LOADED:-} txn=${RT_TRANSACTION_LOADED:-}"',
+      '  if rt_installer_complete; then echo complete; else echo incomplete; fi',
+      'else echo refused; fi',
+    ].join('\n'), 'load-tree', root], { cwd: ROOT, encoding: 'utf8' });
+    if (r.error) throw r.error;
+    return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('the library loads without the companions an older updater never installed, and says so', () => {
+  const alone = loadTree((root) => libraryTree(root, []));
+  assert.equal(alone.code, 0, alone.err);
+  assert.match(alone.out, /loaded panels= txn=/, 'the library alone loads, with both layers absent');
+  assert.match(alone.out, /incomplete/, 'and reports itself incomplete');
+  assert.equal(alone.err, '', 'an absent layer is not an error at load time');
+
+  const partial = loadTree((root) => libraryTree(root, ['lib/transaction.sh']));
+  assert.match(partial.out, /loaded panels= txn=1/, 'each layer is loaded on its own');
+  assert.match(partial.out, /incomplete/, 'one layer is not a complete install');
+
+  const full = loadTree((root) => libraryTree(root, COMPANION_FILES));
+  assert.match(full.out, /loaded panels=1 txn=1/);
+  assert.match(full.out, /complete/);
+  assert.doesNotMatch(full.out, /incomplete/);
+});
+
+test('a companion that is present but broken still stops the library from loading', () => {
+  const cases = [
+    ['a panel file that will not parse', (root) => {
+      libraryTree(root, COMPANION_FILES);
+      writeFileSync(join(root, 'panels', 'index.sh'), 'this is ( not bash\n');
+    }],
+    ['a panels/ directory missing its interface', (root) => {
+      libraryTree(root, COMPANION_FILES.filter((f) => f !== 'panels/interface.sh'));
+    }],
+    ['a transaction engine that will not parse', (root) => {
+      libraryTree(root, COMPANION_FILES);
+      writeFileSync(join(root, 'lib', 'transaction.sh'), 'this is ( not bash\n');
+    }],
+  ];
+  for (const [label, prepare] of cases) {
+    const r = loadTree(prepare);
+    assert.match(r.out, /refused/, `${label}: the library must refuse to load`);
+    assert.doesNotMatch(r.out, /loaded/, `${label}: nothing may run half-loaded`);
+  }
+});
+
+/* writePayload plus the management library, and the companions given. */
+function payloadWithLibrary(root, companions, { sums = false } = {}) {
+  writePayload(root);
+  libraryTree(join(root, 'payload'), companions);
+  if (sums) {
+    const lines = companions.map((rel) =>
+      `${createHash('sha256').update(readFileSync(join(root, 'payload', rel))).digest('hex')}  ${rel}`);
+    writeFileSync(join(root, 'payload', 'SHA256SUMS'), lines.join('\n') + '\n');
+  }
+}
+
+test('install refuses a payload that carries the library without its companions, before changing anything', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'if ( rt_cmd_install "$RT_ROOT/payload" ) >/dev/null; then echo "INCOMPLETE-ACCEPTED"; else echo "refused"; fi\n' +
+    '[ -e "$RT_LIVE" ] || echo "live-untouched"\n' +
+    '[ -e "$RT_LIB_DIR/row-template.sh" ] || echo "library-untouched"',
+    { prepare: (root) => payloadWithLibrary(root, ['lib/transaction.sh']) },
+  );
+  assert.match(r.out, /refused/);
+  assert.match(r.err, /the release payload is incomplete: panels\/3xui\.sh is missing/);
+  assert.match(r.out, /live-untouched/, 'nothing was activated');
+  assert.match(r.out, /library-untouched/, 'no half of the unit was installed');
+});
+
+test('update refuses a payload that carries the library without its companions, and the install stays as it was', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'trap "rt_cleanup" EXIT\n' +
+    'before="$(rt_sha256 "$RT_LIVE")"\n' +
+    'rt_fetch_release(){ printf "%s" "$RT_ROOT/payload"; }\n' +
+    'if ( rt_cmd_update ) >/dev/null; then echo "INCOMPLETE-ACCEPTED"; else echo "refused"; fi\n' +
+    '[ "$(rt_sha256 "$RT_LIVE")" = "$before" ] && echo "live-unchanged"\n' +
+    'printf "ver=%s\\n" "$(cat "$RT_VERSION_FILE")"\n' +
+    '[ -e "$RT_LIB_DIR/row-template.sh" ] || echo "library-untouched"',
+    { prepare: (root) => { prepareInstall(root); payloadWithLibrary(root, []); } },
+  );
+  assert.match(r.out, /refused/);
+  assert.match(r.err, /the release payload is incomplete: lib\/transaction\.sh is missing/);
+  assert.match(r.out, /live-unchanged/, 'the running page is untouched');
+  assert.match(r.out, /ver=1\.1\.0/, 'the installed version is untouched');
+  assert.match(r.out, /library-untouched/);
+});
+
+test('a companion that does not match the payload checksum is refused', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'if ( rt_cmd_install "$RT_ROOT/payload" ) >/dev/null; then echo "TAMPERED-ACCEPTED"; else echo "refused"; fi\n' +
+    '[ -e "$RT_LIVE" ] || echo "live-untouched"',
+    { prepare: (root) => {
+      payloadWithLibrary(root, COMPANION_FILES, { sums: true });
+      writeFileSync(join(root, 'payload', 'panels', 'index.sh'), '# tampered\n');
+    } },
+  );
+  assert.match(r.out, /refused/);
+  assert.match(r.err, /payload checksum mismatch: panels\/index\.sh/);
+  assert.match(r.out, /live-untouched/);
+});
+
+test('a payload whose own library declares no companions (v1.1.0) is still accepted', () => {
+  /* The payload's library decides, not the running one: updating to the
+     v1.1.0 release -- a deliberate downgrade -- must not be refused for lacking
+     files that version never needed. */
+  const r = shRoot(
+    FLOW_STUBS +
+    'trap "rt_cleanup" EXIT\n' +
+    'rt_fetch_release(){ printf "%s" "$RT_ROOT/payload"; }\n' +
+    'rt_cmd_update >/dev/null\n' +
+    'cmp -s "$RT_ROOT/payload/lib/row-template.sh" "$RT_LIB_DIR/row-template.sh" && echo "library-installed"\n' +
+    '[ -e "$RT_PANELS_DIR" ] || echo "no-companions-installed"',
+    { prepare: (root) => {
+      prepareInstall(root);
+      writePayload(root);
+      mkdirSync(join(root, 'payload', 'lib'), { recursive: true });
+      copyFileSync(join(ROOT, 'tests', 'fixtures', 'installer-1.1.0', 'row-template.sh'),
+        join(root, 'payload', 'lib', 'row-template.sh'));
+    } },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /library-installed/);
+  assert.match(r.out, /no-companions-installed/);
+});
+
+test('a payload library may declare companions only as plain files in lib/ or panels/', () => {
+  const bad = ['lib/../../evil.sh', 'panels/../x.sh', 'etc/passwd.sh', 'panels/.hidden.sh',
+    'lib/row-template.sh', 'panels/sub/x.sh', 'panels/x.txt', 'panels/a$b.sh', '/abs/x.sh'];
+  /* One process for the whole table; the declaration is data, never sourced. */
+  const r = shRoot(
+    'mkdir -p "$RT_ROOT/p/lib"\n' +
+    'check(){ printf "RT_INSTALLER_COMPANIONS=\\"%s\\"\\n" "$1" > "$RT_ROOT/p/lib/row-template.sh"\n' +
+    '  if rt_payload_companions "$RT_ROOT/p" >/dev/null 2>&1; then echo "ACCEPTED:$1"; else echo "refused:$1"; fi; }\n' +
+    bad.map((rel) => `check ${bq(rel)}\n`).join('') +
+    `check ${bq('lib/transaction.sh panels/3xui.sh panels/index.sh panels/interface.sh')}\n`,
+  );
+  assert.equal(r.code, 0, r.err);
+  for (const rel of bad) assert.match(r.out, new RegExp(`refused:${rel.replace(/[.$/]/g, '\\$&')}`), rel);
+  assert.match(r.out, /ACCEPTED:lib\/transaction\.sh panels/, 'the real declaration is accepted');
 });

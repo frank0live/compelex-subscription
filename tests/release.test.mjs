@@ -19,7 +19,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
@@ -242,5 +242,245 @@ test('the release tarball is byte-deterministic', () => {
     assert.equal(ta.equals(tb), true, 'two release runs must produce identical tarballs');
   } finally {
     rmSync(b, { recursive: true, force: true });
+  }
+});
+
+/* ------------------------------------------------------------------------ */
+/* Installing from the release                                              */
+/*                                                                          */
+/* The tests above prove what the tarball CONTAINS. These prove it WORKS: a */
+/* fresh install from the extracted payload, and an upgrade from v1.1.0     */
+/* driven by the v1.1.0 updater itself -- the code actually installed on    */
+/* existing hosts -- against this release.                                  */
+/*                                                                          */
+/* Everything runs against a throwaway RT_ROOT and RT_BIN. The panel is     */
+/* stubbed as detected but without a database, and the service controls    */
+/* are no-ops, so no test can reach a real 3X-UI on the machine running it. */
+/* install.sh itself is not run: it requires root, and everything after its */
+/* root check is what these tests do -- extract the tarball, source the     */
+/* payload's own library, and call rt_cmd_install on the payload.           */
+/* ------------------------------------------------------------------------ */
+
+/* The management library's companions: what rt_panels_load and
+   rt_transaction_load source, so what a release must ship and an install
+   must put next to the library. */
+const COMPANIONS = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', 'panels/interface.sh'];
+
+/* installer/lib/row-template.sh exactly as released in v1.1.0; see its README. */
+const V110_LIB = join(ROOT, 'tests', 'fixtures', 'installer-1.1.0', 'row-template.sh');
+const V110_SHA = 'c5a2b069826e5f1b46c1ace42d111d8f7a035c3c9651f064b69e62ca41ed32ac';
+
+const sha256 = (b) => createHash('sha256').update(b).digest('hex');
+const sq = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'";
+const same = (a, b) => readFileSync(a).equals(readFileSync(b));
+
+/* A detected 3X-UI 3.7.0 with no database: activation takes the manual path.
+   Root is assumed and the service is never touched. Defined AFTER a library
+   is sourced, so they replace its functions. */
+const PANEL_STUBS = [
+  'rt_require_root(){ :; }',
+  'rt_detect_xui(){ RT_XUI_UNIT="x-ui.service"; return 0; }',
+  'rt_detect_xui_version(){ RT_XUI_VERSION="3.7.0"; printf "3.7.0"; }',
+  'rt_detect_xui_db(){ RT_XUI_DB=""; return 1; }',
+  'rt_service_active(){ return 1; }',
+  'rt_service_start(){ :; }',
+  'rt_service_stop(){ :; }',
+  'trap "rt_cleanup" EXIT',
+].join('\n');
+
+/* Run a bash script with each PATHS entry exported as a POSIX path (cygpath on
+   Windows, as-is elsewhere). Returns {code, out, err}. */
+function bashRun(lines, paths = {}) {
+  const head = Object.entries(paths).map(([k, v]) =>
+    `${k}="$(cygpath -u ${sq(v)} 2>/dev/null || printf '%s' ${sq(v)})"; export ${k}`);
+  const script = ['set -Eeuo pipefail', 'unset RT_TEMPLATE RT_RELEASE_URL RT_ASSUME_YES XUI_DB_FOLDER',
+    ...head, ...lines].join('\n');
+  const r = spawnSync('bash', ['-c', script], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (r.error) throw r.error;
+  return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+}
+
+function sandbox() {
+  const base = mkdtempSync(join(tmpdir(), 'row-install-'));
+  mkdirSync(join(base, 'bin'));
+  return { base, rt: join(base, 'rt'), bin: join(base, 'bin', 'row-template') };
+}
+
+/* What a fresh bash sees when it sources the INSTALLED library. */
+function installedState(sb) {
+  return bashRun([
+    'if . "$RT_ROOT/lib/row-template.sh"; then echo "loaded=yes"; else echo "loaded=NO"; exit 0; fi',
+    'echo "panels=${RT_PANELS_LOADED:-} txn=${RT_TRANSACTION_LOADED:-}"',
+    'if rt_installer_complete; then echo "complete=yes"; else echo "complete=no"; fi',
+    'echo "name=$(rt_config_get_text SERVICE_NAME_B64)"',
+    PANEL_STUBS,
+    'echo "--- verify"',
+    '( rt_cmd_verify ) 2>&1 || true',
+  ], { RT_ROOT: sb.rt, RT_BIN: sb.bin });
+}
+
+/* The installed CLI, run the way an operator runs it. `version` needs no root. */
+function cli(sb, ...args) {
+  return bashRun([`bash "$RT_BIN" ${args.join(' ')}`], { RT_ROOT: sb.rt, RT_BIN: sb.bin });
+}
+
+function assertComplete(sb, label) {
+  for (const rel of ['lib/row-template.sh', ...COMPANIONS]) {
+    assert.ok(existsSync(join(sb.rt, rel)), `${label}: ${rel} is installed`);
+    assert.ok(same(join(sb.rt, rel), join(ROOT, 'installer', rel)), `${label}: ${rel} is this release's file`);
+  }
+  assert.ok(same(sb.bin, join(ROOT, 'installer', 'bin', 'row-template')), `${label}: the CLI is this release's`);
+  assert.deepEqual(readdirSync(join(sb.rt, 'dist', 'templates')).sort(), availableTemplateIds().sort(),
+    `${label}: every design is in the store`);
+  const s = installedState(sb);
+  assert.equal(s.code, 0, s.err);
+  assert.match(s.out, /loaded=yes/, `${label}: the installed library loads`);
+  assert.match(s.out, /panels=1 txn=1/, `${label}: with the panel layer and the transaction engine`);
+  assert.match(s.out, /complete=yes/);
+  assert.match(s.out, /Installer components present/, `${label}: verify sees a complete install`);
+  assert.match(s.out, new RegExp(`Template store verified \\(${availableTemplateIds().length} design`));
+  const v = cli(sb, 'version');
+  assert.equal(v.code, 0, `${label}: the installed CLI runs\n${v.err}`);
+  assert.match(v.out, new RegExp(readFileSync(join(ROOT, 'VERSION'), 'utf8').trim().replace(/\./g, '\\.')));
+  return s;
+}
+
+test('the release payload ships the management library with every companion it loads', () => {
+  const { payload } = sharedPayload();
+  assert.deepEqual(readdirSync(payload).sort(),
+    ['SHA256SUMS', 'VERSION', 'bin', 'install.sh', 'lib', 'panels', 'shells', 'template.html', 'templates'],
+    'the payload top level');
+
+  /* The set is the one on disk, so a companion added to installer/ must ship. */
+  const onDisk = [
+    ...readdirSync(join(ROOT, 'installer', 'lib')).filter((f) => f !== 'row-template.sh').map((f) => `lib/${f}`),
+    ...readdirSync(join(ROOT, 'installer', 'panels')).map((f) => `panels/${f}`),
+  ].sort();
+  assert.deepEqual(onDisk, COMPANIONS, 'every file beside the library is a companion');
+  const lib = readFileSync(join(ROOT, 'installer', 'lib', 'row-template.sh'), 'utf8');
+  const declared = (lib.match(/^RT_INSTALLER_COMPANIONS="([^"]*)"/m) || [])[1];
+  assert.ok(declared, 'the library declares its companions');
+  assert.deepEqual(declared.split(/\s+/).filter(Boolean).sort(), COMPANIONS,
+    'and the declaration is exactly the files on disk');
+
+  const sums = readFileSync(join(payload, 'SHA256SUMS'), 'utf8');
+  for (const rel of ['lib/row-template.sh', 'bin/row-template', 'install.sh', ...COMPANIONS]) {
+    const src = rel === 'install.sh' ? join(ROOT, 'installer', 'install.sh') : join(ROOT, 'installer', rel);
+    assert.ok(same(join(payload, rel), src), `${rel} ships byte-identical to the source`);
+    assert.ok(sums.includes(`${sha256(readFileSync(join(payload, rel)))}  ${rel}\n`), `${rel} is in SHA256SUMS`);
+  }
+
+  /* The packaged library loads from the payload, as install.sh sources it. */
+  const sb = sandbox();
+  try {
+    const r = bashRun(['. "$PAYLOAD/lib/row-template.sh"',
+      'echo "panels=${RT_PANELS_LOADED:-} txn=${RT_TRANSACTION_LOADED:-}"'],
+    { PAYLOAD: payload, RT_ROOT: sb.rt });
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /panels=1 txn=1/, 'the packaged library loads both layers');
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
+  }
+});
+
+test('a fresh install from the release tarball installs a complete, working manager', () => {
+  const { payload } = sharedPayload();
+  const sb = sandbox();
+  try {
+    const r = bashRun([
+      '. "$PAYLOAD/lib/row-template.sh"',
+      PANEL_STUBS,
+      'RT_SERVICE_NAME="Test VPN" rt_cmd_install "$PAYLOAD"',
+    ], { PAYLOAD: payload, RT_ROOT: sb.rt, RT_BIN: sb.bin });
+    assert.equal(r.code, 0, r.err);
+    const s = assertComplete(sb, 'fresh install');
+    assert.match(s.out, /name=Test VPN/, 'branding was applied');
+    assert.ok(existsSync(join(sb.rt, 'sub.html')), 'the page was generated');
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
+  }
+});
+
+/* A host as v1.1.0 left it, then updated by its own updater to this release:
+   install v1.1.0 with the v1.1.0 library, then run that library's
+   rt_cmd_update against the real release directory. bin/row-template is
+   unchanged since v1.1.0, so this release's copy is the v1.1.0 one. */
+function upgradedByV110(sb, out, payload) {
+  assert.equal(sha256(readFileSync(V110_LIB)), V110_SHA, 'the fixture is the released v1.1.0 library');
+  const old = join(sb.base, 'payload-1.1.0');
+  mkdirSync(join(old, 'lib'), { recursive: true });
+  mkdirSync(join(old, 'bin'));
+  copyFileSync(join(payload, 'template.html'), join(old, 'template.html'));
+  writeFileSync(join(old, 'VERSION'), '1.1.0\n');
+  copyFileSync(V110_LIB, join(old, 'lib', 'row-template.sh'));
+  copyFileSync(join(ROOT, 'installer', 'bin', 'row-template'), join(old, 'bin', 'row-template'));
+
+  const paths = { OLD: old, REL: out, RT_ROOT: sb.rt, RT_BIN: sb.bin };
+  const install = bashRun(['. "$OLD/lib/row-template.sh"', PANEL_STUBS,
+    'RT_SERVICE_NAME="Test VPN" rt_cmd_install "$OLD"'], paths);
+  assert.equal(install.code, 0, 'v1.1.0 installs\n' + install.err);
+  assert.equal(readFileSync(join(sb.rt, 'VERSION'), 'utf8').trim(), '1.1.0');
+  assert.ok(same(join(sb.rt, 'lib', 'row-template.sh'), V110_LIB), 'the v1.1.0 library is installed');
+
+  const update = bashRun(['. "$RT_ROOT/lib/row-template.sh"', PANEL_STUBS,
+    'RT_RELEASE_DIR="$REL" rt_cmd_update'], paths);
+  assert.equal(update.code, 0, 'the v1.1.0 updater applies this release\n' + update.err);
+  assert.equal(readFileSync(join(sb.rt, 'VERSION'), 'utf8'), readFileSync(join(ROOT, 'VERSION'), 'utf8'));
+  assert.ok(same(join(sb.rt, 'lib', 'row-template.sh'), join(ROOT, 'installer', 'lib', 'row-template.sh')),
+    'the old updater installed the new library');
+  /* ...and nothing else: it copies four files, so this state is unavoidable. */
+  for (const rel of COMPANIONS) {
+    assert.equal(existsSync(join(sb.rt, rel)), false, `the v1.1.0 updater cannot install ${rel}`);
+  }
+}
+
+test('after the v1.1.0 updater applies this release, the manager still works and reports the install incomplete', () => {
+  const { out, payload } = sharedPayload();
+  const sb = sandbox();
+  try {
+    upgradedByV110(sb, out, payload);
+    const v = cli(sb, 'version');
+    assert.equal(v.code, 0, 'the CLI must start with the companions absent\n' + v.err);
+    const s = installedState(sb);
+    assert.equal(s.code, 0, s.err);
+    assert.match(s.out, /loaded=yes/, 'the new library loads without its companions');
+    assert.match(s.out, /panels= txn=/, 'and marks both layers absent');
+    assert.match(s.out, /complete=no/);
+    assert.match(s.out, /name=Test VPN/, 'branding survived the update');
+    assert.match(s.out, /installer components are missing[^\n]*row-template update/,
+      'verify names the problem and the remedy');
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
+  }
+});
+
+test('row-template update completes an install the v1.1.0 updater left incomplete', () => {
+  const { out, payload } = sharedPayload();
+  const sb = sandbox();
+  try {
+    upgradedByV110(sb, out, payload);
+    const r = bashRun(['. "$RT_ROOT/lib/row-template.sh"', PANEL_STUBS,
+      'RT_RELEASE_DIR="$REL" rt_cmd_update'], { REL: out, RT_ROOT: sb.rt, RT_BIN: sb.bin });
+    assert.equal(r.code, 0, r.err);
+    const s = assertComplete(sb, 'completed upgrade');
+    assert.match(s.out, /name=Test VPN/, 'branding survived the whole path');
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
+  }
+});
+
+test('the manager offers to complete an incomplete install even when it is up to date', () => {
+  const { out, payload } = sharedPayload();
+  const sb = sandbox();
+  try {
+    upgradedByV110(sb, out, payload);
+    /* stdin is not a terminal, so every confirmation takes its default. */
+    const r = bashRun(['. "$RT_ROOT/lib/row-template.sh"', PANEL_STUBS,
+      'RT_RELEASE_DIR="$REL" rt_manager_update </dev/null 2>&1'], { REL: out, RT_ROOT: sb.rt, RT_BIN: sb.bin });
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /incomplete/, 'the manager says why it offers a re-install');
+    assertComplete(sb, 'manager completion');
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
   }
 });
