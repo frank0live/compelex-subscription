@@ -44,7 +44,23 @@ artifact, then rebuild.
 
 The installer and manager live under `installer/` (a bootstrap `install.sh`, the
 `row-template` CLI, and the `lib/row-template.sh` management library). Please run
-`npm test` before submitting changes to these.
+`npm test` and `npm run lint:sh` before submitting changes to these.
+
+### Linting shell scripts
+
+`npm run lint:sh` runs [ShellCheck](https://www.shellcheck.net/) over every
+tracked shell script and fails on any error. Install it once:
+
+```bash
+sudo apt install shellcheck    # Debian / Ubuntu
+brew install shellcheck        # macOS
+scoop install shellcheck       # Windows (or: winget install koalaman.shellcheck)
+```
+
+The gate is severity `error`. For the full report, including warnings, run
+`npm run lint:sh -- -S warning`. Expect some warnings there that are not bugs:
+ShellCheck checks each file on its own, so a global defined in one installer
+file and read in another is reported as unused.
 
 ## Commit messages
 
