@@ -1,0 +1,64 @@
+---
+title: Compatibility
+description: What is supported in production today, and what is research.
+---
+
+## Supported today
+
+| | |
+|---|---|
+| **Panel** | **3X-UI 3.6.0 or newer** |
+| **Platform** | Any Linux with `bash`, `coreutils`, `curl`, `tar`, `sha256sum` |
+| **Runtime** | None — no Node.js, no Python, no database |
+| **Locales** | English, Persian, Arabic, Russian, Simplified Chinese |
+
+3X-UI is the **only** panel supported in production. Installation instructions on this
+site are for 3X-UI only.
+
+## Research and roadmap
+
+> **PasarGuard and Rebecca are research targets, not supported production panels.**
+> **There are no installation instructions for them, and you should not attempt one.**
+
+Both are being studied for future compatibility. The findings so far are recorded here so
+the state of the work is honest rather than implied.
+
+### Why it is not a copy-paste job
+
+The three panels do **not** share a template engine:
+
+| Panel | Engine |
+|---|---|
+| **3X-UI** | Go `html/template` |
+| **PasarGuard** | Jinja2 |
+| **Rebecca** | pongo2 (Django-style, in Go) |
+
+The subscription page's shell is a Go-template document. The same syntax is valid in
+exactly one of the three. That is a genuine translation problem, not a configuration one.
+
+### What is shared, and what is not
+
+The **visual layer is pure CSS** and is fully portable across all three panels. Only the
+shell — the HTML and the template actions it contains — is engine-bound.
+
+So panel compatibility is a **shell and engine** problem, not a design problem. That is
+encouraging, and it is why the work is worth doing.
+
+### Live status
+
+3X-UI serves live status at `?format=info`. The other two expose the same information on
+a **path suffix** rather than a query parameter, so reaching it needs either a small
+runtime change or a reverse proxy. That decision is deliberately deferred.
+
+### Status
+
+| Panel | Status |
+|---|---|
+| 3X-UI | **Supported** |
+| PasarGuard | Research — not supported, no install instructions |
+| Rebecca | Research — not supported, no install instructions |
+
+## Next
+
+- [Installation](/installation/) — for the supported panel
+- [Developer Reference](/developer/) — the architecture the research is based on

@@ -1,0 +1,243 @@
+{
+  "_comment": "Shared template gallery data. Facts are read from source (tools/templates.mjs, each template's tokens.css, and the build). Only the per-locale description prose is authored. Enum values are keyed so the gallery can render translated labels without duplicating structure.",
+  "meta": {
+    "count": 15,
+    "default": "row",
+    "ceiling": "204800 bytes",
+    "shared": [
+      "One self-contained artifact — CSS, JavaScript, fonts and the QR generator are inlined.",
+      "The same shared runtime; a template is a layout and a stylesheet set, never a fork of the logic.",
+      "The same data — status, traffic, expiry, configurations and clients are identical across all fifteen.",
+      "Full right-to-left support for Persian and Arabic.",
+      "Dark and light themes.",
+      "79 required hooks, exactly three scripts, and a byte lock pinning the artifact to an exact size and SHA-256."
+    ]
+  },
+  "templates": [
+    {
+      "id": "row",
+      "name": "Row",
+      "family": "single-column",
+      "composition": "type-led",
+      "density": "compact",
+      "grouping": "rules",
+      "radius": "square",
+      "measure": "medium",
+      "description": {
+        "en": "A single-column information system. Hierarchy comes from the type scale and from rules rather than from containers — the page is almost entirely type, whitespace and hairlines.",
+        "fa": "یک سیستم اطلاعاتی تک‌ستونی. سلسله‌مراتب از مقیاس تایپ و خطوط می‌آید، نه از کادرها — صفحه تقریباً به‌تمامی تایپ، فضای سفید و خطوط نازک است.",
+        "ar": "نظام معلوماتي بعمود واحد. تأتي الهرمية من مقياس الخطوط والخطوط الفاصلة لا من الحاويات — الصفحة تكاد تكون خطوطًا ومساحات بيضاء بالكامل."
+      }
+    },
+    {
+      "id": "editorial",
+      "name": "Editorial",
+      "family": "narrow-column",
+      "composition": "reading-first",
+      "density": "comfortable",
+      "grouping": "columns",
+      "radius": "square",
+      "measure": "narrow",
+      "description": {
+        "en": "A modern technical publication. Measured columns and a magazine rhythm put reading first, with generous leading and a narrow measure.",
+        "fa": "یک نشریهٔ فنی مدرن. ستون‌های سنجیده و ریتم مجله‌ای، خواندن را در اولویت می‌گذارند؛ با فاصلهٔ خطوط باز و عرض متن باریک.",
+        "ar": "منشور تقني حديث. أعمدة محسوبة وإيقاع مجلة يضعان القراءة أولًا، بتباعد أسطر واسع وعرض نص ضيق."
+      }
+    },
+    {
+      "id": "canvas",
+      "name": "Canvas",
+      "family": "single-column",
+      "composition": "airy",
+      "density": "spacious",
+      "grouping": "space",
+      "radius": "soft",
+      "measure": "narrow",
+      "description": {
+        "en": "A calm, airy layout built on generous space and light separation. Sections are told apart by distance rather than by dividers.",
+        "fa": "چیدمانی آرام و باز، بر پایهٔ فضای فراوان و جداسازی سبک. بخش‌ها با فاصله از هم جدا می‌شوند، نه با جداکننده.",
+        "ar": "تخطيط هادئ ومتنفّس مبني على مساحات واسعة وفصل خفيف. تتميّز الأقسام بالمسافة لا بالفوارز."
+      }
+    },
+    {
+      "id": "prism",
+      "name": "Prism",
+      "family": "faceted",
+      "composition": "record-led",
+      "density": "compact",
+      "grouping": "facets",
+      "radius": "square",
+      "measure": "wide",
+      "description": {
+        "en": "A faceted information sheet. Each record is cut into aligned facets — marker, identity, commands — so the eye can scan a single column of each.",
+        "fa": "یک برگهٔ اطلاعاتی چندوجهی. هر رکورد به وجه‌های هم‌تراز بریده می‌شود — نشان، هویت، فرمان‌ها — تا چشم بتواند هر ستون را جداگانه اسکن کند.",
+        "ar": "ورقة معلوماتية متعددة الأوجه. تُقطَّع كل سجلة إلى أوجه متوازية — العلامة والهوية والأوامر — ليتمكّن البصر من مسح كل عمود على حدة."
+      }
+    },
+    {
+      "id": "terminal",
+      "name": "Terminal",
+      "family": "narrow-column",
+      "composition": "session-sheet",
+      "density": "compact",
+      "grouping": "rules",
+      "radius": "square",
+      "measure": "narrow",
+      "description": {
+        "en": "A text session sheet — monospaced, rule-divided and quietly technical. It reads like a well-formatted terminal transcript.",
+        "fa": "یک برگهٔ نشست متنی — مونواسپیس، جداشده با خط و آرام و فنی. مثل یک خروجی ترمینال خوش‌قالب خوانده می‌شود.",
+        "ar": "ورقة جلسة نصية — بخط ثابت العرض، مقسّمة بخطوط، وتقنية بهدوء. تُقرأ كنص طرفية منسّق جيدًا."
+      }
+    },
+    {
+      "id": "pulse",
+      "name": "Pulse",
+      "family": "dashboard",
+      "composition": "status-led",
+      "density": "compact",
+      "grouping": "bands",
+      "radius": "square",
+      "measure": "wide",
+      "description": {
+        "en": "A signal-flow layout. The status reads as a live channel, with the traffic readout as the anchor and the remaining facts arranged around it.",
+        "fa": "چیدمانی بر پایهٔ جریان سیگنال. وضعیت مثل یک کانال زنده خوانده می‌شود؛ مصرف لنگر صفحه است و بقیهٔ اطلاعات حول آن چیده می‌شوند.",
+        "ar": "تخطيط لتدفّق الإشارة. تُقرأ الحالة كقناة حيّة، ويشكّل الاستهلاك مرتكز الصفحة وتُرتَّب حوله بقية المعلومات."
+      }
+    },
+    {
+      "id": "brutal",
+      "name": "Brutal",
+      "family": "wide-board",
+      "composition": "grid-led",
+      "density": "dense",
+      "grouping": "grid",
+      "radius": "square",
+      "measure": "wide",
+      "description": {
+        "en": "A wide, high-contrast board with hard edges and no radius. Information is laid out on a strict grid and the page uses the full width.",
+        "fa": "تخته‌ای پهن و پرکنتراست با لبه‌های تیز و بدون گردی. اطلاعات روی شبکه‌ای دقیق چیده می‌شود و صفحه از تمام عرض استفاده می‌کند.",
+        "ar": "لوحة عريضة عالية التباين بحواف حادة بلا استدارة. تُرتَّب المعلومات على شبكة صارمة وتستخدم الصفحة العرض الكامل."
+      }
+    },
+    {
+      "id": "arcade",
+      "name": "Arcade",
+      "family": "wide-board",
+      "composition": "choice-led",
+      "density": "dense",
+      "grouping": "panels",
+      "radius": "square",
+      "measure": "wide",
+      "description": {
+        "en": "A selection screen. Primary choices are given strong weight and the composition is deliberately game-like in its clarity.",
+        "fa": "یک صفحهٔ انتخاب. گزینه‌های اصلی وزن قوی می‌گیرند و ترکیب‌بندی عمداً در شفافیتش بازی‌گونه است.",
+        "ar": "شاشة اختيار. تُمنح الخيارات الأساسية ثقلًا واضحًا، والتركيب متعمّد الشبه بواجهات الألعاب في وضوحه."
+      }
+    },
+    {
+      "id": "sketch",
+      "name": "Sketch",
+      "family": "single-column",
+      "composition": "hand-ruled",
+      "density": "comfortable",
+      "grouping": "rules",
+      "radius": "square",
+      "measure": "medium",
+      "description": {
+        "en": "A hand-drawn sheet — ruled, informal and deliberately unpolished, while keeping the same readable structure underneath.",
+        "fa": "برگه‌ای دست‌کشیده — خط‌کشی‌شده، غیررسمی و عمداً ناصاف؛ در حالی که همان ساختار خوانای زیرین را نگه می‌دارد.",
+        "ar": "ورقة مرسومة يدويًا — مسطّرة وغير رسمية وغير مصقولة عن قصد، مع الحفاظ على البنية المقروءة نفسها في جوهرها."
+      }
+    },
+    {
+      "id": "signature",
+      "name": "Signature",
+      "family": "dossier",
+      "composition": "document-led",
+      "density": "spacious",
+      "grouping": "columns",
+      "radius": "soft",
+      "measure": "medium",
+      "description": {
+        "en": "A premium service dossier. The document is held by rules, measure and negative space; sections sit in their own columns rather than in frames.",
+        "fa": "یک پروندهٔ خدمات ممتاز. سند با خط، عرض متن و فضای منفی نگه‌داشته می‌شود؛ بخش‌ها در ستون‌های خودشان می‌نشینند، نه در قاب.",
+        "ar": "ملف خدمة متميّز. يُمسك المستند بالخطوط وعرض النص والمساحة السالبة؛ وتستقرّ الأقسام في أعمدتها لا في إطارات."
+      }
+    },
+    {
+      "id": "saffron",
+      "name": "Saffron",
+      "family": "narrow-column",
+      "composition": "centred",
+      "density": "comfortable",
+      "grouping": "space",
+      "radius": "soft",
+      "measure": "narrow",
+      "description": {
+        "en": "A narrow, warm, centred column. The whole page is a single measured reading column with soft separation between sections.",
+        "fa": "ستونی باریک، گرم و وسط‌چین. کل صفحه یک ستون خوانای سنجیده است با جداسازی نرم میان بخش‌ها.",
+        "ar": "عمود ضيّق ودافئ ومتوسّط. الصفحة بأكملها عمود قراءة واحد محسوب، مع فصل ناعم بين الأقسام."
+      }
+    },
+    {
+      "id": "pulsenova",
+      "name": "Pulse Nova",
+      "family": "dashboard",
+      "composition": "card-led",
+      "density": "spacious",
+      "grouping": "cards",
+      "radius": "soft",
+      "measure": "narrow",
+      "description": {
+        "en": "The Nova-era dashboard: rounded cards, a modern instrument panel, and the status presented as a set of discrete readings.",
+        "fa": "داشبورد دورهٔ Nova: کارت‌های گرد، یک پنل ابزار مدرن، و وضعیتی که به‌صورت مجموعه‌ای از خوانش‌های جداگانه ارائه می‌شود.",
+        "ar": "لوحة عصر Nova: بطاقات مستديرة ولوحة أدوات حديثة، مع تقديم الحالة كمجموعة قراءات منفصلة."
+      }
+    },
+    {
+      "id": "prismnova",
+      "name": "Prism Nova",
+      "family": "console",
+      "composition": "information-forward",
+      "density": "dense",
+      "grouping": "panels",
+      "radius": "soft",
+      "measure": "wide",
+      "description": {
+        "en": "The Nova-era console: dense, structured and information-forward, with the record presented as a compact instrument readout.",
+        "fa": "کنسول دورهٔ Nova: متراکم، ساخت‌یافته و اطلاعات‌محور، با رکوردی که به‌صورت یک خوانش فشردهٔ ابزاری ارائه می‌شود.",
+        "ar": "طرفية عصر Nova: كثيفة ومنظّمة ومتقدّمة معلوماتيًا، مع تقديم السجلة كقراءة أداة مضغوطة."
+      }
+    },
+    {
+      "id": "terminalnova",
+      "name": "Terminal Nova",
+      "family": "console",
+      "composition": "monospace",
+      "density": "compact",
+      "grouping": "rules",
+      "radius": "square",
+      "measure": "narrow",
+      "description": {
+        "en": "The Nova-era console in monospace. Narrow, technical and rule-divided, with the Nova visual language applied to a text-led structure.",
+        "fa": "کنسول دورهٔ Nova در قالب مونواسپیس. باریک، فنی و جداشده با خط، با زبان بصری Nova روی ساختاری متن‌محور.",
+        "ar": "طرفية عصر Nova بخط ثابت العرض. ضيّقة وتقنية ومقسّمة بخطوط، مع تطبيق لغة Nova البصرية على بنية نصّية."
+      }
+    },
+    {
+      "id": "arcadenova",
+      "name": "Arcade Nova",
+      "family": "cabinet",
+      "composition": "framed-screen",
+      "density": "dense",
+      "grouping": "panels",
+      "radius": "soft",
+      "measure": "wide",
+      "description": {
+        "en": "The Nova-era cabinet: a framed screen with a cartridge rail, giving the page a contained, console-like presentation.",
+        "fa": "کابینت دورهٔ Nova: صفحه‌ای قاب‌دار با ریل کارتریج، که به صفحه ارائه‌ای محصور و کنسول‌گونه می‌دهد.",
+        "ar": "خزانة عصر Nova: شاشة مؤطَّرة مع سكة خراطيش، تمنح الصفحة عرضًا محصورًا يشبه وحدات التحكم."
+      }
+    }
+  ]
+}

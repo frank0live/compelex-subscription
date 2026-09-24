@@ -158,25 +158,31 @@ func check(f fixture, out string) []string {
 
 func main() {
 	tmplPath := flag.String("template", filepath.Join("..", "..", "template", "index.html"),
-		"artifact to render")
+		"artifact to render (check mode, or the single preview artifact)")
 	outDir := flag.String("out", "out", "directory the rendered pages are written to")
 	addr := flag.String("serve", "", "preview the fixtures on this address instead of checking them")
 	flag.Parse()
+
+	all := fixtures()
+	if *addr != "" {
+		// Preview mode serves one artifact, or — by default — every selectable
+		// design the local build produces, with a development-only selector.
+		// None of this machinery exists in the shipped page: the production
+		// artifact has no notion of a template query parameter.
+		pinned := map[string]bool{}
+		flag.Visit(func(f *flag.Flag) { pinned[f.Name] = true })
+		if err := listen(*addr, previewTemplates(pinned["template"], *tmplPath), all); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	artifact, err := os.ReadFile(*tmplPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cannot read %s: %v\nBuild it first: node tools/build.mjs\n",
 			*tmplPath, err)
 		os.Exit(1)
-	}
-
-	all := fixtures()
-	if *addr != "" {
-		if err := listen(*addr, *tmplPath, all); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
-		return
 	}
 
 	// The installer rewrites the artifact on disk, before the panel renders it,
@@ -211,4 +217,46 @@ func main() {
 	if failed > 0 {
 		os.Exit(1)
 	}
+}
+
+// templateArt is one previewable design: a stable id and the artifact to serve.
+type templateArt struct {
+	ID   string
+	Path string
+}
+
+// previewTemplates resolves the artifacts the preview server can serve. An
+// explicitly passed -template pins a single one; otherwise every design the
+// local build produced under dist/templates/ is offered alongside the
+// committed Row artifact. Directory names become ids, so only plain lowercase
+// ids are accepted — a hostile directory name is skipped, never served from.
+func previewTemplates(pinned bool, explicit string) []templateArt {
+	if pinned && explicit != "" {
+		return []templateArt{{ID: "artifact", Path: explicit}}
+	}
+	var out []templateArt
+	if _, err := os.Stat(filepath.Join("..", "..", "template", "index.html")); err == nil {
+		out = append(out, templateArt{ID: "row", Path: filepath.Join("..", "..", "template", "index.html")})
+	}
+	matches, _ := filepath.Glob(filepath.Join("..", "..", "dist", "templates", "*", "template.html"))
+	for _, m := range matches {
+		id := filepath.Base(filepath.Dir(m))
+		if !validTemplateID(id) || id == "row" {
+			continue
+		}
+		out = append(out, templateArt{ID: id, Path: m})
+	}
+	return out
+}
+
+func validTemplateID(id string) bool {
+	if id == "" {
+		return false
+	}
+	for _, r := range id {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+	return true
 }

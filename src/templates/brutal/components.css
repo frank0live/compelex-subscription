@@ -1,0 +1,839 @@
+/* Components. Nothing here is framed and nothing is rounded. The board is a
+   poster: plates, hard rules, poster-scale numerals, and one acid accent spent
+   only on the primary action and the engaged switch.
+
+   The two structural devices are the numbered row — a plate number set large in
+   its own column, which is what makes the configuration list a poster index
+   rather than a table — and the switching board, where a platform mode is a
+   large block rather than a tab. */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dot {
+  inline-size: 9px;
+  block-size: 9px;
+  flex: none;
+  background: var(--subtle);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.pill[data-state="active"] .dot { background: var(--success); }
+.pill[data-state="expired"] .dot { background: var(--danger); }
+.pill[data-state="limited"] .dot { background: var(--warning); }
+
+.live-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--subtle);
+}
+
+.live-state[data-online="1"] { color: var(--text); }
+.live-state[data-online="1"] .dot { background: var(--success); }
+
+/* The plan name is an enhancement; the localized running head always names the
+   band, so an empty slot removes nothing the region needs. */
+#plan-slot:empty { display: none; }
+
+.plan-label {
+  display: block;
+  max-inline-size: 100%;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* The poster anchor: the largest text in the catalogue, set tight and hard. */
+.figure {
+  font-size: var(--fs-anchor);
+  font-weight: 800;
+  line-height: var(--lh-anchor);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.figure-sm {
+  font-size: var(--fs-row);
+  font-weight: 800;
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colour repeats what the words already say; the words are the signal. */
+.figure-sm[data-level="warn"] { color: var(--warning); }
+.figure-sm[data-level="over"] { color: var(--danger); }
+
+.caption {
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}
+
+.caption:empty { display: none; }
+
+.stamp {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+}
+
+.stamp:empty { display: none; }
+.stamp[data-stale] { color: var(--warning); }
+
+/* The gauge: a hard channel with a solid fill. The figure and the percentage
+   both carry the value, so it never has to communicate on colour alone. */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.bar {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 16px;
+  background-color: var(--track);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  background-color: var(--text);
+  animation: grow var(--dur-slow) var(--ease);
+  transition: inline-size var(--dur-slow) var(--ease);
+}
+
+@keyframes grow { from { inline-size: 0; } }
+
+.bar[data-level="warn"] .bar-fill { background-color: var(--warning); }
+.bar[data-level="over"] .bar-fill { background-color: var(--danger); }
+
+.bar-pct {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--muted);
+  min-inline-size: 4ch;
+  text-align: end;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-5);
+  border: 2px solid transparent;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
+}
+
+/* The one acid plate on the board. */
+.btn-primary {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
+}
+
+.btn-outline { border-color: var(--text); }
+
+.btn-quiet { color: var(--muted); }
+
+/* Both labels share one grid cell, so the control is laid out at the width of
+   the longer word and confirming a copy cannot move its neighbours. */
+.btn-swap {
+  display: grid;
+  grid-template-areas: "label";
+  place-items: center;
+  min-inline-size: 0;
+}
+
+.btn-swap > span {
+  grid-area: label;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-swap > .swap-done { visibility: hidden; }
+
+.btn[data-flash] .swap-live { visibility: hidden; }
+.btn[data-flash] .swap-done { visibility: visible; }
+
+.btn-outline[data-flash],
+.btn-quiet[data-flash] { color: var(--success); }
+
+/* Row and destination commands are ruled plates. The runtime marks each
+   client's import as its primary variant, so the small primary is flattened
+   back to a ruled command and Copy subscription stays the only acid plate. */
+.btn-sm {
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border-width: 1px;
+  border-color: var(--rule-strong);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.btn-sm.btn-primary {
+  background: transparent;
+  color: var(--muted);
+}
+
+.ctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-block-size: var(--tap);
+  min-inline-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border: 1px solid var(--rule-strong);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.ctl-icon { padding-inline: 0; }
+
+.ctl .icon-chevron {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.ctl[aria-expanded="true"] {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.ctl:active,
+.menu-item:active { background: var(--track); }
+
+.btn:disabled,
+.ctl:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.menu-wrap { position: relative; }
+
+.menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--sp-2));
+  inset-inline-end: 0;
+  z-index: 20;
+  min-inline-size: 190px;
+  padding: var(--sp-1);
+  background: var(--surface);
+  border: 2px solid var(--text);
+  box-shadow: var(--shadow-pop);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border: 0;
+  background: transparent;
+  font-size: var(--fs-caption);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease);
+}
+
+.menu-item .icon:last-child {
+  margin-inline-start: auto;
+  opacity: 0;
+}
+
+.menu-item[aria-checked="true"] {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
+
+/* --- the numbered row index ---------------------------------------------- */
+
+.count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  border-block-end: 1px solid var(--rule-strong);
+  color: var(--subtle);
+}
+
+.search:focus-within { border-block-end-color: var(--accent); }
+
+.search input {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+}
+
+.search input:focus { outline: none; }
+
+/* One configuration, one plate: a large number in its own column, then the
+   identity, then the row commands. The number is what makes the list read as a
+   poster index; it counts the rows currently shown, so filtering renumbers the
+   visible set rather than leaving gaps. */
+#config-list { counter-reset: plate; }
+
+/* A plate, not a table row. The record is a two-level composition on the
+   twelve-column poster grid: the ordinal holds its own vertical track as a
+   plate margin with a hard edge, the identity is set large on the first level,
+   the protocol is a small annotation on the second, and the commands sit
+   against the hard trailing edge spanning both levels. That is what stops the
+   index collapsing back onto one conventional horizontal baseline. */
+.cfg {
+  counter-increment: plate;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: baseline;
+  gap: 0 var(--sp-3);
+  min-inline-size: 0;
+  padding-block: var(--sp-4);
+  border-block-end: 1px solid var(--rule);
+}
+
+/* The plate margin: a large ordinal with its own hard edge. The ordinal is set
+   at poster scale on purpose — it is an anchor, not a list marker. */
+.cfg::before {
+  content: counter(plate, decimal-leading-zero);
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  padding-inline-end: var(--sp-3);
+  border-inline-end: 1px solid var(--rule-strong);
+  font-family: var(--font-mono);
+  font-size: var(--fs-plate);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+
+.cfg-flag {
+  grid-column: 3;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  font-size: 19px;
+  line-height: 1;
+  overflow: hidden;
+}
+
+/* Monogram fallback when a node carries no country flag: the first letter of
+   its name as a plate mark, so the column still reads. */
+.cfg-flag[data-mono] {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+/* The body dissolves, so the name and the protocol become grid items of the
+   row itself - which is what lets them sit on two different levels instead of
+   stacking inside one cell. */
+.cfg-body { display: contents; }
+
+.cfg-name {
+  grid-column: 4 / span 7;
+  grid-row: 1;
+  display: block;
+  font-size: var(--fs-row);
+  font-weight: 800;
+  line-height: var(--lh-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-proto {
+  grid-column: 4 / span 7;
+  grid-row: 2;
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-actions {
+  grid-column: 11 / span 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-content: flex-end;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.empty { text-align: start; }
+
+.more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--rule-strong);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.more .icon { transition: transform var(--dur) var(--ease); }
+.more[aria-expanded="true"] .icon { transform: rotate(180deg); }
+
+/* Below the twelve-column threshold the plate keeps its plate margin and its
+   two levels, but folds to three tracks: the ordinal, the identity and the
+   commands. The flag rides inline with the name rather than taking a track of
+   its own, so the record does not grow taller than it needs to. */
+@media (max-width: 859px) {
+  .cfg { grid-template-columns: 3.25rem minmax(0, 1fr) auto; }
+
+  .cfg::before { grid-column: 1; grid-row: 1 / span 2; }
+
+  .cfg-flag {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start;
+    inline-size: auto;
+  }
+
+  .cfg-name {
+    grid-column: 2;
+    grid-row: 1;
+    padding-inline-start: 2rem;
+  }
+
+  .cfg-proto { grid-column: 2; grid-row: 2; }
+
+  .cfg-actions { grid-column: 3; grid-row: 1 / span 2; }
+}
+
+/* --- the switching board -------------------------------------------------- */
+
+.modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+@media (min-width: 640px) {
+  .modes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* A mode is a large block, not a tab. The engaged one is marked by fill AND by
+   an inset hard edge, so it survives monochrome and forced colours. */
+.tab {
+  min-inline-size: 0;
+  min-block-size: 60px;
+  padding-inline: var(--sp-2);
+  border: 2px solid var(--rule-strong);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-body);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
+  box-shadow: inset 0 0 0 3px var(--bg);
+}
+
+.client {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  min-inline-size: 0;
+  padding-block: var(--sp-3);
+  border-block-end: 1px solid var(--rule);
+}
+
+.client-head {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.client-name {
+  font-size: var(--fs-row);
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+  white-space: nowrap;
+}
+
+.client-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* --- the colophon --------------------------------------------------------- */
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  align-self: flex-start;
+  min-block-size: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.announce {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-inline-start: var(--sp-4);
+  border-inline-start: var(--rule-hard) solid var(--accent);
+}
+
+.announce-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text);
+}
+
+/* The runtime builds the announcement heading as .section-title, so it takes the
+   same plate treatment as the board's own anchors. */
+.section-title {
+  font-size: var(--fs-label);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label);
+  line-height: 1.3;
+  color: var(--text);
+}
+
+/* Clamped by default; the panel carries the open state, because whether the
+   toggle is needed at all is measured against this clamp. */
+.announce-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.announce[data-open="1"] .announce-text {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  overflow: visible;
+}
+
+.support { display: flex; }
+
+/* --- dialogs -------------------------------------------------------------- */
+
+.dialog {
+  padding: 0;
+  border: 2px solid var(--text);
+  background: var(--surface);
+  color: var(--text);
+  inline-size: calc(100% - 2 * var(--sp-4));
+  max-inline-size: 400px;
+  box-shadow: var(--shadow-pop);
+}
+
+.dialog::backdrop { background: var(--scrim); }
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  border-block-end: 1px solid var(--rule-strong);
+}
+
+.dialog-head .ctl { color: var(--text); }
+
+.dialog-title {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+/* The frame stays white in both themes because the code has to scan, and a
+   quiet zone is part of the symbol rather than padding around a picture. */
+.qr-frame {
+  padding: var(--sp-3);
+  background: #FFFFFF;
+  border: 2px solid var(--text);
+}
+
+/* Bounded by the shorter axis as well: a phone held sideways has room for the
+   width but not the height, and a code the reader must scroll to is worse than
+   a smaller one shown beside the address it encodes. */
+#qr-canvas {
+  inline-size: min(280px, 72vw, 36vh);
+  block-size: auto;
+}
+
+.url-field {
+  display: flex;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.url-field input {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--rule-strong);
+  background: var(--track);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+}
+
+.url-plain {
+  padding: var(--sp-3);
+  border: 1px solid var(--rule-strong);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* Reserved for what a button cannot say in place: a manual-copy prompt or a
+   failure. Success is reported on the control that was pressed. */
+.toast {
+  position: fixed;
+  inset-block-end: var(--sp-5);
+  inset-inline: 0;
+  z-index: 60;
+  inline-size: fit-content;
+  max-inline-size: calc(100% - 2 * var(--sp-4));
+  margin-inline: auto;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.toast[data-show] { opacity: 1; }
+
+#config-canvas {
+  display: block;
+  inline-size: min(240px, 64vw);
+  block-size: auto;
+  image-rendering: pixelated;
+}
+
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.cfg-conf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.conf-text {
+  inline-size: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--rule-strong);
+  background: var(--track);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  resize: none;
+}
+
+.conf-text:focus { outline: none; border-color: var(--accent); }
+
+.conf-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.conf-actions .btn { flex: 1; }
+
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+
+  .btn-outline:hover,
+  .btn-quiet:hover,
+  .btn-sm:hover,
+  .ctl:hover,
+  .more:hover {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+
+  .menu-item:hover { background: var(--track); }
+
+  .tab:hover:not([aria-selected="true"]) {
+    border-color: var(--text);
+    color: var(--text);
+  }
+
+  .text-link:hover { text-decoration: underline; }
+}
+
+/* Below the phone breakpoint the dialog becomes a bottom sheet: the thumb
+   reaches the close button and the copy field without stretching. */
+@media (max-width: 479px) {
+  .dialog {
+    inline-size: 100%;
+    max-inline-size: none;
+    margin-block: auto 0;
+    border-block-end: 0;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --rule: var(--control-border);
+    --rule-strong: var(--control-border);
+    --muted: var(--text);
+    --subtle: var(--text);
+  }
+
+  .cfg,
+  .client,
+  .search { border-block-end-color: var(--control-border); }
+
+  .ctl,
+  .btn-outline,
+  .btn-sm,
+  .tab,
+  .more { border-color: var(--control-border); }
+}
+
+/* The gauge falls back to a solid system highlight and leans on the figure and
+   the percentage text, which always carry the value. */
+@media (forced-colors: active) {
+  .dialog,
+  .menu,
+  .bar,
+  .search,
+  .more,
+  .tab { border-color: CanvasText; }
+
+  .bar-fill { background-color: Highlight; }
+
+  .dot { forced-color-adjust: none; }
+
+  .tab[aria-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
+    box-shadow: none;
+  }
+
+  .cfg,
+  .client { border-block-end: 1px solid CanvasText; }
+}

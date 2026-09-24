@@ -1,0 +1,42 @@
+/* Direction-specific rules. The layout itself needs none: every offset in
+   this stylesheet is a logical property, so setting dir on <html> is enough.
+   What remains are the two glyphs that carry a direction of their own, and
+   the typographic details that do not survive being mirrored. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+/* Small-caps and tracked running heads are a Latin device: they close Arabic
+   joins and read as a different script. The Arabic face (Vazirmatn, opted in
+   through tokens.css) is already set at a looser leading, so these reset the
+   Latin-only treatment and let the running heads stand as plain capped text. */
+[lang="fa"] .section-title,
+[lang="ar"] .section-title,
+[lang="fa"] .brand-name,
+[lang="ar"] .brand-name,
+[lang="fa"] .cfg-proto,
+[lang="ar"] .cfg-proto {
+  font-variant-caps: normal;
+  letter-spacing: 0;
+}
+
+/* Negative display tracking is a Latin display trick; it closes Arabic joins.
+   The digits are Latin in every language, but the plan name and the unit
+   ladder around the figure are not, so the tight display leading would clip
+   their diacritics. Both display elements take the same reset. */
+[lang="fa"] .plan-label,
+[lang="ar"] .plan-label,
+[lang="fa"] .big-value,
+[lang="ar"] .big-value {
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+/* Persian and Arabic ascenders and descenders need the extra leading that the
+   tighter Latin line-height would clip. */
+[lang="fa"] .value,
+[lang="ar"] .value {
+  line-height: 1.4;
+}

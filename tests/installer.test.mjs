@@ -6,9 +6,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { platform } from 'node:os';
+import { platform, tmpdir } from 'node:os';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+
+import { build } from '../tools/build.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -394,11 +398,17 @@ test('archive extraction rejects traversal paths but allows clean ones', () => {
 test('restore-from-backup reinstates artifact + VERSION but keeps current config', () => {
   /* A rollback must bring back the old template and version, yet preserve the
      admin's CURRENT branding — restoring stale config would silently undo a
-     rename the admin made after the backup. */
+     rename the admin made after the backup. The template identity is now
+     re-derived from the artifact against the store, so a store entry for the
+     backed-up design is part of the fixture; with no matching entry the
+     restore refuses (see the next test). */
   const r = sh(GEN_SETUP +
     'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
     'rt_set_dist "$RT_DIST" >/dev/null; ' +
     'B="$(rt_backup_create)"; ' +
+    'mkdir -p "$RT_TEMPLATE_STORE/row"; ' +
+    'cp "$B/template.html" "$RT_TEMPLATE_STORE/row/template.html"; ' +
+    'rt_sha256 "$B/template.html" > "$RT_TEMPLATE_STORE/row/template.html.sha256"; ' +
     'printf "0.9.0\\n" > "$RT_VERSION_FILE"; rt_config_write "NewName" "https://t.me/x" "" ""; ' +
     'rt_restore_from_backup "$B" >/dev/null && echo RESTORED; ' +
     'printf "VER=%s\\n" "$(cat "$RT_VERSION_FILE")"; ' +
@@ -406,6 +416,20 @@ test('restore-from-backup reinstates artifact + VERSION but keeps current config
   assert.match(r.out, /RESTORED/);
   assert.match(r.out, /VER=0\.8\.0/, 'the backed-up version is reinstated');
   assert.match(r.out, /NAME=NewName/, 'the current admin config is preserved, not reverted');
+});
+
+test('restore-from-backup refuses an artifact the template store cannot identify', () => {
+  /* Without a store match the restored artifact and the stored selection could
+     disagree, which is the one state this system must never produce. */
+  const r = sh(GEN_SETUP +
+    'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
+    'rt_set_dist "$RT_DIST" >/dev/null; ' +
+    'B="$(rt_backup_create)"; ' +
+    'printf "0.9.0\\n" > "$RT_VERSION_FILE"; rt_config_write "NewName" "https://t.me/x" "" ""; ' +
+    'if rt_restore_from_backup "$B" 2>/dev/null; then echo "NO-STORE-ACCEPTED"; else echo "refused"; fi; ' +
+    'printf "NAME=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"');
+  assert.match(r.out, /refused/, 'no store match, no restore');
+  assert.match(r.out, /NAME=NewName/, 'and the current config is untouched');
 });
 
 test('archive extraction rejects a symlink member even when its name is clean',
@@ -615,11 +639,632 @@ test('activation degrades honestly to manual guidance when sqlite3/DB is unavail
   assert.match(all, /Enter exactly\s+\S+\/rt\b/, 'and gives the exact directory to enter');
 });
 
+/* --- template selection lifecycle -----------------------------------------
+   These cases drive the whole store/switch/rollback/update machinery against
+   real artifacts. The artifacts are written from Node (they are ~200 KB each;
+   argv could never carry them) into a prepared install root that the snippet
+   then sources the library against. */
 
+const ROW_HTML = build(true).html;
+const EDITORIAL_HTML = build(true, 'editorial').html;
+const CANVAS_HTML = build(true, 'canvas').html;
+const PRISM_HTML = build(true, 'prism').html;
+const TERMINAL_HTML = build(true, 'terminal').html;
+const PULSE_HTML = build(true, 'pulse').html;
+const BRUTAL_HTML = build(true, 'brutal').html;
+const ARCADE_HTML = build(true, 'arcade').html;
+const SKETCH_HTML = build(true, 'sketch').html;
+const SIGNATURE_HTML = build(true, 'signature').html;
+const SAFFRON_HTML = build(true, 'saffron').html;
+const ROW_SHA = createHash('sha256').update(ROW_HTML).digest('hex');
+const EDI_SHA = createHash('sha256').update(EDITORIAL_HTML).digest('hex');
+const CANVAS_SHA = createHash('sha256').update(CANVAS_HTML).digest('hex');
+const PRISM_SHA = createHash('sha256').update(PRISM_HTML).digest('hex');
+const TERMINAL_SHA = createHash('sha256').update(TERMINAL_HTML).digest('hex');
+const PULSE_SHA = createHash('sha256').update(PULSE_HTML).digest('hex');
+const BRUTAL_SHA = createHash('sha256').update(BRUTAL_HTML).digest('hex');
+const ARCADE_SHA = createHash('sha256').update(ARCADE_HTML).digest('hex');
+const SKETCH_SHA = createHash('sha256').update(SKETCH_HTML).digest('hex');
+const SIGNATURE_SHA = createHash('sha256').update(SIGNATURE_HTML).digest('hex');
+const SAFFRON_SHA = createHash('sha256').update(SAFFRON_HTML).digest('hex');
 
+function writeArtifact(dir, html, sha) {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'template.html'), html);
+  writeFileSync(join(dir, 'template.html.sha256'), sha + '  template.html\n');
+}
 
+/* Run a snippet against a Node-prepared install root. `prepare` receives the
+   POSIX-style root path before bash starts. */
+function shRoot(body, { input, prepare, env } = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'row-t-')).replace(/\\/g, '/');
+  try {
+    if (prepare) prepare(root);
+    const r = spawnSync(
+      'bash',
+      ['-c', 'set -Eeuo pipefail\nexport RT_ROOT="' + root + '"\nsource installer/lib/row-template.sh\n' + body],
+      { cwd: ROOT, encoding: 'utf8', input, env: env ? { ...process.env, ...env } : undefined },
+    );
+    if (r.error) throw r.error;
+    return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
 
+/* A complete installed state: both store designs, Row canonical + sidecar, a
+   live file, VERSION and a Row config with branding set. */
+function prepareInstall(root) {
+  const store = join(root, 'dist', 'templates');
+  writeArtifact(join(store, 'row'), ROW_HTML, ROW_SHA);
+  writeArtifact(join(store, 'editorial'), EDITORIAL_HTML, EDI_SHA);
+  writeArtifact(join(store, 'canvas'), CANVAS_HTML, CANVAS_SHA);
+  writeArtifact(join(store, 'prism'), PRISM_HTML, PRISM_SHA);
+  writeArtifact(join(store, 'terminal'), TERMINAL_HTML, TERMINAL_SHA);
+  writeArtifact(join(store, 'pulse'), PULSE_HTML, PULSE_SHA);
+  writeArtifact(join(store, 'brutal'), BRUTAL_HTML, BRUTAL_SHA);
+  writeArtifact(join(store, 'arcade'), ARCADE_HTML, ARCADE_SHA);
+  writeArtifact(join(store, 'sketch'), SKETCH_HTML, SKETCH_SHA);
+  writeArtifact(join(store, 'signature'), SIGNATURE_HTML, SIGNATURE_SHA);
+  writeArtifact(join(store, 'saffron'), SAFFRON_HTML, SAFFRON_SHA);
+  writeArtifact(join(root, 'dist'), ROW_HTML, ROW_SHA);
+  writeFileSync(join(root, 'sub.html'), ROW_HTML);
+  writeFileSync(join(root, 'VERSION'), '1.1.0\n');
+  writeFileSync(join(root, 'config.env'), [
+    'RT_CONFIG_VERSION=1',
+    'TEMPLATE=row',
+    'SERVICE_NAME_B64=' + Buffer.from('Test VPN', 'utf8').toString('base64'),
+    'SUPPORT_URL_B64=' + Buffer.from('https://t.me/x', 'utf8').toString('base64'),
+    'LOGO_MIME=',
+    'LOGO_DATA_B64=',
+    '',
+  ].join('\n'));
+}
 
+/* A release payload as make-release.sh produces it (artifact + VERSION; the
+   management lib and CLI are optional and omitted). */
+function writePayload(root, { withStore = true } = {}) {
+  const p = join(root, 'payload');
+  mkdirSync(p, { recursive: true });
+  writeFileSync(join(p, 'template.html'), ROW_HTML);
+  writeFileSync(join(p, 'VERSION'), '1.2.0\n');
+  if (withStore) {
+    writeArtifact(join(p, 'templates', 'row'), ROW_HTML, ROW_SHA);
+    writeArtifact(join(p, 'templates', 'editorial'), EDITORIAL_HTML, EDI_SHA);
+    writeArtifact(join(p, 'templates', 'canvas'), CANVAS_HTML, CANVAS_SHA);
+    writeArtifact(join(p, 'templates', 'prism'), PRISM_HTML, PRISM_SHA);
+    writeArtifact(join(p, 'templates', 'terminal'), TERMINAL_HTML, TERMINAL_SHA);
+    writeArtifact(join(p, 'templates', 'pulse'), PULSE_HTML, PULSE_SHA);
+    writeArtifact(join(p, 'templates', 'brutal'), BRUTAL_HTML, BRUTAL_SHA);
+    writeArtifact(join(p, 'templates', 'arcade'), ARCADE_HTML, ARCADE_SHA);
+    writeArtifact(join(p, 'templates', 'sketch'), SKETCH_HTML, SKETCH_SHA);
+    writeArtifact(join(p, 'templates', 'signature'), SIGNATURE_HTML, SIGNATURE_SHA);
+    writeArtifact(join(p, 'templates', 'saffron'), SAFFRON_HTML, SAFFRON_SHA);
+  }
+}
 
+const FLOW_STUBS = [
+  'rt_require_root(){ :; }',
+  'rt_detect_xui(){ return 1; }',
+  'rt_detect_xui_version(){ return 1; }',
+  'rt_detect_xui_db(){ return 1; }',
+  '',
+].join('\n');
 
+/* Bash snippets are single-quoted JS strings. This helper shells a value as a
+   literal single-quoted bash word, so hostile fixture values survive intact. */
+function bq(value) {
+  return "'" + String(value).replace(/'/g, "'\\''") + "'";
+}
 
+test('rt_template_effective: missing means Row, corrupt warns and falls back', () => {
+  const r = sh(
+    'printf "effective=%s\\n" "$(rt_template_effective)"; ' +
+    'rt_config_write "" "" "" ""; ' +
+    'printf "fresh=%s\\n" "$(rt_template_effective)"; ' +
+    'printf "TEMPLATE=bogus\\n" >> "$RT_CONFIG"; ' +
+    'printf "corrupt=%s\\n" "$(rt_template_effective)"',
+  );
+  assert.equal(r.code, 0);
+  assert.match(r.out, /effective=row/, 'a legacy config with no TEMPLATE line is Row, silently');
+  assert.match(r.out, /fresh=row/);
+  assert.match(r.out, /corrupt=row/, 'a corrupt stored id still resolves, to Row');
+  assert.match(r.err, /unknown template id \(bogus\)/, 'the operator is warned');
+});
+
+test('hostile identifiers are refused as selections and never reach a path', () => {
+  const ids = [
+    '../../etc/passwd', '../row', 'row/../../x', 'editorial;rm', 'editorial && whoami',
+    '$(command)', '/absolute/path', 'ROW<script>', '%2e%2e/', 'C:\\Windows', '   ',
+  ];
+  const body = ids.map((id) =>
+    'for id in ' + bq(id) + '; do\n' +
+    '  if rt_template_allowed "$id"; then echo "ALLOWED"; fi\n' +
+    '  if rt_template_store_has "$id"; then echo "STORE-HAS"; fi\n' +
+    '  if rt_config_set_template "$id" 2>/dev/null; then echo "PERSISTED"; fi\n' +
+    'done\n').join('') + 'echo done';
+  const r = sh(body);
+  assert.equal(r.code, 0);
+  assert.equal(r.out, 'done', 'no hostile id may be allowed, stored, or persisted');
+});
+
+test('rt_config_write preserves the selection across branding changes, sanitizes a corrupt one, and stays strict on an explicit id', () => {
+  const r = sh(
+    'rt_config_write "A" "https://t.me/a" "" ""\n' +
+    'rt_config_set_template editorial\n' +
+    'rt_config_write "B" "https://t.me/b" "" ""\n' +
+    'printf "kept=%s name=%s\\n" "$(rt_config_get_raw TEMPLATE)" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'printf "TEMPLATE=banana\\n" >> "$RT_CONFIG"\n' +
+    'rt_config_write "C" "https://t.me/c" "" ""\n' +
+    'printf "sanitized=%s name=%s\\n" "$(rt_config_get_raw TEMPLATE)" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'if rt_config_write "D" "https://t.me/d" "" "" does-not-exist 2>/dev/null; then echo "EXPLICIT-ACCEPTED"; else echo "EXPLICIT-REJECTED"; fi',
+  );
+  assert.equal(r.code, 0);
+  assert.match(r.out, /kept=editorial name=B/, 'a branding change must not reset the selection');
+  assert.match(r.out, /sanitized=row name=C/, 'a corrupt stored id is reset, not preserved');
+  assert.match(r.err, /resetting the selection to Row/);
+  assert.match(r.out, /EXPLICIT-REJECTED/, 'an explicit invalid id fails the write');
+});
+
+test('rt_stage_template_store stages verified artifacts, skips hostile names, and refuses a tampered one', () => {
+  const good = shRoot(
+    'rt_stage_template_store "$RT_ROOT/payload"\n' +
+    'printf "ids=%s\\n" "$(rt_template_store_ids | tr "\\n" ",")"\n' +
+    'cmp -s "$RT_TEMPLATE_STORE/editorial/template.html" "$RT_ROOT/payload/templates/editorial/template.html" && echo "byte-exact"',
+    { prepare: (root) => writePayload(root) },
+  );
+  assert.equal(good.code, 0, good.err);
+  assert.equal(good.out, 'ids=arcade,brutal,canvas,editorial,prism,pulse,row,saffron,signature,sketch,terminal,\nbyte-exact');
+
+  const tampered = shRoot(
+    'if rt_stage_template_store "$RT_ROOT/payload" 2>/dev/null; then echo "TAMPER-STAGED"; else echo "TAMPER-REFUSED"; fi\n' +
+    '[ -d "$RT_TEMPLATE_STORE/editorial" ] || echo "editorial-not-staged"',
+    { prepare: (root) => {
+      writePayload(root);
+      writeFileSync(join(root, 'payload', 'templates', 'editorial', 'template.html'), EDITORIAL_HTML + 'x');
+    } },
+  );
+  assert.match(tampered.out, /TAMPER-REFUSED/);
+  assert.match(tampered.out, /editorial-not-staged/, 'a failing artifact stages nothing for that id');
+
+  const hostile = shRoot(
+    'rt_stage_template_store "$RT_ROOT/payload"\n' +
+    'printf "ids=%s\\n" "$(rt_template_store_ids | tr "\\n" ",")"',
+    { prepare: (root) => {
+      writePayload(root);
+      mkdirSync(join(root, 'payload', 'templates', 'Evil'), { recursive: true });
+      mkdirSync(join(root, 'payload', 'templates', 'Evil'), { recursive: true });
+      writeFileSync(join(root, 'payload', 'templates', 'Evil', 'template.html'), 'x');
+    } },
+  );
+  assert.equal(hostile.out, 'ids=arcade,brutal,canvas,editorial,prism,pulse,row,saffron,signature,sketch,terminal,', 'a non-lowercase directory name is skipped');
+});
+
+test('rt_switch_template moves Row -> Editorial -> Row with branding intact, and refuses bad moves', () => {
+  const r = shRoot(
+    'rt_switch_template editorial || { echo "SWITCH-FAILED"; exit 1; }\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'grep -q ' + bq('data-template="editorial"') + ' "$RT_LIVE" && echo "live=editorial"\n' +
+    'cmp -s "$RT_DIST" "$RT_TEMPLATE_STORE/editorial/template.html" && echo "canonical=editorial"\n' +
+    'rt_switch_template row\n' +
+    'printf "tpl2=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live=row"\n' +
+    'if rt_switch_template does-not-exist 2>/dev/null; then echo "UNAVAILABLE-ACCEPTED"; else echo "unknown-refused"; fi\n' +
+    'printf "tpl3=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'if rt_switch_template ' + bq('../row') + ' 2>/dev/null; then echo "TRAVERSAL-ACCEPTED"; else echo "traversal-refused"; fi\n' +
+    'printf "tpl4=%s\\n" "$(rt_config_get_raw TEMPLATE)"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /tpl=editorial/, 'the switch persists the new selection');
+  assert.match(r.out, /name=Test VPN/, 'branding survives the switch');
+  assert.match(r.out, /live=editorial/, 'the live page is the new design');
+  assert.match(r.out, /canonical=editorial/, 'the canonical artifact is the new design');
+  assert.match(r.out, /tpl2=row/, 'and the switch back works');
+  assert.match(r.out, /live=row/, 'Row carries no data-template attribute');
+  assert.match(r.out, /unknown-refused/);
+  assert.match(r.out, /tpl3=row/, 'a refused switch leaves the selection alone');
+  assert.match(r.out, /traversal-refused/);
+  assert.match(r.out, /tpl4=row/);
+});
+
+test('Canvas cycles with Row and Editorial, carrying branding and identity the whole way', () => {
+  const r = shRoot(
+    'rt_switch_template canvas\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'printf "dist=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q ' + bq('data-template="canvas"') + ' "$RT_LIVE" && echo "live=canvas"\n' +
+    'rt_switch_template editorial\n' +
+    'printf "dist2=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q ' + bq('data-template="editorial"') + ' "$RT_LIVE" && echo "live2=editorial"\n' +
+    'rt_switch_template row\n' +
+    'printf "tpl3=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "dist3=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live3=row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /tpl=canvas/);
+  assert.match(r.out, /name=Test VPN/, 'branding survives every leg');
+  assert.match(r.out, new RegExp('dist=' + CANVAS_SHA));
+  assert.match(r.out, /live=canvas/);
+  assert.match(r.out, new RegExp('dist2=' + EDI_SHA));
+  assert.match(r.out, /live2=editorial/);
+  assert.match(r.out, /tpl3=row/);
+  assert.match(r.out, new RegExp('dist3=' + ROW_SHA));
+  assert.match(r.out, /live3=row/);
+});
+
+test('Prism cycles through every design with branding and identity intact', () => {
+  const r = shRoot(
+    'rt_switch_template prism\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'printf "dist=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q ' + bq('data-template="prism"') + ' "$RT_LIVE" && echo "live=prism"\n' +
+    'rt_switch_template canvas\n' +
+    'printf "dist2=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'rt_switch_template editorial\n' +
+    'printf "dist3=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'rt_switch_template row\n' +
+    'printf "tpl2=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "dist4=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live=row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /tpl=prism/);
+  assert.match(r.out, /name=Test VPN/, 'branding survives every leg');
+  assert.match(r.out, new RegExp('dist=' + PRISM_SHA));
+  assert.match(r.out, /live=prism/);
+  assert.match(r.out, new RegExp('dist2=' + CANVAS_SHA));
+  assert.match(r.out, new RegExp('dist3=' + EDI_SHA));
+  assert.match(r.out, /tpl2=row/);
+  assert.match(r.out, new RegExp('dist4=' + ROW_SHA));
+  assert.match(r.out, /live=row/);
+});
+
+test('a switch refused on checksum grounds leaves the previous state fully live', () => {
+  const r = shRoot(
+    'printf "x" >> "$RT_TEMPLATE_STORE/editorial/template.html"\n' +
+    'if rt_switch_template editorial 2>/dev/null; then echo "TAMPER-ACCEPTED"; else echo "refused"; fi\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live-still-row"\n' +
+    'cmp -s "$RT_DIST" "$RT_TEMPLATE_STORE/row/template.html" && echo "canonical-still-row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /refused/);
+  assert.match(r.out, /tpl=row/);
+  assert.match(r.out, /live-still-row/);
+  assert.match(r.out, /canonical-still-row/);
+});
+
+test('rollback restores the artifact and re-derives its template identity', () => {
+  const r = shRoot(
+    'backup="$(rt_backup_create)"\n' +
+    'rt_switch_template editorial\n' +
+    'printf "after-switch=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'rt_restore_from_backup "$backup" && rt_activate\n' +
+    'printf "after-restore=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'cmp -s "$RT_DIST" "$RT_TEMPLATE_STORE/row/template.html" && echo "canonical=row"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live=row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /after-switch=editorial/);
+  assert.match(r.out, /after-restore=row/, 'the restored artifact decides the selection');
+  assert.match(r.out, /name=Test VPN/, 'branding is preserved, not rolled back');
+  assert.match(r.out, /canonical=row/);
+  assert.match(r.out, /live=row/);
+});
+
+test('an Editorial backup rolls a Row install forward, and a legacy v1.1.0 backup rolls it back', () => {
+  const r = shRoot(
+    'rt_switch_template editorial\n' +
+    'edi_backup="$(rt_backup_create)"\n' +
+    'rt_switch_template row\n' +
+    'rt_restore_from_backup "$edi_backup" && rt_activate\n' +
+    'printf "edi-back=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'grep -q ' + bq('data-template="editorial"') + ' "$RT_LIVE" && echo "live=editorial"\n' +
+    'legacy="$RT_BACKUPS/20260101T000000Z__1.1.0"\n' +
+    'mkdir -p "$legacy"\n' +
+    'cp "$RT_TEMPLATE_STORE/row/template.html" "$legacy/template.html"\n' +
+    'rt_sha256 "$legacy/template.html" > "$legacy/template.html.sha256"\n' +
+    'printf "version=1.1.0\\n" > "$legacy/meta"\n' +
+    'rt_restore_from_backup "$legacy" && rt_activate\n' +
+    'printf "legacy-back=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live=row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /edi-back=editorial/, 'an editorial backup restores the editorial selection');
+  assert.match(r.out, /live=editorial/);
+  assert.match(r.out, /legacy-back=row/, 'a pre-store backup artifact is identified as Row by its bytes');
+  assert.match(r.out, /live=row/);
+});
+
+test('a corrupt or mismatched backup is refused before anything is restored', () => {
+  const r = shRoot(
+    'rt_switch_template editorial\n' +
+    'backup="$(rt_backup_create)"\n' +
+    'printf "x" >> "$backup/template.html"\n' +
+    'if rt_restore_from_backup "$backup" 2>/dev/null; then echo "CORRUPT-ACCEPTED"; else echo "corrupt-refused"; fi\n' +
+    'cmp -s "$RT_DIST" "$RT_TEMPLATE_STORE/editorial/template.html" && echo "canonical-untouched"\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /corrupt-refused/);
+  assert.match(r.out, /canonical-untouched/);
+  assert.match(r.out, /tpl=editorial/);
+});
+
+test('an update keeps an available selection live across the release', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'trap "rt_cleanup" EXIT\n' +
+    'rt_config_set_template editorial\n' +
+    'rt_fetch_release(){ printf "%s" "$RT_ROOT/payload"; }\n' +
+    'rt_cmd_update >/dev/null 2>&1\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'printf "ver=%s\\n" "$(cat "$RT_VERSION_FILE")"\n' +
+    'grep -q ' + bq('data-template="editorial"') + ' "$RT_LIVE" && echo "live=editorial"\n' +
+    'printf "store=%s\\n" "$(rt_template_store_ids | tr "\\n" ",")"',
+    { prepare: (root) => { prepareInstall(root); writePayload(root); } },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /tpl=editorial/, 'an available selection survives the update');
+  assert.match(r.out, /name=Test VPN/, 'branding survives the update');
+  assert.match(r.out, /ver=1.2.0/);
+  assert.match(r.out, /live=editorial/, 'the updated install serves the selected design');
+  assert.match(r.out, /store=arcade,brutal,canvas,editorial,prism,pulse,row,saffron,signature,sketch,terminal/, 'the release store was staged');
+});
+
+test('an update against a payload without a store degrades to Row and keeps the invariant', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'trap "rt_cleanup" EXIT\n' +
+    'rt_config_set_template editorial\n' +
+    'rt_fetch_release(){ printf "%s" "$RT_ROOT/payload"; }\n' +
+    'rt_cmd_update >/dev/null\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "marker-leaked" || echo "live=row"',
+    { prepare: (root) => {
+      prepareInstall(root); writePayload(root, { withStore: false });
+      rmSync(join(root, 'dist', 'templates'), { recursive: true, force: true });
+    } },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.err, /template 'editorial' is not in this release/, 'the fallback is announced');
+  assert.match(r.out, /tpl=row/, 'the fallback is persisted, not just activated');
+  assert.match(r.out, /name=Test VPN/, 'branding still survives');
+  assert.match(r.out, /live=row/, 'config and artifact agree: both Row');
+});
+
+test('verify reports the selected template and fails a selection/artifact mismatch', () => {
+  const good = shRoot(FLOW_STUBS + 'rt_cmd_verify', { prepare: prepareInstall });
+  assert.equal(good.code, 0, good.err);
+  assert.match(good.out, /Template: Row/);
+  assert.match(good.out, /Canonical artifact matches the selected template\./);
+
+  const bad = shRoot(
+    FLOW_STUBS +
+    'rt_config_set_template editorial\n' +
+    'rt_cmd_verify\n',
+    { prepare: prepareInstall },
+  );
+  assert.equal(bad.code, 1, 'a mismatch is a hard failure');
+  assert.match(bad.out, /Template: Editorial/);
+  assert.match(bad.err, /canonical artifact does not match the selected template/, 'the mismatch is reported on stderr');
+});
+
+test('the manager template editor switches on confirm, cancels cleanly, and reports the current design', () => {
+  const switched = shRoot(
+    'printf "2\\ny\\n" | rt_reconfig_template\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(switched.code, 0, switched.err);
+  assert.match(switched.out, /Current template:\s+Row/, 'the current design is shown first');
+  assert.match(switched.out, /Template changed successfully/);
+  assert.match(switched.out, /Previous\s+Row/);
+  assert.match(switched.out, /Current\s+Editorial/);
+  assert.match(switched.out, /Verification\s+Passed/);
+  assert.match(switched.out, /tpl=editorial/);
+
+  const cancelled = shRoot(
+    'printf "0\\n" | rt_reconfig_template\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"',
+    { prepare: prepareInstall },
+  );
+  assert.match(cancelled.out, /tpl=row/, 'cancellation changes nothing');
+
+  const same = shRoot('printf "1\\n" | rt_reconfig_template', { prepare: prepareInstall });
+  assert.match(same.out, /Already the active template\./);
+});
+
+test('the fresh-install chooser defaults to Row and accepts a numbered pick', () => {
+  const setup =
+    'mkdir -p "$RT_TEMPLATE_STORE/row" "$RT_TEMPLATE_STORE/editorial"\n' +
+    ': > "$RT_TEMPLATE_STORE/row/template.html"; : > "$RT_TEMPLATE_STORE/row/template.html.sha256"\n' +
+    ': > "$RT_TEMPLATE_STORE/editorial/template.html"; : > "$RT_TEMPLATE_STORE/editorial/template.html.sha256"\n';
+  const enter = shRoot(setup + 'printf "\\n" | rt_install_pick_template', { prepare: () => {} });
+  assert.equal(enter.out, 'row', 'Enter takes the default');
+  const pick = shRoot(setup + 'printf "2\\n" | rt_install_pick_template', { prepare: () => {} });
+  assert.equal(pick.out, 'editorial', 'a number picks that design');
+  const junk = shRoot(setup + 'printf "junk\\n9\\n2\\n" | rt_install_pick_template', { prepare: () => {} });
+  assert.equal(junk.out, 'editorial', 'junk re-prompts instead of guessing');
+  const eof = shRoot(setup + 'rt_install_pick_template </dev/null', { prepare: () => {} });
+  assert.equal(eof.out, 'row', 'EOF can never hang the installer');
+});
+
+test('a fresh non-interactive install honors RT_TEMPLATE and refuses an invalid one', () => {
+  const xuiStubs =
+    'rt_detect_xui(){ RT_XUI_UNIT="x-ui.service"; return 0; }\n' +
+    'rt_detect_xui_version(){ RT_XUI_VERSION="3.7.0"; printf "3.7.0"; }\n';
+  const editorial = shRoot(
+    FLOW_STUBS + xuiStubs +
+    'rt_cmd_install "$RT_ROOT/payload" >/dev/null 2>&1\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'grep -q ' + bq('data-template="editorial"') + ' "$RT_LIVE" && echo "live=editorial"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"',
+    { prepare: (root) => writePayload(root), env: { RT_TEMPLATE: 'editorial' } },
+  );
+  assert.equal(editorial.code, 0, editorial.err);
+  assert.match(editorial.out, /tpl=editorial/);
+  assert.match(editorial.out, /live=editorial/, 'the store artifact, not the top-level Row file, is served');
+
+  const invalid = shRoot(
+    FLOW_STUBS + xuiStubs +
+    'if ( rt_cmd_install "$RT_ROOT/payload" ) >/dev/null; then echo "INVALID-ACCEPTED"; else echo "invalid-refused"; fi\n' +
+    '[ -f "$RT_LIVE" ] || echo "live-untouched"',
+    { prepare: (root) => writePayload(root), env: { RT_TEMPLATE: 'editorial;rm' } },
+  );
+  assert.match(invalid.out, /invalid-refused/, 'explicit invalid input fails the install');
+  assert.match(invalid.err, /not a template this release offers/);
+  assert.match(invalid.out, /live-untouched/, 'nothing was activated');
+});
+
+/* --- sanitizing fallback must reconcile the artifact (v1.2 regression) -----
+   rt_config_write sanitizes an invalid stored selection to Row, but only the
+   high-level branding boundaries (rt_cmd_config, rt_apply_branding) know a
+   transition happened. Each of them must reconcile the canonical artifact and
+   regenerate the live page before returning, or config and artifact disagree. */
+
+function corruptAndReapply(flow) {
+  return shRoot(
+    FLOW_STUBS +
+    flow +
+    'name_before="$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'url_before="$(rt_config_get_text SUPPORT_URL_B64)"\n' +
+    'printf "TEMPLATE=bogus\\n" >> "$RT_CONFIG"\n' +
+    'rt_apply_branding "$name_before" "$url_before" "$(rt_config_get_raw LOGO_MIME)" "$(rt_config_get_raw LOGO_DATA_B64)" 2>"$RT_ROOT/recon.err"\n' +
+    'printf "rc=%s\\n" "$?"\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "lines=%s\\n" "$(grep -c "^TEMPLATE=" "$RT_CONFIG")"\n' +
+    'printf "dist=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'if grep -q "data-template" "$RT_LIVE"; then echo "live=design"; else echo "live=row"; fi\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'grep -q "unknown template id (bogus)" "$RT_ROOT/recon.err" && echo "warned"\n' +
+    'rt_cmd_verify >/dev/null 2>&1 && echo "verify=ok"\n' +
+    'printf "sum=%s\\n" "$(cat "$RT_DIST_SUM")"',
+    { prepare: prepareInstall },
+  );
+}
+
+test('a branding write sanitizes a corrupt stored selection to Row and reconciles the artifact', () => {
+  const r = corruptAndReapply('rt_switch_template editorial\n');
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /rc=0/, 'the branding operation succeeds');
+  assert.match(r.out, /warned/, 'the corrupt value is announced');
+  assert.match(r.out, /tpl=row/, 'the selection is persisted as Row');
+  assert.match(r.out, /lines=1/, 'exactly one TEMPLATE line remains');
+  assert.match(r.out, new RegExp('dist=' + ROW_SHA), 'the canonical artifact was reconciled to Row');
+  assert.match(r.out, /live=row/, 'the live page no longer names Editorial');
+  assert.match(r.out, new RegExp('name=Test VPN'), 'branding is unchanged');
+  assert.match(r.out, new RegExp('sum=' + ROW_SHA), 'the sidecar matches the artifact');
+  assert.match(r.out, /verify=ok/, 'verify passes');
+});
+
+test('a branding write on a corrupt config while Row is already active stays consistent', () => {
+  const r = corruptAndReapply('');
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /rc=0/);
+  assert.match(r.out, /warned/);
+  assert.match(r.out, /tpl=row/);
+  assert.match(r.out, new RegExp('dist=' + ROW_SHA), 'no reconcile needed, artifact already Row');
+  assert.match(r.out, /live=row/);
+  assert.match(r.out, new RegExp('name=Test VPN'));
+  assert.match(r.out, /verify=ok/);
+});
+
+test('rt_cmd_config reconciles a sanitized selection the same way', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'rt_switch_template editorial\n' +
+    'printf "TEMPLATE=bogus\\n" >> "$RT_CONFIG"\n' +
+    'RT_SERVICE_NAME="Test VPN" RT_SUPPORT_URL="https://t.me/x" rt_cmd_config >/dev/null 2>"$RT_ROOT/cfg.err"\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "dist=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'if grep -q "data-template" "$RT_LIVE"; then echo "live=design"; else echo "live=row"; fi\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'rt_cmd_verify >/dev/null 2>&1 && echo "verify=ok"\n',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /tpl=row/);
+  assert.match(r.out, new RegExp('dist=' + ROW_SHA), 'the artifact followed the fallback');
+  assert.match(r.out, /live=row/);
+  assert.match(r.out, new RegExp('name=Test VPN'));
+  assert.match(r.out, /verify=ok/);
+});
+
+test('a branding write fails safely when the fallback template is missing from the store', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'rt_switch_template editorial\n' +
+    'printf "TEMPLATE=bogus\\n" >> "$RT_CONFIG"\n' +
+    'rm -f "$RT_TEMPLATE_STORE/row/template.html"\n' +
+    'if rt_apply_branding "Nova" "https://t.me/nova" "" "" 2>"$RT_ROOT/recon.err"; then echo "APPLIED"; else echo "REFUSED"; fi\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "dist=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q ' + bq('data-template="editorial"') + ' "$RT_LIVE" && echo "live=editorial"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'grep -q "missing from the template store" "$RT_ROOT/recon.err" && echo "explained"\n',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /REFUSED/, 'the write is refused, not half-applied');
+  assert.match(r.out, /explained/, 'the refusal names the missing store entry');
+  assert.match(r.out, /tpl=bogus/, 'the pre-write config is restored untouched');
+  assert.match(r.out, new RegExp('dist=' + EDI_SHA), 'the canonical artifact is untouched');
+  assert.match(r.out, /live=editorial/, 'the known-good live page is preserved');
+  assert.match(r.out, /name=Test VPN/, 'branding is preserved, not the attempted write');
+});
+
+test('a branding write refuses activation when the fallback store artifact fails its checksum', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'rt_switch_template editorial\n' +
+    'printf "TEMPLATE=bogus\\n" >> "$RT_CONFIG"\n' +
+    'printf "x" >> "$RT_TEMPLATE_STORE/row/template.html"\n' +
+    'if rt_apply_branding "Nova" "https://t.me/nova" "" "" 2>"$RT_ROOT/recon.err"; then echo "APPLIED"; else echo "REFUSED"; fi\n' +
+    'printf "dist=%s\\n" "$(rt_sha256 "$RT_DIST")"\n' +
+    'grep -q ' + bq('data-template="editorial"') + ' "$RT_LIVE" && echo "live=editorial"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'grep -q "failed its store checksum" "$RT_ROOT/recon.err" && echo "explained"\n',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /REFUSED/, 'a tampered fallback artifact is never activated');
+  assert.match(r.out, /explained/, 'the refusal names the checksum');
+  assert.match(r.out, new RegExp('dist=' + EDI_SHA), 'the canonical artifact is untouched');
+  assert.match(r.out, /live=editorial/, 'the known-good live page is preserved');
+  assert.match(r.out, /name=Test VPN/, 'branding is preserved');
+});
+
+test('reconciliation never recurses: one write, one reconcile, one TEMPLATE line', () => {
+  const r = shRoot(
+    FLOW_STUBS +
+    'rt_switch_template editorial\n' +
+    'printf "TEMPLATE=bogus\\n" >> "$RT_CONFIG"\n' +
+    'rt_config_set_template editorial\n' +
+    'printf "lines=%s\\n" "$(grep -c "^TEMPLATE=" "$RT_CONFIG")"\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'rt_apply_branding "Test VPN" "https://t.me/x" "" ""\n' +
+    'printf "lines2=%s\\n" "$(grep -c "^TEMPLATE=" "$RT_CONFIG")"\n' +
+    'printf "tpl2=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /lines=1/);
+  assert.match(r.out, /tpl=editorial/);
+  assert.match(r.out, /lines2=1/, 'repeated writes never duplicate or loop the selection');
+  assert.match(r.out, /tpl2=editorial/);
+});

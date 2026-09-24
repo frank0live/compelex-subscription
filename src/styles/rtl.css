@@ -1,28 +1,40 @@
-/* Direction-specific rules. The layout itself needs none: every offset in
-   this stylesheet is a logical property, so setting dir on <html> is enough.
-   What remains are the two glyphs that carry a direction of their own, and
-   the typographic details that do not survive being mirrored. */
+/* Direction-specific rules. Row needs almost none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> mirrors the head,
+   the readout, the record list and the control block on its own. The meter grows
+   from the inline-start, so it follows the reading direction without a rule
+   here. What remains are the two glyphs that carry a direction of their own, and
+   the tracked labels that do not survive Arabic script. */
 
 [dir="rtl"] .icon-chevron,
 [dir="rtl"] .icon-external {
   transform: scaleX(-1);
 }
 
-/* Negative tracking is a Latin display trick; it closes Arabic joins. The
-   traffic figure is exempt: its digits and unit ladder are Latin in every
-   language, so it keeps the display tracking and leading it was cut for. */
-[lang="fa"] .brand-name,
-[lang="ar"] .brand-name {
-  letter-spacing: normal;
-}
-
-/* Persian and Arabic ascenders and descenders need the extra leading that
-   the tighter Latin display line-height would clip. */
-[lang="fa"] .value,
-[lang="ar"] .value,
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins
+   that carry the script, which turns a section label into an unreadable smear.
+   tokens.css already swaps the monospace face for the Arabic one; these drop
+   the tracking so the labels stand as plain text. Protocol marks are Latin in
+   every locale, so they keep their own spacing. */
+[lang="fa"] .label,
+[lang="ar"] .label,
 [lang="fa"] .section-title,
 [lang="ar"] .section-title,
-[lang="fa"] .brand-name,
-[lang="ar"] .brand-name {
+[lang="fa"] .pill,
+[lang="ar"] .pill {
+  letter-spacing: 0;
+}
+
+/* Arabic and Persian ascenders and descenders need the extra leading that the
+   tight figure line-height would clip. */
+[lang="fa"] .figure,
+[lang="ar"] .figure,
+[lang="fa"] .figure-sm,
+[lang="ar"] .figure-sm,
+[lang="fa"] .cfg-name,
+[lang="ar"] .cfg-name,
+[lang="fa"] .client-name,
+[lang="ar"] .client-name,
+[lang="fa"] .plan-label,
+[lang="ar"] .plan-label {
   line-height: 1.4;
 }

@@ -1,0 +1,857 @@
+/* Components. The screen vocabulary is lanes: every selectable thing — a
+   configuration, a launcher mode, a client target — is a wide horizontal plate
+   separated from its neighbours by a gap rather than by a rule. That is what
+   makes the page read as a selection screen instead of a list.
+
+   The accent marks the live thing and the one primary action. Nothing here
+   carries invented telemetry: every figure is a value the runtime provides. */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dot {
+  inline-size: 9px;
+  block-size: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--subtle);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.pill[data-state="active"] .dot { background: var(--success); }
+.pill[data-state="expired"] .dot { background: var(--danger); }
+.pill[data-state="limited"] .dot { background: var(--warning); }
+
+.live-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--subtle);
+}
+
+.live-state[data-online="1"] { color: var(--text); }
+.live-state[data-online="1"] .dot { background: var(--success); }
+
+/* The plan name is an enhancement; the localized running head always names the
+   board, so an empty slot removes nothing the region needs. */
+#plan-slot:empty { display: none; }
+
+.plan-label {
+  display: block;
+  max-inline-size: 100%;
+  font-size: var(--fs-caption);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* The two large scoreboard readouts. */
+.figure {
+  font-size: var(--fs-figure);
+  font-weight: 700;
+  line-height: var(--lh-figure);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.figure-sm {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colour repeats what the words already say; the words are the signal. */
+.figure-sm[data-level="warn"] { color: var(--warning); }
+.figure-sm[data-level="over"] { color: var(--danger); }
+
+.caption {
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}
+
+.caption:empty { display: none; }
+
+.stamp {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+}
+
+.stamp:empty { display: none; }
+.stamp[data-stale] { color: var(--warning); }
+
+/* The gauge runs the full width of the scoreboard, which is what makes the
+   band read horizontally. The figure and the percentage both carry the value,
+   so it never has to communicate on colour alone. */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.bar {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 12px;
+  border-radius: 2px;
+  background-color: var(--track);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  background-color: var(--signal);
+  animation: grow var(--dur-slow) var(--ease);
+  transition: inline-size var(--dur-slow) var(--ease);
+}
+
+@keyframes grow { from { inline-size: 0; } }
+
+.bar[data-level="warn"] .bar-fill { background-color: var(--warning); }
+.bar[data-level="over"] .bar-fill { background-color: var(--danger); }
+
+.bar-pct {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--muted);
+  min-inline-size: 4ch;
+  text-align: end;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-5);
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
+}
+
+/* The one filled plate on the screen. */
+.btn-primary {
+  background: var(--signal-solid);
+  border-color: var(--signal-solid);
+  color: var(--on-signal);
+}
+
+.btn-outline { border-color: var(--edge-strong); }
+
+.btn-quiet { color: var(--muted); }
+
+/* Both labels share one grid cell, so the control is laid out at the width of
+   the longer word and confirming a copy cannot move its neighbours. */
+.btn-swap {
+  display: grid;
+  grid-template-areas: "label";
+  place-items: center;
+  min-inline-size: 0;
+}
+
+.btn-swap > span {
+  grid-area: label;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-swap > .swap-done { visibility: hidden; }
+
+.btn[data-flash] .swap-live { visibility: hidden; }
+.btn[data-flash] .swap-done { visibility: visible; }
+
+.btn-outline[data-flash],
+.btn-quiet[data-flash] { color: var(--success); }
+
+/* Lane and target commands are ruled plates. The runtime marks each client's
+   import as its primary variant, so the small primary is flattened back to a
+   ruled command and Copy subscription stays the only filled plate. */
+.btn-sm {
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border-color: var(--edge-strong);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.btn-sm.btn-primary {
+  background: transparent;
+  color: var(--text);
+}
+
+.ctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-block-size: var(--tap);
+  min-inline-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--lane);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.ctl-icon { padding-inline: 0; }
+
+.ctl .icon-chevron {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.ctl[aria-expanded="true"] {
+  background: var(--lane-hover);
+  color: var(--text);
+}
+
+.ctl:active,
+.menu-item:active { background: var(--lane-hover); }
+
+.btn:disabled,
+.ctl:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.menu-wrap { position: relative; }
+
+.menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--sp-2));
+  inset-inline-end: 0;
+  z-index: 20;
+  min-inline-size: 190px;
+  padding: var(--sp-1);
+  background: var(--surface);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-2);
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  font-size: var(--fs-caption);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease);
+}
+
+.menu-item .icon:last-child {
+  margin-inline-start: auto;
+  opacity: 0;
+}
+
+.menu-item[aria-checked="true"] {
+  color: var(--signal);
+  font-weight: 700;
+}
+
+.menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
+
+/* --- the lane field ------------------------------------------------------- */
+
+.count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--lane);
+  color: var(--subtle);
+}
+
+.search:focus-within { border-color: var(--signal); }
+
+.search input {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+}
+
+.search input:focus { outline: none; }
+
+/* A lane: a wide plate with a marker edge at its leading side, the identity set
+   at lane scale, the protocol as a mode tag, and the commands at the trailing
+   edge. Lanes are separated by a gap, not a rule, which is what makes the field
+   read as a set of choices. */
+#config-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* A launcher lane, not a table row. The lane has a marked beginning - a solid
+   selection bar - and a marked end: the commands sit in an end-cap behind their
+   own rule. Between them the identity is dominant and the protocol is demoted to
+   a secondary mode label set beneath it, so the lane never resolves into
+   country | name | protocol | actions as four aligned columns. */
+.cfg {
+  display: grid;
+  grid-template-columns: 5px 3.5rem minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 0 var(--sp-4);
+  min-inline-size: 0;
+  min-block-size: var(--lane-h);
+  padding-block: var(--sp-2);
+  padding-inline-end: var(--sp-3);
+  background: var(--lane);
+  border-radius: var(--r-lane);
+  overflow: hidden;
+  transition: background-color var(--dur) var(--ease);
+}
+
+/* The lane's beginning: a solid selection bar running its full height. */
+.cfg::before {
+  content: "";
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  background: var(--signal);
+}
+
+.cfg-flag {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  line-height: 1;
+  overflow: hidden;
+}
+
+/* Monogram fallback when a node carries no country flag: the first letter of
+   its name as a lane mark, so the leading column still reads. */
+.cfg-flag[data-mono] {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+/* The body dissolves, so the name and the protocol become grid items of the
+   lane itself and sit on the same horizontal baseline as the commands. */
+.cfg-body { display: contents; }
+
+/* The identity dominates: it is the largest text in the lane and the only thing
+   on the first level. */
+.cfg-name {
+  grid-column: 3;
+  grid-row: 1;
+  display: block;
+  font-size: var(--fs-lane);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The protocol is a secondary mode label on the second level, under the
+   identity. It is deliberately not in a column of its own, which is what keeps
+   the lane from reading as a table. */
+.cfg-proto {
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: start;
+  display: block;
+  max-inline-size: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The lane's end-cap: the commands sit behind their own rule, which gives the
+   lane a definite finish rather than trailing off. */
+.cfg-actions {
+  grid-column: 4;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  align-self: stretch;
+  padding-inline-start: var(--sp-4);
+  border-inline-start: 1px solid var(--edge);
+}
+
+.empty { text-align: start; }
+
+.more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px dashed var(--edge-strong);
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.more .icon { transition: transform var(--dur) var(--ease); }
+.more[aria-expanded="true"] .icon { transform: rotate(180deg); }
+
+/* --- the launcher rail ---------------------------------------------------- */
+
+.modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+@media (min-width: 640px) {
+  .modes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* A launcher mode is a plate, not a tab. The engaged one is marked by fill AND
+   by weight, so it survives monochrome and forced colours. */
+.tab {
+  min-inline-size: 0;
+  min-block-size: 56px;
+  padding-inline: var(--sp-2);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--lane);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--signal-solid);
+  border-color: var(--signal-solid);
+  color: var(--on-signal);
+}
+
+/* Client targets are lanes too, so the launcher rail continues the same
+   horizontal language as the field above it. */
+#client-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.client {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+  min-inline-size: 0;
+  min-block-size: var(--lane-h);
+  padding-inline: var(--sp-4);
+  background: var(--lane);
+  border-inline-start: 3px solid var(--edge);
+  border-radius: var(--r-lane);
+}
+
+.client-head {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.client-name {
+  font-size: var(--fs-lane);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+  white-space: nowrap;
+}
+
+.client-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* --- the foot ------------------------------------------------------------- */
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  align-self: flex-start;
+  min-block-size: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--signal);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.announce {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-inline-start: var(--sp-3);
+  border-inline-start: 3px solid var(--signal);
+}
+
+.announce-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--signal);
+}
+
+/* The runtime builds the announcement heading as .section-title, so it takes the
+   same treatment as the screen's own labels. */
+.section-title {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label);
+  line-height: 1.3;
+  color: var(--signal);
+}
+
+/* Clamped by default; the panel carries the open state, because whether the
+   toggle is needed at all is measured against this clamp. */
+.announce-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.announce[data-open="1"] .announce-text {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  overflow: visible;
+}
+
+.support { display: flex; }
+
+/* --- dialogs -------------------------------------------------------------- */
+
+.dialog {
+  padding: 0;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-lane);
+  background: var(--surface);
+  color: var(--text);
+  inline-size: calc(100% - 2 * var(--sp-4));
+  max-inline-size: 400px;
+  box-shadow: var(--shadow-pop);
+}
+
+.dialog::backdrop { background: var(--scrim); }
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  border-block-end: 1px solid var(--edge);
+}
+
+.dialog-head .ctl { color: var(--text); }
+
+.dialog-title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}
+
+.qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+/* The frame stays white in both themes because the code has to scan, and a
+   quiet zone is part of the symbol rather than padding around a picture. */
+.qr-frame {
+  padding: var(--sp-3);
+  border-radius: var(--r-control);
+  background: #FFFFFF;
+  border: 1px solid var(--edge-strong);
+}
+
+/* Bounded by the shorter axis as well: a phone held sideways has room for the
+   width but not the height, and a code the reader must scroll to is worse than
+   a smaller one shown beside the address it encodes. */
+#qr-canvas {
+  inline-size: min(280px, 72vw, 36vh);
+  block-size: auto;
+}
+
+.url-field {
+  display: flex;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.url-field input {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--lane);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+}
+
+.url-plain {
+  padding: var(--sp-3);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* Reserved for what a button cannot say in place: a manual-copy prompt or a
+   failure. Success is reported on the control that was pressed. */
+.toast {
+  position: fixed;
+  inset-block-end: var(--sp-5);
+  inset-inline: 0;
+  z-index: 60;
+  inline-size: fit-content;
+  max-inline-size: calc(100% - 2 * var(--sp-4));
+  margin-inline: auto;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--lane-hover);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.toast[data-show] { opacity: 1; }
+
+#config-canvas {
+  display: block;
+  inline-size: min(240px, 64vw);
+  block-size: auto;
+  image-rendering: pixelated;
+}
+
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.cfg-conf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.conf-text {
+  inline-size: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-control);
+  background: var(--lane);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  resize: none;
+}
+
+.conf-text:focus { outline: none; border-color: var(--signal); }
+
+.conf-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.conf-actions .btn { flex: 1; }
+
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--signal-hover);
+    border-color: var(--signal-hover);
+  }
+
+  .btn-outline:hover,
+  .btn-quiet:hover,
+  .btn-sm:hover,
+  .ctl:hover,
+  .more:hover {
+    background: var(--lane-hover);
+    border-color: var(--edge-strong);
+  }
+
+  .menu-item:hover { background: var(--lane-hover); }
+
+  .tab:hover:not([aria-selected="true"]) {
+    background: var(--lane-hover);
+    color: var(--text);
+  }
+
+  .cfg:hover,
+  .client:hover { background: var(--lane-hover); }
+
+  .text-link:hover { text-decoration: underline; }
+}
+
+/* Below the phone breakpoint the lane folds: the identity and the protocol take
+   the width, and the commands drop to their own line so a 320px lane still
+   holds a full name and two 44px targets. */
+/* Below the phone breakpoint the lane keeps its bar, its marker, its dominant
+   identity and its end-cap - it narrows, it does not become a card. */
+@media (max-width: 599px) {
+  .cfg {
+    grid-template-columns: 5px 2.5rem minmax(0, 1fr) auto;
+    gap: 0 var(--sp-3);
+  }
+
+  .cfg-actions {
+    padding-inline-start: var(--sp-2);
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+/* Below the phone breakpoint the dialog becomes a bottom sheet: the thumb
+   reaches the close button and the copy field without stretching. */
+@media (max-width: 479px) {
+  .dialog {
+    inline-size: 100%;
+    max-inline-size: none;
+    margin-block: auto 0;
+    border-radius: var(--r-lane) var(--r-lane) 0 0;
+    border-block-end: 0;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --edge: var(--control-border);
+    --edge-strong: var(--control-border);
+    --muted: var(--text);
+    --subtle: var(--text);
+  }
+
+  .cfg,
+  .client,
+  .tab,
+  .search,
+  .more { border-color: var(--control-border); }
+}
+
+/* The gauge falls back to a solid system highlight and leans on the figure and
+   the percentage text, which always carry the value. */
+@media (forced-colors: active) {
+  .dialog,
+  .menu,
+  .bar,
+  .search,
+  .more,
+  .tab,
+  .cfg,
+  .client { border-color: CanvasText; }
+
+  .bar-fill { background-color: Highlight; }
+
+  .dot { forced-color-adjust: none; }
+
+  .tab[aria-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

@@ -1,0 +1,145 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties.
+
+   The session sheet is a document, so the typographic scale is a document
+   scale: one reading size, one measure, and rules instead of boxes. */
+
+:root {
+  /* Monospace is the voice of the sheet. The sans face survives only where a
+     person reads running prose, because mono harms long reading. */
+  --font: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+               Arial, sans-serif;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-figure: 1.375rem;
+  --fs-title: 1rem;
+  --fs-label: 0.6875rem;
+  --fs-body: 0.875rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.6875rem;
+
+  --lh-figure: 1.35;
+  --lh-tight: 1.4;
+  --lh-body: 1.6;
+  /* The sheet's reading measure. Everything that carries prose is capped by it,
+     which is what makes the page a document rather than a column of boxes. */
+  --measure: 72ch;
+  --ls-label: 0.1em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Square, always. A sheet has no rounded corners. */
+  --r-control: 0px;
+  --r-pill: 999px;
+
+  --dur: 120ms;
+  --dur-slow: 180ms;
+  --ease: cubic-bezier(0.3, 0.5, 0.2, 1);
+
+  /* Wide enough for a measured text column plus a working margin on each side
+     that carries the entry markers and the per-entry metadata. */
+  --page-max: 880px;
+  --tap: 44px;
+  --mark: 26px;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Amber is the single accent family: one ochre
+   tone for interactive ink, a warmer orange kept for warnings. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0C0E10;
+  --surface: #121517;
+  --track: #23282C;
+
+  --rule: #23282C;
+  --rule-strong: #3A4147;
+  --control-border: #4E565D;
+
+  --text: #E4E1DA;
+  --muted: #8E8B84;
+  --subtle: #6F6D67;
+
+  --accent: #D9A24B;
+  --accent-solid: #C08A34;
+  --accent-hover: #E8B761;
+  --on-accent: #14100A;
+
+  --warning: #D98E3F;
+  --danger: #E06C5C;
+  --success: #58A878;
+  --info: #6FA8C0;
+  --focus: #E8B761;
+
+  --shadow-pop: 0 10px 28px rgb(0 0 0 / 0.55);
+  --scrim: rgb(4 6 8 / 0.68);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #FAF8F3;
+  --surface: #FFFFFF;
+  --track: #E6E2D8;
+
+  --rule: #DEDAD0;
+  --rule-strong: #B9B3A6;
+  --control-border: #8A8478;
+
+  --text: #14161A;
+  --muted: #5E5B55;
+  --subtle: #77736B;
+
+  --accent: #8A5A12;
+  --accent-solid: #8A5A12;
+  --accent-hover: #6B4509;
+  --on-accent: #FFFFFF;
+
+  --warning: #8A5A00;
+  --danger: #B03226;
+  --success: #1F6B45;
+  --info: #1C5E75;
+  --focus: #8A5A12;
+
+  --shadow-pop: 0 10px 28px rgb(20 22 26 / 0.16);
+  --scrim: rgb(20 22 26 / 0.4);
+}
+
+@media (min-width: 720px) {
+  :root {
+    --fs-figure: 1.625rem;
+    --fs-body: 0.9375rem;
+  }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* Arabic and Persian are first-class. The Arabic face replaces both voices: a
+   monospace font has no Arabic glyphs, and faux-mono tracking closes the joins
+   that carry the script. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --font-sans: var(--font-arabic);
+  --lh-body: 1.8;
+}

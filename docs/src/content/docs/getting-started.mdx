@@ -1,0 +1,63 @@
+---
+title: Getting started
+description: What Row-Template is, what it needs, and what happens when you install it.
+---
+
+This page is the orientation. It answers *what am I installing* and *what will it do to
+my server* before you run anything.
+
+## What it actually is
+
+A **subscription page** — the page a subscriber opens when they visit their subscription
+link. 3X-UI serves a built-in page there; Row-Template replaces it with its own.
+
+It is not a panel, not a theme for the panel's admin interface, and not a client. It
+only changes what the subscriber sees.
+
+## What it is not
+
+- **It does not modify 3X-UI.** No panel source is patched. The installer points the
+  panel's *Sub Theme Directory* setting at a directory it creates, and that is the whole
+  integration.
+- **It does not touch your database.** Inbounds, clients, certificates and settings are
+  left exactly as they are. Uninstalling reverts the panel to its built-in page.
+- **It does not phone home.** The page makes no third-party requests.
+
+## What you need
+
+| | |
+|---|---|
+| **3X-UI** | **3.6.0 or newer.** The installer refuses to proceed below this and tells you the detected version. |
+| **A Linux server** | Any distribution with `bash`, `coreutils`, `curl`, `tar` and `sha256sum`. These are present on virtually every Linux system. |
+| **Root access** | Required for the commands that change the system: `config`, `update`, `rollback`, `uninstall`. `verify` and `version` are read-only. |
+
+You do **not** need Node.js, Python, a database, or any runtime on the server.
+
+## What happens during installation
+
+1. The bootstrap script downloads the release and **verifies its checksum**.
+2. It extracts the archive safely and installs to
+   `/etc/3x-ui/sub_templates/row-template`.
+3. It prompts for your branding — service name, support link and logo. **All three are
+   optional**; leave them blank for an unbranded, white-label page.
+4. It generates the served page and, where possible, activates it in the panel
+   automatically.
+
+Nothing is committed until every check passes. If a step fails, the installer stops and
+leaves your existing setup untouched.
+
+## Where it installs
+
+```
+/etc/3x-ui/sub_templates/row-template
+```
+
+That path is the panel's *Sub Theme Directory*. The installer sets it for you when
+`sqlite3` is available; otherwise you set it once by hand — see
+[Installation](/installation/#activate-it).
+
+## Next
+
+- [Installation](/installation/) — the actual commands
+- [Configuration](/configuration/) — changing things after installation
+- [Template Gallery](/templates/) — the fifteen designs

@@ -113,10 +113,30 @@ function env(active) {
   };
 }
 
+/* A complete island payload, matching what the shell actually emits: all
+   thirteen `data-*` attributes, in the raw names the runtime's normalize()
+   reads. It used to carry only three keys, which was not a faithful payload and
+   is no longer enough to pass looksLikeInfo(). */
+const ISLAND = {
+  enabled: '1',
+  isOnline: '1',
+  downloadByte: 0,
+  uploadByte: 0,
+  totalByte: 0,
+  expire: 0,
+  lastOnline: 0,
+  subUrl: 'https://sub.example.com/sub/token',
+  subJsonUrl: '',
+  subClashUrl: '',
+  subTitle: 'Subscription',
+  subSupportUrl: '',
+  datepicker: 'gregorian',
+};
+
 const info = (over) => ({
   ok: true,
   status: 200,
-  json: () => Promise.resolve(Object.assign({ enabled: true, totalByte: 0, expire: 0 }, over)),
+  json: () => Promise.resolve(Object.assign({}, ISLAND, over)),
 });
 
 const status = (code) => ({ ok: false, status: code, json: () => Promise.resolve({}) });

@@ -1,0 +1,1000 @@
+/* Components. Nothing here reads a raw colour; every surface, border and
+   accent comes from tokens.css so the two themes stay in step. The whole voice
+   is set by type and by one shared hairline rule: a card is a near-borderless
+   journal section, a row is a ruled index entry, and a section title is a
+   letterspaced small-caps running head. */
+
+[hidden] { display: none !important; }
+
+/* A region is a ruled magazine section: no box, no fill, no radius. The page's
+   own paper shows through and a single hairline divides one section from the
+   next, which is what lets the type carry the hierarchy instead of chrome. */
+.region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding-block-start: var(--sp-5);
+  border-block-start: 1px solid var(--hairline);
+}
+
+/* A running head, not a heading: small-capitals, tracked, and one step below
+   the service name so the traffic figure is the only thing competing for the
+   first read. This one rule is the journal's running head everywhere. */
+.section-title {
+  font-size: var(--fs-section);
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-caps: all-small-caps;
+  letter-spacing: var(--ls-section);
+  color: var(--muted);
+}
+
+/* A plain ink mark, not a tile: the initial or logo sits on the paper with no
+   box behind it, so the masthead reads as type rather than as a control. */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  color: var(--accent);
+  font-size: var(--fs-title);
+  font-weight: 700;
+  letter-spacing: 0;
+  overflow: hidden;
+  user-select: none;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+/* The hero. The plan name is the page's headline, not a chip above the
+   figures: it is the single element set at display size, which is what gives
+   the composition one dominant thing to read first. */
+#plan-slot:empty { display: none; }
+
+.plan-label {
+  display: block;
+  max-inline-size: 100%;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 7vw, 3rem);
+  font-weight: 700;
+  line-height: var(--lh-display);
+  letter-spacing: -0.02em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-block-size: 28px;
+  padding-inline: var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dot {
+  inline-size: 8px;
+  block-size: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--subtle);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.pill[data-state="active"] .dot { background: var(--success); }
+.pill[data-state="expired"] .dot { background: var(--danger); }
+.pill[data-state="limited"] .dot { background: var(--warning); }
+.pill[data-state="disabled"] .dot { background: var(--subtle); }
+
+.live-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--subtle);
+  transition: color var(--dur) var(--ease);
+}
+
+.live-state[data-online="1"] { color: var(--text); }
+.live-state[data-online="1"] .dot { background: var(--success); }
+
+/* The hero figure: a single serif headline at display size, set tight. */
+.big-value {
+  font-size: var(--fs-display);
+  font-weight: 700;
+  line-height: var(--lh-display);
+  letter-spacing: -0.02em;
+}
+
+.value {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+}
+
+/* Colour repeats what the words already say. "Expires tomorrow" and "Expired"
+   are the signal; the tint only makes the row findable at a glance. */
+.value[data-level="warn"] { color: var(--warning); }
+.value[data-level="over"] { color: var(--danger); }
+
+.caption {
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}
+
+.caption:empty { display: none; }
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-block-start: var(--sp-2);
+}
+
+/* An ink rule, not a progress widget: the track is a flat stroke and the fill
+   is the accent drawn across it, square at both ends. */
+.bar {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 6px;
+  border-radius: 0;
+  background: var(--track);
+  overflow: hidden;
+}
+
+/* The width is already correct when the element is inserted, so the reveal is a
+   one-time animation out of nothing rather than a scripted second paint: it runs
+   once when the bar is created and every later reading is a transition of the
+   same property. The implicit to-keyframe is the width the model asked for. */
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 0;
+  background: var(--accent);
+  animation: bar-grow var(--dur-slow) var(--ease);
+  transition: inline-size var(--dur-slow) var(--ease),
+              background-color var(--dur-slow) var(--ease);
+}
+
+@keyframes bar-grow {
+  from { inline-size: 0; }
+}
+
+.bar[data-level="warn"] .bar-fill { background: var(--warning); }
+.bar[data-level="over"] .bar-fill { background: var(--danger); }
+
+.bar-pct {
+  flex: none;
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  min-inline-size: 4ch;
+  text-align: end;
+}
+
+/* The feature story: the figure and its rule, held to a reading measure so the
+   line length stays editorial however wide the column grows. */
+.feature {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+  max-inline-size: var(--measure);
+}
+
+/* The rail is the story's margin: metadata set as ruled entries rather than as
+   a second card. Each visible entry is divided from the one above it. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+  padding-block-start: var(--sp-4);
+  border-block-start: 1px solid var(--hairline);
+}
+
+.rail > * + * {
+  padding-block-start: var(--sp-3);
+  border-block-start: 1px solid var(--hairline);
+}
+
+/* Freshness closes the rail, after the figures it measures. Empty until the
+   first poll answers, so the seam above it never draws on its own. */
+.stamp {
+  font-size: var(--fs-micro);
+  color: var(--subtle);
+}
+
+.stamp:empty { display: none; }
+
+.stamp[data-stale] { color: var(--warning); }
+
+/* Once the rail stands beside the story, the rule that divided it from the
+   story above becomes a margin rule down its leading edge instead. */
+@media (min-width: 720px) {
+  .rail {
+    padding-block-start: 0;
+    border-block-start: 0;
+    padding-inline-start: var(--sp-5);
+    border-inline-start: 1px solid var(--hairline);
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.btn-primary {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
+}
+
+.btn-outline {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Third rank, for the copy a row offers beside its Import: a soft ghost fill
+   with no border, so it reads as pressable at rest yet stays quieter than the
+   filled Import and lighter than the outlined copy a copy-only row shows. */
+.btn-quiet {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+/* Both labels of a copy button occupy the same grid cell, so the button is laid
+   out at the width of the longer word and confirming a copy cannot move the
+   buttons beside it. The unused one is hidden rather than removed, which also
+   keeps it out of the accessible name. */
+.btn-swap {
+  display: grid;
+  grid-template-areas: "label";
+  place-items: center;
+  min-inline-size: 0;
+}
+
+.btn-swap > span {
+  grid-area: label;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-swap > .swap-done { visibility: hidden; }
+
+.btn[data-flash] .swap-live { visibility: hidden; }
+
+.btn[data-flash] .swap-done { visibility: visible; }
+
+/* The filled button confirms with its icon, so only the two flat variants —
+   which have no icon to change — tint the word itself, and only while it is up. */
+.btn-outline[data-flash],
+.btn-quiet[data-flash] { color: var(--success); }
+
+.btn-sm {
+  min-block-size: 40px;
+  padding-inline: var(--sp-3);
+  font-size: var(--fs-caption);
+}
+
+.btn-sm .icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+/* Pressed states, so a held thumb sees the ink take: the flat variants sink
+   one tint and the filled one returns to its rest colour. No lift, no shadow —
+   the page stays print-flat. */
+.btn-outline:active,
+.btn-quiet:active { background: var(--track); }
+
+.btn-primary:active {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+}
+
+/* The page's one filled action is the tallest thing a thumb can hit. */
+.actions .btn-primary { min-block-size: var(--btn-h); }
+
+.support-cta {
+  inline-size: 100%;
+  min-block-size: var(--btn-h);
+}
+
+.support-cta .icon { color: var(--muted); }
+
+.ctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-block-size: 40px;
+  min-inline-size: 40px;
+  padding-inline: var(--sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.ctl-icon { padding-inline: 0; }
+
+.ctl .icon-chevron {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+/* An open menu keeps its trigger lit, which is the only cue that the panel
+   below belongs to this control and not to the one beside it. */
+.ctl[aria-expanded="true"] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ctl:active,
+.menu-item:active { background: var(--surface-2); }
+
+.btn:disabled,
+.ctl:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.menu-wrap { position: relative; }
+
+.menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--sp-2));
+  inset-inline-end: 0;
+  z-index: 20;
+  min-inline-size: 180px;
+  padding: var(--sp-1);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
+  animation: menu-in var(--dur) var(--ease);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: 40px;
+  padding-inline: var(--sp-2);
+  border: 0;
+  border-radius: var(--r-mark);
+  background: transparent;
+  font-size: var(--fs-caption);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.menu-item .icon:last-child {
+  margin-inline-start: auto;
+  opacity: 0;
+}
+
+.menu-item[aria-checked="true"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
+
+/* The client picker reads as an index of names rather than a segmented
+   control: no track, no rule beneath it, the chosen name carried in the
+   accent. The container and its buttons belong to the shared runtime, so only
+   the presentation changes here. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+}
+
+.tab {
+  flex: none;
+  min-block-size: var(--tap);
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur) var(--ease);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.clients {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Rows separated by a hairline instead of enclosed by a border each: the list
+   still scans, and nothing in it looks like a form field. */
+.client {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  padding-block: var(--sp-3);
+}
+
+.client + .client { border-block-start: 1px solid var(--hairline); }
+
+.client:first-child { padding-block-start: var(--sp-1); }
+
+.client:last-child { padding-block-end: 0; }
+
+/* The base size is the name's own width, so a card too narrow for both parts
+   moves the buttons onto their own line instead of squeezing the name away. */
+.client-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.client-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-tag {
+  flex: none;
+  color: var(--subtle);
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+}
+
+.client-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  margin-inline-start: auto;
+}
+
+/* The page's two inline controls — the announcement toggle and the retry in a
+   stopped footer — are words rather than buttons, so the padding is what gives
+   them a thumb-sized box without drawing one. */
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  align-self: flex-start;
+  min-block-size: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Service information, not an alert: a barely-tinted panel defined by a faint
+   hairline, with the rust kept to one accent edge, the icon and the title — so
+   it reads as information without pulling attention off the status card. */
+.announce {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: var(--r-control);
+}
+
+.announce-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--accent);
+}
+
+.announce-head .section-title {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+/* Clamped by default; the card carries the open state, because whether the
+   toggle is needed at all is measured against this clamp. */
+.announce-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.announce[data-open="1"] .announce-text {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  overflow: visible;
+}
+
+.support { margin-block-start: var(--sp-2); }
+
+.dialog {
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  color: var(--text);
+  inline-size: calc(100% - 2 * var(--sp-4));
+  max-inline-size: 360px;
+  box-shadow: var(--shadow-pop);
+}
+
+.dialog::backdrop { background: var(--scrim); }
+
+.dialog[open] { animation: pop var(--dur-slow) var(--ease); }
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  border-block-end: 1px solid var(--hairline);
+}
+
+/* The close control sits alone in the head, so it carries full ink at rest —
+   muted is for controls that have neighbours. */
+.dialog-head .ctl { color: var(--text); }
+
+.dialog-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+/* The frame stays white in both themes because the code has to scan, and a
+   quiet zone is part of the symbol rather than padding around a picture. */
+.qr-frame {
+  padding: var(--sp-3);
+  border-radius: var(--r-control);
+  background: #FFFFFF;
+  border: 1px solid var(--border-strong);
+}
+
+/* Bounded by the shorter axis as well: a phone held sideways has room for the
+   width but not for the height, and a code the reader has to scroll to is worse
+   than a smaller one shown beside the address it encodes. */
+#qr-canvas {
+  inline-size: min(280px, 72vw, 36vh);
+  block-size: auto;
+}
+
+.url-field {
+  display: flex;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.url-field input {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+
+.url-plain {
+  padding: var(--sp-3);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* Reserved for what a button cannot say in place: a manual-copy prompt or a
+   failure. Success is reported on the control that was pressed. */
+.toast {
+  position: fixed;
+  inset-block-end: var(--sp-5);
+  inset-inline: 0;
+  z-index: 60;
+  inline-size: fit-content;
+  max-inline-size: calc(100% - 2 * var(--sp-4));
+  margin-inline: auto;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur) var(--ease),
+              transform var(--dur) var(--ease);
+}
+
+.toast[data-show] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Configurations explorer. One card, one row per usable configuration: a flag
+   or monogram badge, the server's name and protocol, and the two actions. The
+   list is a premium roster, not a raw dump, so the credential never appears
+   here — only in the dialog a row opens. */
+.explorer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.explorer-head .section-title { flex: 1; }
+
+.cfg-count {
+  flex: none;
+  min-inline-size: 24px;
+  padding-inline: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  text-align: center;
+}
+
+.cfg-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-inline: var(--sp-3);
+  min-block-size: var(--tap);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--subtle);
+}
+
+.cfg-search:focus-within { border-color: var(--border-strong); }
+.cfg-search .icon { flex: none; }
+
+.cfg-search input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+}
+
+.cfg-search input:focus { outline: none; }
+
+.cfg-list { counter-reset: entry; }
+
+/* An index entry, not a table row: the article number is set in the display
+   face in its own column, the flag is a plain glyph, the name is the running
+   entry in serif, and a hairline separates it from the entry above. The number
+   counts the entries currently shown, so searching renumbers the visible index
+   rather than leaving gaps in it. */
+.cfg {
+  counter-increment: entry;
+  display: grid;
+  grid-template-columns: 2.5rem auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
+  padding-block: var(--sp-3);
+  border-block-start: 1px solid var(--hairline);
+}
+
+.cfg::before {
+  content: counter(entry, decimal-leading-zero);
+  grid-column: 1;
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cfg:first-child { border-block-start: 0; }
+.cfg[hidden] { display: none; }
+
+.cfg-flag {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  font-size: 20px;
+  line-height: 1;
+  overflow: hidden;
+}
+
+/* Monogram fallback when a configuration has no country flag: the first
+   letter of its name in the running-head style, held in a quiet framed square
+   so the placeholder reads as an avatar rather than a stray glyph. Flags stay
+   bare glyphs; only the fallback is framed. */
+.cfg-flag[data-mono] {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-mark);
+  background: var(--surface-2);
+}
+
+.cfg-body {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cfg-name {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-proto {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
+}
+
+.cfg-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* The empty-state line shown when a search matches nothing. */
+.cfg-empty {
+  margin-block-start: var(--sp-3);
+  text-align: center;
+}
+
+/* The expand/collapse control for a long list: a subtle full-width ghost
+   button, not a primary action — a hairline border, no fill, a centred label
+   and a chevron that turns when the list is open. */
+.cfg-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  margin-block-start: var(--sp-2);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--subtle);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cfg-toggle .icon { flex: none; transition: transform var(--dur) var(--ease); }
+.cfg-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
+
+/* Config dialog. It reuses the .dialog / .qr-body / .qr-frame / .url-field
+   shell (so the bottom-sheet media query below applies unchanged); only the
+   canvas size and the protocol-specific extras are new. */
+#config-canvas {
+  display: block;
+  inline-size: min(240px, 64vw);
+  block-size: auto;
+  image-rendering: pixelated;
+}
+
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.cfg-conf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.conf-text {
+  inline-size: 100%;
+  box-sizing: border-box;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  resize: none;
+}
+
+.conf-text:focus { outline: none; border-color: var(--border-strong); }
+
+/* Copy and Download sit side by side under the configuration text, sharing the
+   width so neither reads as the primary action. */
+.conf-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.conf-actions .btn { flex: 1; }
+
+/* Hover is a pointer affordance, so it lives behind the capability query; the
+   press and focus states above do not, because a thumb needs them too. Every
+   rule here shifts colour only — never a lift, so the page stays print-flat. */
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+
+  .btn-outline:hover {
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+  }
+
+  .btn-quiet:hover {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .ctl:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .menu-item:hover { background: var(--surface-2); }
+
+  .cfg-toggle:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+
+  .tab:hover:not([aria-selected="true"]) {
+    color: var(--text);
+  }
+
+  .text-link:hover { text-decoration: underline; }
+}
+
+/* Below the phone breakpoint the dialog becomes a bottom sheet: the thumb
+   reaches the close button and the copy field without stretching. */
+@media (max-width: 479px) {
+  .dialog {
+    inline-size: 100%;
+    max-inline-size: none;
+    margin-block: auto 0;
+    border-radius: var(--r-card) var(--r-card) 0 0;
+    border-block-end: 0;
+  }
+
+  .dialog[open] { animation: sheet-in var(--dur-slow) var(--ease); }
+
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --hairline: var(--control-border);
+    --border: var(--control-border);
+    --border-strong: var(--control-border);
+    --muted: var(--text);
+    --subtle: var(--text);
+  }
+
+  .ctl,
+  .btn-quiet { border-color: var(--control-border); }
+}
+
+@media (forced-colors: active) {
+  .region { border-block-start-color: CanvasText; }
+
+  .menu,
+  .announce,
+  .dialog { border: 1px solid CanvasText; }
+
+  .announce { border-inline-start-width: 3px; }
+
+  .bar { box-shadow: inset 0 0 0 1px CanvasText; }
+
+  .dot,
+  .bar-fill { forced-color-adjust: none; }
+
+  .tab[aria-selected="true"] {
+    color: Highlight;
+    border-block-end-color: Highlight;
+  }
+}

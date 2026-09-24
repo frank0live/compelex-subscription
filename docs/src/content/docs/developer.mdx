@@ -1,0 +1,94 @@
+---
+title: Developer Reference
+description: The build pipeline, the artifact contract, and the verification gates.
+---
+
+This page is for people working on Row-Template itself, or building a template against
+it.
+
+## Repository layout
+
+```
+src/
+  styles/                  Row's CSS — Row has always lived here
+  templates/<id>/          every other template's layout and CSS
+    layout.html
+    tokens.css  base.css  layout.css  components.css  rtl.css
+  scripts/                 the shared runtime — never per-template
+  locales/                 the shared locale island
+tools/
+  templates.mjs            the template registry
+  build.mjs                build(), validateLayout(), REQUIRED_HOOKS
+  verify.mjs
+tests/                     the product suite
+installer/                 the bootstrap installer and the management library
+docs/                      this documentation site (separate workspace)
+```
+
+## The build
+
+```bash
+npm run build     # regenerate the artifacts from src/
+npm run verify    # check the artifact against the safety gates
+npm test          # the full product suite
+```
+
+The build is **deterministic** — the same sources always produce byte-identical output.
+That is what makes the byte locks meaningful.
+
+## The artifact contract
+
+A built artifact must satisfy all of these:
+
+| Requirement | Enforced by |
+|---|---|
+| **79 hooks**, each exactly once | `validateLayout()` and the build tests |
+| **Exactly three `<script>` tags** | build tests |
+| Boot and app scripts byte-identical to Row's | build tests |
+| Locale island byte-identical | build tests |
+| One `<style>` block, no unsubstituted tokens | build tests |
+| Within the **204,800-byte** ceiling | build tests |
+| The `/* row:branding */` marker present | build tests |
+| The font-face marker with the font inlined | build tests |
+
+## Layout selection
+
+`loadLayout()` in `tools/build.mjs` reads a template's own
+`src/templates/<id>/layout.html` when that file exists, and falls back to
+`src/index.html` otherwise.
+
+**All fifteen core templates own a `layout.html`, so the fallback is unreachable and
+`src/index.html` is dead code.** The shared-shell model is retired.
+
+## The registry
+
+`tools/templates.mjs` is the authoritative closed registry. Each entry carries:
+
+| Field | Meaning |
+|---|---|
+| `id`, `name` | stable id and display name |
+| `order` | the sort order — the only sorting mechanism |
+| `available` | whether it is selectable in this release |
+| `emitDataTemplate` | whether the artifact carries `data-template` on `<html>` |
+| `styles` | the ordered CSS files, as `[source, banner label]` pairs |
+| `tier`, `locked` | applied by default: `core` and `true` |
+
+An unknown or unavailable id fails loudly rather than silently falling back to Row.
+
+## Verification gates
+
+- **Byte locks** — every core template pinned to an exact size and SHA-256.
+- **Determinism** — building twice produces identical bytes.
+- **Structural validation** — the hook and script contract, enforced at build time.
+- **A fifteen-way byte comparison** — the check that a change did not move any frozen
+  artifact.
+
+## Contributing
+
+See
+[CONTRIBUTING.md](https://github.com/frank0live/Row-Template/blob/main/CONTRIBUTING.md).
+
+## Next
+
+- [Custom Templates](/custom-templates/) — the contract for your own design
+- [Security](/security/) — what the verification gates do and do not prove

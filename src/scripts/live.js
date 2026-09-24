@@ -18,11 +18,24 @@ function jitter(ms) {
   return Math.round(ms - spread + Math.random() * spread * 2);
 }
 
-/* Enough of a shape check to tell "the endpoint answered" from "something else
-   answered". A wrong shape is not worth retrying. */
+/* A shape check, not a key-presence check.
+ *
+ * This must accept OUR island payload and nothing else. The previous version
+ * accepted `enabled` OR `totalByte` OR `expire`, and `expire` is the problem:
+ * every panel sends it, in a different type — epoch seconds for 3X-UI, an ISO
+ * datetime for PasarGuard, an int64 for Rebecca. A foreign payload therefore
+ * passed the guard, reached normalize(), and was coerced to
+ * `enabled:false, online:false, all traffic null` — a silently wrong page that
+ * looked healthy, repainting every 15 seconds.
+ *
+ * `totalByte` and `downloadByte` are island-only names: they appear in the
+ * `data-*` attributes this product emits and in no panel's own payload. Two of
+ * them, because one is a weaker claim than two. A payload that fails this halts
+ * as `unsupported`, which is the honest outcome — the server-rendered figures
+ * stand rather than being overwritten with a guess. */
 function looksLikeInfo(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  return 'enabled' in value || 'totalByte' in value || 'expire' in value;
+  return 'totalByte' in value && 'downloadByte' in value;
 }
 
 function failure(structural) {

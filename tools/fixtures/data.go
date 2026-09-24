@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,6 +19,67 @@ const (
 )
 
 func days(n int64) int64 { return n * 86400 }
+
+// The fixture clock.
+//
+// Every fixture derives its expire and lastOnline from one instant, so what the
+// page renders moves with the wall clock. expire is now+45d, which the page
+// shows as a calendar date: the same fixture renders a different day tomorrow.
+// That is right for interactive use and fatal for the committed documentation
+// screenshots, which could not be reproduced a day later with the product
+// unchanged — the whole preview set would appear to change for no reason.
+//
+// ROW_FIXTURE_NOW pins that instant. Unset, nothing changes at all: the
+// fixtures are generated from time.Now() exactly as they always were. Set, they
+// are generated from the supplied instant, so a capture taken today matches one
+// taken next week. The value is read once, at process start, so a single server
+// run can never mix two instants between requests.
+//
+// It is an environment variable rather than a flag because the only caller is
+// the documentation capture, which spawns this server itself. The product, the
+// installer and the release payload never set it and never read it.
+const fixtureNowEnv = "ROW_FIXTURE_NOW"
+
+// fixedNow is the pinned instant, or the zero Time when the clock is live.
+var fixedNow = mustFixtureNow(os.Getenv(fixtureNowEnv))
+
+// parseFixtureNow accepts Unix seconds — the unit the panel itself uses for
+// expire and lastOnline — or an RFC3339 instant. Anything else is an error
+// rather than a silent fall back to the wall clock: a capture that quietly used
+// the wrong instant would be worse than one that refused to run.
+func parseFixtureNow(raw string) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, nil
+	}
+	if n, err := strconv.ParseInt(raw, 10, 64); err == nil {
+		return time.Unix(n, 0).UTC(), nil
+	}
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t.UTC(), nil
+	}
+	return time.Time{}, fmt.Errorf(
+		"%s: %q is neither Unix seconds nor an RFC3339 instant", fixtureNowEnv, raw)
+}
+
+func mustFixtureNow(raw string) time.Time {
+	t, err := parseFixtureNow(raw)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	return t
+}
+
+// fixtureClock is the instant the fixture data is generated from. It is the
+// live clock unless ROW_FIXTURE_NOW pinned it, so the default path is
+// byte-for-byte the behaviour this file had before the override existed.
+func fixtureClock() time.Time {
+	if !fixedNow.IsZero() {
+		return fixedNow
+	}
+	return time.Now()
+}
 
 // The share-link builders below produce the exact byte shapes the panel emits,
 // so the Explorer's client-side parser is exercised here on real inputs rather
@@ -67,7 +131,7 @@ func baseLinks() []string {
 // template. Every fixture starts from it and overrides only what it is about,
 // so a missing key in a fixture is a mistake rather than a variation.
 func base() map[string]any {
-	now := time.Now()
+	now := fixtureClock()
 	return map[string]any{
 		"sId":           "e3b0c44298fc1c14",
 		"enabled":       true,
@@ -103,7 +167,7 @@ func with(over map[string]any) map[string]any {
 }
 
 func fixtures() []fixture {
-	now := time.Now()
+	now := fixtureClock()
 
 	// The clock-time caption of UX-SPEC 14.1 has no other coverage: every other
 	// fixture expires days away, never within a calendar day. Run late in the

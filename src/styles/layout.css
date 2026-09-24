@@ -1,43 +1,82 @@
-/* Page skeleton: one centred column, two landmarks, and the two places where
-   the composition changes with width. */
+/* Page skeleton: one column, read top to bottom.
 
-.site-header,
-#main {
+   Row is the reference minimal template, so the skeleton is the simplest one in
+   the catalogue: a head, a status block, a list, a control block and a notice,
+   each separated by a single hairline. There is no grid to learn, no zone to
+   decode and no container to look inside. The only composition with any width to
+   it is the status block, where the figure and the facts stand on one line.
+
+   One DOM order serves every composition: head, status, list, control, notice.
+   Nothing is placed out of source order, so focus order is the reading order at
+   every width. */
+
+.page {
+  display: flex;
+  flex-direction: column;
   inline-size: 100%;
   max-inline-size: var(--page-max);
   margin-inline: auto;
+  padding-inline: var(--sp-4);
+  flex: 1 0 auto;
 }
 
-.site-header {
+/* The head: identity, state and controls, closed by the heavier rule. */
+.head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding-block: var(--sp-5) var(--sp-2);
-  min-block-size: var(--header-h);
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  padding-block: var(--sp-3);
+  border-block-end: 2px solid var(--rule-strong);
 }
 
-.brand {
+.head-brand {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   min-inline-size: 0;
 }
 
-/* One line, with the full value in the title attribute: a name long enough to
-   wrap would push the language and theme controls off the first screen. */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  border-radius: var(--r-control);
+  background: var(--track);
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
 .brand-name {
   font-size: var(--fs-title);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--lh-tight);
-  letter-spacing: -0.01em;
   min-inline-size: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.header-controls {
+.head-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.head-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
@@ -47,57 +86,66 @@
 #main {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
   flex: 1 0 auto;
 }
 
-/* Slots hold optional components. display:contents keeps an empty slot from
-   contributing a row to the flex gap, so an absent section costs nothing. */
-#plan-slot,
-#bar-slot,
-#announce-slot,
-#support-slot {
-  display: contents;
-}
-
-/* Traffic and expiry are one column at every width. A vertical rule splitting
-   the card into two mirrored panels reads as a dashboard widget; a single
-   hairline between two full-width rows reads as one statement. */
-.status-grid {
+.status,
+.list,
+.control,
+.notice {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--sp-3);
+  padding-block: var(--sp-5);
+  border-block-end: 1px solid var(--rule);
 }
 
-.traffic-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  min-inline-size: 0;
-}
+.notice { border-block-end: 0; }
 
-/* Date and remaining time share a baseline and pull apart, so the row fills a
-   desktop card without needing a second column, and wraps at 320px. */
-.expiry-block {
+.status-head,
+.list-head {
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 2px var(--sp-4);
-  min-inline-size: 0;
-  padding-block-start: var(--sp-4);
-  border-block-start: 1px solid var(--hairline);
-}
-
-.actions {
-  display: grid;
   gap: var(--sp-3);
 }
 
-@media (min-width: 480px) {
-  .actions { grid-template-columns: 1fr auto; }
+.status-head .label,
+.list-head .label { flex: 1; }
+
+/* The status readout: the figure and the facts on one line, the meter beneath
+   them. This is the only wide composition on the page. */
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-5);
+  min-inline-size: 0;
 }
 
-@media (min-width: 720px) {
-  body { padding-inline: var(--sp-6); }
+.readout > #bar-slot { flex: 1 1 100%; }
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 780px) {
+  /* The one piece of desktop composition: the figure takes the leading measure
+     and the facts sit against the trailing edge on the same baseline. */
+  .readout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--sp-2) var(--sp-6);
+    align-items: baseline;
+  }
+
+  .readout > #bar-slot { grid-column: 1 / -1; }
 }

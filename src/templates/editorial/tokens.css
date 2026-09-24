@@ -1,0 +1,150 @@
+/* Design tokens. Every value that a theme can change lives here and nowhere
+   else; the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  /* One serif voice throughout; the family is the identity. The display and
+     reading faces are the same face, distinguished only by size and weight. */
+  --font: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino,
+          "Book Antiqua", "Times New Roman", serif;
+  --font-display: var(--font);
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 2.375rem;
+  --fs-title: 1.125rem;
+  --fs-section: 0.8125rem;
+  --fs-body: 1rem;
+  --fs-caption: 0.875rem;
+  --fs-micro: 0.75rem;
+
+  --lh-display: 1.1;
+  --lh-tight: 1.4;
+  --lh-body: 1.65;
+  --measure: 64ch;
+  --ls-section: 0.08em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+
+  --r-card: 4px;
+  --r-control: 6px;
+  --r-mark: 2px;
+  --r-pill: 999px;
+
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 300ms;
+  --ease: cubic-bezier(0.22, 0.6, 0.2, 1);
+
+  --page-max: 720px;
+  --tap: 44px;
+
+  --header-h: 64px;
+  --mark: 40px;
+  --card-pad: var(--sp-5);
+  --btn-h: 44px;
+}
+
+/* Dark is the default so that a client with no matchMedia and no stored
+   preference still lands on a coherent theme. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #16130E;
+  --surface: #1E1A14;
+  --surface-2: #29231A;
+  --track: #322B1F;
+
+  --hairline: #2C271D;
+  --border: #3A3327;
+  --border-strong: #554B39;
+  --control-border: #7A6F58;
+
+  --text: #EDE6D6;
+  --muted: #B3A98F;
+  --subtle: #9C927B;
+
+  --accent: #DD8A5C;
+  --accent-solid: #C9663A;
+  --accent-hover: #DE7B4A;
+  --info-surface: #2A2418;
+  --info-border: #3D3522;
+  --on-accent: #FFF4E8;
+
+  --success: #7FAE7F;
+  --warning: #D9A94F;
+  --danger: #E07863;
+  --focus: #E6A06F;
+
+  --shadow-card: none;
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.55);
+  --scrim: rgb(0 0 0 / 0.6);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F6F2EA;
+  --surface: #FFFCF5;
+  --surface-2: #F0E9DA;
+  --track: #E6DCC8;
+
+  --hairline: #E2D8C4;
+  --border: #D8CDB6;
+  --border-strong: #B9AC92;
+  --control-border: #8A7E68;
+
+  --text: #26221A;
+  --muted: #6B6353;
+  --subtle: #7E7666;
+
+  --accent: #A8491F;
+  --accent-solid: #A8491F;
+  --accent-hover: #8C3B17;
+  --info-surface: #F3EBDD;
+  --info-border: #E4D6BD;
+  --on-accent: #FFF7EC;
+
+  --success: #3E6B47;
+  --warning: #9A6A0C;
+  --danger: #A1251B;
+  --focus: #A8491F;
+
+  --shadow-card: 0 1px 2px rgb(38 34 26 / 0.06);
+  --shadow-pop: 0 12px 32px rgb(38 34 26 / 0.16);
+  --scrim: rgb(38 34 26 / 0.4);
+}
+
+@media (min-width: 480px) {
+  :root { --card-pad: var(--sp-6); }
+}
+
+@media (min-width: 720px) {
+  :root { --fs-display: 2.75rem; }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --lh-body: 1.8;
+}

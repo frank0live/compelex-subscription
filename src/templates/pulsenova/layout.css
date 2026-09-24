@@ -1,0 +1,116 @@
+/* Page skeleton: a slim instrument header, then a full-width pulse hero, then
+   the dashboard grid. The grid is the only place the composition changes with
+   width. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* A console header rather than a masthead: the mark and name sit on the left,
+   the language and theme controls on the right, and one hairline closes the
+   band. Everything below it is a panel, so the header stays out of the way. */
+.site-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-4) var(--sp-3);
+  min-block-size: var(--header-h);
+  border-block-end: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  flex: 1 0 auto;
+}
+
+/* The hero. The ring is the focal point and the state sits at its centre; the
+   plan name labels it from below rather than competing with it. */
+.pulse {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding-block: var(--sp-6) var(--sp-2);
+  text-align: center;
+}
+
+/* The ring is both the frame and the flex column that centres the state: a
+   single element, so there is no wrapper between the circle and what it holds. */
+.pulse-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  inline-size: var(--ring);
+  block-size: var(--ring);
+  padding-inline: var(--sp-4);
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at 50% 50%, var(--ring-core), transparent 70%);
+  /* A second, tighter circle drawn as an inset ring rather than as a nested
+     element: the gap between the two is what makes the frame read as an
+     instrument bezel instead of a filled disc. */
+  box-shadow: inset 0 0 0 11px var(--bg), inset 0 0 0 12px var(--ring-edge);
+}
+
+/* The dashboard grid. Source order is the phone's reading order — status,
+   usage, actions, nodes, clients, announcements — and the wide layout only
+   places those same regions; nothing here uses order. */
+.dash {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.status,
+.usage,
+.actions,
+.nodes,
+.clients,
+#announce-slot,
+#support-slot {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+  body { padding-inline: var(--sp-6); }
+
+  .status { grid-column: 1 / span 4; }
+  .usage { grid-column: 5 / -1; }
+  .nodes { grid-column: 1 / span 7; }
+  .clients { grid-column: 8 / -1; }
+}

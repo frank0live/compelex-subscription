@@ -1,0 +1,137 @@
+/* Page skeleton. One DOM order serves both compositions: the spine carries
+   identity, state, usage, expiry and the actions; the bay carries the matrix,
+   the launch ports and the band. On a phone the spine reads as a faceplate
+   band; from 1000px it becomes a sticky instrument column beside the bay.
+   Nothing is ever reordered — the grid only places what is already in order. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* A precision masthead: identity on the inline-start edge, controls on the
+   other, closed by a single hairline. It carries no status of its own — the
+   spine owns that — so it stays out of the instrument's way. */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-4) var(--sp-3);
+  border-block-end: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  flex: 1 0 auto;
+}
+
+/* The spine, as a faceplate band on a phone: a milled panel whose inline-start
+   edge carries the one spectral detail the concept allows outside the meter. */
+.spine {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-cell);
+}
+
+.spine::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 2px;
+  background: var(--spectral-v);
+}
+
+/* The three-part readout: figure, caption and remainder share a baseline and
+   the meter takes its own row. Wrapping is the whole responsive strategy — at
+   320px the caption drops to its own line rather than squeezing the figure. */
+.meter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+}
+
+.meter #traffic-caption { flex: 1 1 auto; min-inline-size: 0; }
+
+#bar-slot,
+.meter #traffic-trailing { flex: 1 1 100%; }
+
+.state-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.actions {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 480px) and (max-width: 999px) {
+  .actions { grid-template-columns: 1fr auto; }
+}
+
+.bay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-inline-size: 0;
+}
+
+/* From 1000px the console splits. The spine sticks, and is bounded by the
+   viewport with its own scroll: on a short laptop it scrolls internally rather
+   than pushing its actions out of reach, which is the only failure mode that
+   would make stickiness worse than a plain column. */
+@media (min-width: 1000px) {
+  body { padding-inline: var(--sp-6); }
+
+  #main {
+    display: grid;
+    grid-template-columns: var(--spine) minmax(0, 1fr);
+    gap: var(--sp-6);
+    align-items: start;
+  }
+
+  .spine {
+    position: sticky;
+    inset-block-start: var(--sp-4);
+    max-block-size: calc(100vh - var(--sp-7));
+    overflow-y: auto;
+  }
+}

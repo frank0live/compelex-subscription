@@ -1,8 +1,10 @@
 # --- build output / scratch (regenerated; never the source of truth) ---------
 # The published artifact template/index.html IS committed on purpose; these are
-# transient build products only.
+# transient build products only. dist/ holds the non-default templates' build
+# output, which the release tool regenerates with `node tools/build.mjs --all`.
 /build/
 /out/
+/dist/
 /tools/fixtures/out/
 
 # Release bundle produced by tools/make-release.sh. The immutable artifacts live
@@ -35,6 +37,19 @@ node_modules/
 # validation infrastructure, kept local and not published).
 /tests/vps/
 
+# --- documentation workspace -------------------------------------------------
+# The product's /dist/ is root-anchored and does not cover the docs build output,
+# so it needs its own rule. docs/node_modules/ is already covered by the
+# unanchored node_modules/ pattern above and deliberately has no rule here.
+/docs/dist/
+
+# Astro's generated types and content manifest. Regenerated on every build, never
+# a source of truth, and not intended to be committed.
+/docs/.astro/
+
 # --- OS noise -----------------------------------------------------------------
 .DS_Store
 Thumbs.db
+
+# --- local AI workspace ------------------------------------------------------
+.workbuddy-ai/

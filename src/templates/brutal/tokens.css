@@ -1,0 +1,151 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties.
+
+   The board is a poster: one heavy sans voice at poster scale, hard rules, and
+   an acid accent that is spent only on the primary action and the engaged
+   switch. Nothing here is rounded, and nothing here glows. */
+
+:root {
+  --font: "Arial Black", "Helvetica Neue", "Segoe UI", system-ui, Arial,
+          sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas,
+               monospace;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  /* Poster scale. The traffic anchor is the largest text in the catalogue on
+     purpose; the row index is deliberately large enough to read as a plate
+     number rather than as a list marker. */
+  --fs-anchor: 3rem;
+  --fs-title: 1.25rem;
+  --fs-row: 1.125rem;
+  --fs-index: 1.125rem;
+  --fs-plate: 1.5rem;
+  --fs-label: 0.6875rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.75rem;
+
+  --lh-anchor: 0.95;
+  --lh-tight: 1.2;
+  --lh-body: 1.5;
+  --measure: 58ch;
+  --ls-label: 0.18em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 44px;
+
+  /* Square. A poster board has no rounded corners anywhere. */
+  --r-control: 0px;
+  --r-pill: 999px;
+
+  --dur: 110ms;
+  --dur-slow: 180ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  --page-max: 1240px;
+  --tap: 44px;
+  --mark: 32px;
+  --rule-hard: 3px;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. The board is near-monochrome; the acid lime
+   is one accent, not a skin. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #111110;
+  --surface: #191917;
+  --track: #2A2A26;
+
+  --rule: #2E2E2A;
+  --rule-strong: #4A4A43;
+  --control-border: #6A6A60;
+
+  --text: #F2F0E6;
+  --muted: #A5A296;
+  --subtle: #7C7A70;
+
+  --accent: #CDF14A;
+  --accent-solid: #CDF14A;
+  --accent-hover: #DAF86E;
+  --on-accent: #14170A;
+
+  --warning: #E8A33D;
+  --danger: #F0655C;
+  --success: #6FD08C;
+  --info: #7FC6DA;
+  --focus: #DAF86E;
+
+  --shadow-pop: 0 14px 34px rgb(0 0 0 / 0.62);
+  --scrim: rgb(6 6 5 / 0.72);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F4F2EA;
+  --surface: #FFFFFF;
+  --track: #E3E0D5;
+
+  --rule: #D6D3C6;
+  --rule-strong: #9C998C;
+  --control-border: #6E6B60;
+
+  --text: #131311;
+  --muted: #55534C;
+  --subtle: #73706A;
+
+  --accent: #5E7A0B;
+  --accent-solid: #5E7A0B;
+  --accent-hover: #465C07;
+  --on-accent: #FFFFFF;
+
+  --warning: #8A5A00;
+  --danger: #B03226;
+  --success: #1F6B45;
+  --info: #1C5E75;
+  --focus: #5E7A0B;
+
+  --shadow-pop: 0 14px 34px rgb(19 19 17 / 0.18);
+  --scrim: rgb(19 19 17 / 0.42);
+}
+
+@media (min-width: 860px) {
+  :root {
+    --fs-anchor: 5.5rem;
+    --fs-row: 1.25rem;
+    --fs-index: 1.375rem;
+    --fs-plate: 2.125rem;
+  }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* Arabic and Persian are first-class. The Arabic face replaces both voices: a
+   monospace font has no Arabic glyphs, and faux-mono tracking closes the joins
+   that carry the script. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --font-mono: var(--font-arabic);
+  --lh-body: 1.75;
+  --lh-anchor: 1.15;
+}

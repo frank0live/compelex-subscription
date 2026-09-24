@@ -1,0 +1,45 @@
+/* Direction-specific rules. The console itself needs none: every offset in
+   this stylesheet is a logical property, so setting dir on <html> mirrors the
+   spine, the matrix and the port rail on its own. What remains are the two
+   glyphs that carry a direction of their own, the ramp that must progress with
+   the reading direction, and the typographic details that do not survive being
+   mirrored. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+/* The meter grows from the inline-start edge, which is the right in RTL, but a
+   physical 90deg ramp still runs left to right — so the lit portion would read
+   back to front. Mirroring the fill puts the ramp's first stop back at the
+   growing edge. The segment lines and the rounded ends are symmetric, so
+   nothing else about the meter changes. */
+[dir="rtl"] .bar-fill { transform: scaleX(-1); }
+
+/* Tracked micro-capitals are a Latin device: the tracking closes Arabic joins
+   and reads as a different script. The Arabic face (Vazirmatn, opted in
+   through tokens.css) is already set at a looser leading, so these reset the
+   Latin-only treatment and let the labels stand as plain text. */
+[lang="fa"] .section-title,
+[lang="ar"] .section-title,
+[lang="fa"] .cfg-proto,
+[lang="ar"] .cfg-proto {
+  letter-spacing: 0;
+}
+
+/* The display figure is deliberately tracked open, and Persian and Arabic
+   ascenders and descenders need the extra leading that the tight display
+   line-height would clip. Both display elements take the same reset. */
+[lang="fa"] .big-value,
+[lang="ar"] .big-value,
+[lang="fa"] .plan-label,
+[lang="ar"] .plan-label {
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+[lang="fa"] .value,
+[lang="ar"] .value {
+  line-height: 1.4;
+}

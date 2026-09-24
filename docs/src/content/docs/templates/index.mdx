@@ -1,0 +1,55 @@
+---
+title: Template Gallery
+description: The fifteen core designs that ship with Row-Template, with their structural traits.
+---
+
+import TemplateGallery from "../../../components/TemplateGallery.astro";
+import TemplateComparison from "../../../components/TemplateComparison.astro";
+
+Row-Template ships **fifteen core templates**. Each is a complete design — its own
+layout, its own typography, its own structure — and each is byte-locked, so a released
+design cannot change without a deliberate, reviewed update.
+
+Every template is available, every template is locked, and every template owns an
+independent `layout.html`. There are no provisional designs.
+
+## What every template shares
+
+Whichever you choose, you get the same guarantees. These come from the shared runtime,
+not from any individual design:
+
+- **One self-contained artifact.** CSS, JavaScript, the fonts and the QR generator are
+  all inlined. The page fetches nothing from anywhere.
+- **The same runtime.** A template is a layout and a stylesheet set, never a fork of the
+  logic.
+- **The same data.** Status, traffic, expiry, configurations and clients are identical
+  across all fifteen.
+- **Right-to-left support**, and **dark and light themes**.
+- **79 required hooks**, exactly three scripts, and a byte lock pinning the artifact to
+  an exact size and SHA-256.
+
+## Compare by structure
+
+The templates differ in structure, not in colour. This table compares them on the traits
+that actually distinguish them.
+
+<TemplateComparison />
+
+## The fifteen designs
+
+Each entry lists its structural traits and how to select it. **No template is ranked above
+another** — they are different designs for different services.
+
+<TemplateGallery />
+
+## Previews
+
+Preview slots are present but not yet filled. Previews will be captured from the **frozen
+artifacts**, so what you see is what the template actually produces — and they are not
+published until that capture pipeline exists. **Nothing here is a synthetic screenshot.**
+
+## Next
+
+- [Selecting a template](/templates/selecting/) — how to choose and switch
+- [Custom templates](/custom-templates/) — building your own
+- [Branding](/branding/) — your own identity on any template

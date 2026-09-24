@@ -1,0 +1,26 @@
+/* Direction-specific rules. The layout needs none: every offset in this
+   stylesheet is a logical property, so setting dir on <html> is enough. What
+   remains are the two glyphs that carry a direction of their own, and the
+   Latin-only tracking, which closes Arabic joins. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+[lang="fa"] .section-title,
+[lang="ar"] .section-title,
+[lang="fa"] .cfg-proto,
+[lang="ar"] .cfg-proto {
+  letter-spacing: 0;
+}
+
+[lang="fa"] .big-value,
+[lang="ar"] .big-value {
+  line-height: 1.25;
+}
+
+[lang="fa"] .value,
+[lang="ar"] .value {
+  line-height: 1.4;
+}

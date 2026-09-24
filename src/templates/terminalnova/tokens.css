@@ -1,0 +1,156 @@
+/* Design tokens. Everything a theme can change lives here and nowhere else;
+   the rest of the stylesheet only reads custom properties.
+
+   Two voices: the monospace face carries machine values - metrics, protocol
+   tags, column labels, configuration identity, URLs - and the sans face carries
+   everything a person reads as prose. Typography does the layout work here, so
+   the sizes and the rules below matter as much as the colours do. */
+
+:root {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+               "Liberation Mono", monospace;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  /* Two registers: operational numerals, the largest text on the page, and
+     machine labels, the smallest. Everything else sits between them. */
+  --fs-numeral: 2.25rem;
+  --fs-readout: 1.5rem;
+  --fs-title: 1.0625rem;
+  --fs-label: 0.6875rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.75rem;
+
+  --lh-numeral: 1;
+  --lh-tight: 1.35;
+  --lh-body: 1.55;
+  --measure: 64ch;
+  --ls-label: 0.14em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 44px;
+
+  /* The deck is built from rules, not boxes. Controls are the only rounded
+     things on the page, and only just. */
+  --r-control: 4px;
+  --r-pill: 999px;
+
+  --dur: 130ms;
+  --dur-slow: 200ms;
+  --ease: cubic-bezier(0.25, 0.55, 0.2, 1);
+
+  --page-max: 672px;
+  --tap: 44px;
+  --mark: 26px;
+}
+
+/* Dark is the default, so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Graphite planes, warm-neutral ink, and one
+   green signal family that means "running" wherever it appears. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0C0F0D;
+  --surface: #141815;
+  --surface-2: #1B211D;
+  --track: #232B26;
+
+  /* --rule is the page's structural element: every zone boundary is one. */
+  --rule: #242C26;
+  --rule-strong: #39443B;
+  --control-border: #5A665E;
+
+  --text: #E6E3D8;
+  --muted: #9AA69C;
+  --subtle: #78847B;
+
+  --accent: #35E08C;
+  --accent-solid: #1FB873;
+  --accent-hover: #4DEDA0;
+  --on-accent: #04160C;
+
+  /* Success is the same green as the accent on purpose: in a console, one
+     green means running. The two are told apart by shape and fill - a solid
+     button, a dot, a bar - never by two near-identical shades. */
+  --success: #35E08C;
+  --warning: #E8A33D;
+  --danger: #F0655C;
+  --info: #4CD7E8;
+  --focus: #5CE8A4;
+
+  --info-surface: #121A17;
+  --shadow-pop: 0 10px 28px rgb(0 0 0 / 0.55);
+  --scrim: rgb(2 6 4 / 0.66);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F7F6F1;
+  --surface: #FFFFFF;
+  --surface-2: #EFEFE9;
+  --track: #E2E3DB;
+
+  --rule: #E1E1D7;
+  --rule-strong: #C4C5B9;
+  --control-border: #8A8C7E;
+
+  --text: #141815;
+  --muted: #565B52;
+  --subtle: #6E7368;
+
+  --accent: #0F7A45;
+  --accent-solid: #0F7A45;
+  --accent-hover: #0A5C33;
+  --on-accent: #FFFFFF;
+
+  --success: #0F7A45;
+  --warning: #8A5A00;
+  --danger: #B32F26;
+  --info: #0E6E86;
+  --focus: #0F7A45;
+
+  --info-surface: #F1F3EC;
+  --shadow-pop: 0 10px 28px rgb(20 24 21 / 0.14);
+  --scrim: rgb(20 24 21 / 0.4);
+}
+
+@media (min-width: 1000px) {
+  :root {
+    --fs-numeral: 3.25rem;
+    --fs-readout: 1.875rem;
+    --page-max: 1200px;
+  }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* Arabic and Persian are first-class. The Arabic face replaces BOTH voices: a
+   monospace font has no Arabic glyphs, and faux-mono tracking closes the joins
+   that carry the script. Figures keep their column alignment through tabular
+   numerals rather than through a mono width. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --font-mono: var(--font-arabic);
+  --lh-body: 1.75;
+}
