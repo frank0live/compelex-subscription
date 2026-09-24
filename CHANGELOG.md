@@ -20,8 +20,8 @@ panel.
   the five languages behave the same in each.
 - **Choosing a design.** A fresh interactive install shows a design chooser
   (Enter keeps Row). `RT_TEMPLATE=<id>` picks one for a scripted install, and
-  the manager's **Reconfigure → Template** changes it later. Updates keep the
-  selected design.
+  the manager's **Reconfigure branding → Template** changes it later. Updates
+  keep the selected design.
 - **Checksummed designs.** Each design ships in the release with its own
   SHA-256 checksum. `row-template verify` checks every installed design against
   its checksum and confirms the live page is the selected design.
