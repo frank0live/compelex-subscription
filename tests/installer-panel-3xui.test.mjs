@@ -377,7 +377,7 @@ test('detection is read-only: no file, database or service state changes', () =>
 });
 
 function readdirSafe(dir) {
-  const r = spawnSync(BASH, ['-c', `find "$(cygpath -u '${u(dir)}')" -type f | LC_ALL=C sort`], { encoding: 'utf8' });
+  const r = spawnSync(BASH, ['-c', `find "$(cygpath -u '${u(dir)}' 2>/dev/null || printf '%s' '${u(dir)}')" -type f | LC_ALL=C sort`], { encoding: 'utf8' });
   return (r.stdout || '').trim();
 }
 
@@ -725,7 +725,7 @@ test('restore applies absent, empty and present exactly', () => {
     try {
       const snap = makeSnapshot(fx, '3xui', spec);
       const r = sh(`
-        rc=0; rt_panel_restore_state 3xui "$(cygpath -u '${u(snap)}')" >/dev/null 2>&1 || rc=$?
+        rc=0; rt_panel_restore_state 3xui "$(cygpath -u '${u(snap)}' 2>/dev/null || printf '%s' '${u(snap)}')" >/dev/null 2>&1 || rc=$?
         printf '%s' "$rc"; exit 0
       `, { fx });
       assert.equal(r.code, 0, r.err);
@@ -759,7 +759,7 @@ test('restore fails closed on a non-empty files list, a wrong mechanism and a ma
     try {
       const snap = makeSnapshot(fx, '3xui', spec);
       const r = sh(`
-        rc=0; rt_panel_restore_state 3xui "$(cygpath -u '${u(snap)}')" >/dev/null 2>&1 || rc=$?
+        rc=0; rt_panel_restore_state 3xui "$(cygpath -u '${u(snap)}' 2>/dev/null || printf '%s' '${u(snap)}')" >/dev/null 2>&1 || rc=$?
         printf '%s' "$rc"; exit 0
       `, { fx });
       assert.equal(r.code, 0, r.err);
@@ -778,7 +778,7 @@ test('restore returns the service to its recorded state', () => {
     try {
       const snap = makeSnapshot(fx, '3xui', { state: 'present', value: '/restored', wasRunning });
       const r = sh(`
-        rc=0; rt_panel_restore_state 3xui "$(cygpath -u '${u(snap)}')" >/dev/null 2>&1 || rc=$?
+        rc=0; rt_panel_restore_state 3xui "$(cygpath -u '${u(snap)}' 2>/dev/null || printf '%s' '${u(snap)}')" >/dev/null 2>&1 || rc=$?
         printf '%s' "$rc"; exit 0
       `, { fx });
       assert.equal(r.code, 0, r.err);
