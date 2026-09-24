@@ -1399,7 +1399,7 @@ rt_backup_create_v2() {
   # record state it cannot vouch for, and a rollback would act on the guess.
   #
   # Usage: rt_backup_create_v2 [PANEL…]
-  local tmp final ts ver tpl_id panel src d f
+  local tmp final ts ver tpl_id panel src d f waited
   [ -f "$RT_DIST" ] || { rt_err "nothing to back up: $RT_DIST missing"; return 1; }
 
   # 1. the namespace, safely
@@ -1412,10 +1412,20 @@ rt_backup_create_v2() {
     || { rt_err "could not create a temporary snapshot"; return 1; }
   chmod 700 "$tmp" 2>/dev/null || true
 
-  ts="$(date -u +%Y%m%dT%H%M%SZ)"
   ver="$(cat "$RT_VERSION_FILE" 2>/dev/null || echo unknown)"
   ver="$(printf '%s' "$ver" | LC_ALL=C tr -cd 'A-Za-z0-9._-')"
   [ -n "$ver" ] || ver="unknown"
+  # Names have one-second resolution, so two snapshots taken back to back can
+  # want the same one. Wait for the next free second rather than fail: the name
+  # grammar and its newest-first ordering stay intact, and the guard before the
+  # rename below still refuses to replace an existing snapshot.
+  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  waited=0
+  while [ -e "$RT_BACKUPS_V2/${ts}__${ver}" ] && [ "$waited" -lt 3 ]; do
+    sleep 1
+    ts="$(date -u +%Y%m%dT%H%M%SZ)"
+    waited=$((waited + 1))
+  done
 
   # 4. the Row-Template state — exactly what the format-1 writer captures
   cp -- "$RT_DIST" "$tmp/template.html" || { rt_safe_rmdir "$tmp"; return 1; }
