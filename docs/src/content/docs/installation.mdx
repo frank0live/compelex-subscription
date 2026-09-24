@@ -59,7 +59,10 @@ panel's built-in one.
 row-template verify
 ```
 
-This is read-only. It checks the installed artifact, the panel wiring and the live render.
+It checks the installed artifact, the panel wiring and the live render. Run as root, it first
+puts the template store right: designs left outside `dist/templates` are moved back, and
+designs the installed version ships but the server lacks are downloaded from that same
+release. It changes nothing else.
 
 **Expected:** every check reports OK. If a check fails it names what failed and what it
 found, and the installer's own messages tell you which command to run next.
