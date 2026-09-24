@@ -203,7 +203,7 @@ Or use a command directly:
 | `row-template config` | Change the service name, support link, or logo, then regenerate the page |
 | `row-template update` | Download, verify, and activate a newer stable release (checksum enforced) |
 | `row-template rollback` | Restore a previous version (`--auto` or `--to <backup>`) |
-| `row-template verify` | Check the install, the panel wiring, and the live page (read-only) |
+| `row-template verify` | Check the install, the panel wiring, and the live page (as root, it also puts back missing or misplaced designs) |
 | `row-template version` | Show the installed, minimum-supported, and detected 3X-UI versions |
 | `row-template uninstall` | Remove Row-Template and revert the panel to its built-in page |
 | `row-template help` | Show usage |
@@ -212,6 +212,7 @@ Commands that change the system (`config`, `update`, `rollback`, `uninstall`) mu
 
 - **Branding** is stored as data, never executed, and injected into the page as text. Leave a field blank for an unbranded page. The support link accepts only schemes a browser should open, such as `https://…`, `tg://…`, or `mailto:…`.
 - **Updates** check the public stable channel and change nothing unless a newer stable version exists. If the release source is unreachable, `update` reports that it could not check; your installation is never treated as damaged.
+- **Updating from 1.1.0** takes one `row-template update`. 1.1.0's own updater copies only part of the new release, so the next `row-template`, `row-template config`, or `row-template verify` run as root first downloads the rest of that same release — every design, checksum-verified.
 - **Rollback** restores a previous version from a validated backup. The current version is snapshotted first, so a failed rollback can be recovered, and your branding is preserved.
 - **Uninstall** removes Row-Template's files. It clears the panel's `subThemeDir` only if it points at Row-Template, so the panel falls back to its built-in page; your inbounds, clients, and certificates are not touched.
 
