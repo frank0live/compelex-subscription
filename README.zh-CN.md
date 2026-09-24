@@ -91,7 +91,7 @@ Row-Template 1.2.0 提供十五种设计，默认设计为 Row。
 
 - **白标品牌。** 服务名称、支持链接和徽标，均为可选，以数据形式存储并以文本形式注入。
 - **一个管理器搞定一切。** 交互式菜单和直接命令，用于品牌设置、更新、验证、回滚和卸载。
-- **稳定通道更新。** `row-template update` 仅在存在更新的稳定版本时才会安装。
+- **稳定通道更新。** 每次运行 `row-template update` 都会安装经过校验的最新稳定版本——因此它也是快速修复安装的方法。
 
 **隐私与安全**
 
@@ -170,7 +170,11 @@ bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/dow
 RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
 
-如果你不希望直接从网络通过管道执行，可以从 [Releases 页面](https://github.com/frank0live/Row-Template/releases/latest)下载发布文件，按照 [PROVENANCE.md](PROVENANCE.md) 中的说明自行校验校验和，然后从解压后的目录运行随附的 `install.sh`。
+如果你不希望直接从网络通过管道执行，可以从 [Releases 页面](https://github.com/frank0live/Row-Template/releases/latest)将四个发布文件（`install.sh`、`manifest.txt`、`SHA256SUMS` 和 `row-template-<version>.tar.gz`）下载到同一个文件夹，按照 [PROVENANCE.md](PROVENANCE.md) 中的说明自行校验校验和，然后让安装程序使用该文件夹：
+
+```bash
+RT_RELEASE_DIR=/root/row-template-release bash /root/row-template-release/install.sh
+```
 
 ### 激活
 
@@ -200,7 +204,7 @@ row-template
 | 命令 | 作用 |
 | ------- | ------------ |
 | `row-template config` | 更改服务名称、支持链接或徽标，然后重新生成页面 |
-| `row-template update` | 下载、校验并激活更新的稳定版本（强制校验校验和） |
+| `row-template update` | 下载、校验并激活最新的稳定版本（强制校验校验和） |
 | `row-template rollback` | 恢复到之前的版本（`--auto` 或 `--to <backup>`） |
 | `row-template verify` | 检查安装、面板连接和当前页面（只读） |
 | `row-template version` | 显示已安装版本、最低支持版本以及检测到的 3X-UI 版本 |
@@ -210,7 +214,7 @@ row-template
 会修改系统的命令（`config`、`update`、`rollback`、`uninstall`）必须以 root 身份运行。
 
 - **品牌信息**以数据形式存储，从不执行，并以文本形式注入页面。将某个字段留空即可得到无品牌的页面。支持链接只接受浏览器应当打开的协议，例如 `https://…`、`tg://…` 或 `mailto:…`。
-- **更新**会检查公共稳定通道，只有存在更新的稳定版本时才会做出更改。如果无法访问发布源，`update` 会报告无法检查；你的安装绝不会因此被视为已损坏。
+- **更新**来自公共稳定通道。`row-template update` 总是应用最新的稳定版本，即使你已安装的就是该版本；管理器中的 **Update** 会先比较版本，并在做出任何更改前询问。如果无法访问发布源，则不会做任何更改，你的安装也绝不会因此被视为已损坏。
 - **回滚**会从经过验证的备份中恢复之前的版本。系统会先为当前版本创建快照（snapshot），因此失败的回滚也可以恢复，且你的品牌配置会被保留。
 - **卸载**会移除 Row-Template 的文件。只有当面板的 `subThemeDir` 指向 Row-Template 时才会将其清除，使面板恢复内置页面；你的入站（inbound）、客户端和证书都不会受到影响。
 
