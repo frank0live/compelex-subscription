@@ -11,17 +11,26 @@ Every release published on GitHub carries these assets:
 
 | Asset | Purpose |
 | ----- | ------- |
-| `row-template-<version>.tar.gz` | The runtime payload (template, `VERSION`, `install.sh`, `lib/`, `bin/`). |
+| `row-template-<version>.tar.gz` | The runtime payload — see below. |
 | `SHA256SUMS` | The SHA-256 checksum of the tarball above. |
 | `manifest.txt` | Plain-text metadata (`name`, `version`, `artifact`, `min_xui`, `created`), parsed as data — never executed. |
 | `install.sh` | The bootstrap used by the one-command installer. |
 
-Inside the tarball there is a second `SHA256SUMS` listing the checksum of every
-payload file, so the contents can be checked after extraction as well.
+The tarball expands to a single `row-template-<version>/` directory:
+
+| Path | Contents |
+| ---- | -------- |
+| `template.html` | The Row design, the page an older installed version updates against. |
+| `templates/<id>/template.html` (+ `.sha256`) | Every selectable design, each with its own checksum. |
+| `shells/<panel>/<id>/shell.html` (+ `.sha256`) | Each design's page shell per panel, packaged for research; the installer does not place them. |
+| `VERSION`, `install.sh`, `lib/`, `bin/` | The version, the installer and the `row-template` manager. |
+| `panels/` | The panel interface layer the manager loads; installed next to `lib/`. |
+| `SHA256SUMS` | The checksum of every payload file, so the contents can be checked after extraction as well. |
 
 The build is deterministic: the same sources always produce a byte-identical
 `row-template-<version>.tar.gz`. Anyone can rebuild it from a checkout with
-`tools/make-release.sh` and compare the checksum.
+`tools/make-release.sh` (which needs Node.js to build the designs) and compare
+the checksum.
 
 ## Integrity: mandatory SHA-256
 
