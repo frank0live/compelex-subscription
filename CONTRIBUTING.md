@@ -31,7 +31,12 @@ The template artifact is built from readable sources in `src/`:
 npm run build     # regenerate template/index.html from src/
 npm run verify    # check the artifact against the safety gates
 npm test          # run the unit and installer test suites
+npm run fixtures:all  # render every template's fixture pages (npm test runs this first)
 ```
+
+`npm test` needs [Go](https://go.dev/) 1.22 or newer on `PATH`: before the
+suites run, it renders every template's fixture pages into
+`tools/fixtures/out/`, which some tests read and which is not committed.
 
 The build is deterministic: the same sources always produce a byte-identical
 `template/index.html`. Edit the files under `src/` rather than the generated
