@@ -32,6 +32,12 @@ RT_NAME="row-template"
 : "${RT_BIN:=/usr/local/bin/row-template}"
 RT_MIN_XUI="3.6.0"
 
+# Where the panel database is looked for when XUI_DB_FOLDER does not name one,
+# in priority order: 3X-UI's own default first. Tests point this at fixtures
+# after sourcing, since the real locations are system paths; nothing in
+# production changes it.
+RT_XUI_DB_DEFAULTS=(/etc/x-ui/x-ui.db /usr/local/x-ui/x-ui.db /etc/3x-ui/x-ui.db)
+
 # Project identity. This is the ONLY terminal-facing branding for the management
 # tool itself (distinct from the operator's white-label service branding, which
 # lives in config.env). Shown on the installer welcome, the manager header, the
@@ -1554,11 +1560,12 @@ rt_detect_xui_db() {
   # sets RT_XUI_DB if a panel database can be located. Absence is not fatal —
   # it only means subThemeDir must be set manually rather than programmatically.
   #
-  # A database named by XUI_DB_FOLDER is authoritative. If it exists but is not
-  # an SQLite database, detection FAILS CLOSED: falling back to a default
-  # location could select a different install's database, and the adapter would
-  # then read, write and restore the wrong panel. Only when the configured file
-  # does not exist are the default locations searched.
+  # The FIRST database file that exists is authoritative: the one XUI_DB_FOLDER
+  # names, else the first of RT_XUI_DB_DEFAULTS. If it is not an SQLite
+  # database, detection FAILS CLOSED rather than moving on to the next
+  # candidate, which could be a different or stale install's database: the
+  # adapter would then read, write and restore a panel that is not the one
+  # running. A location that holds no database file is skipped.
   RT_XUI_DB=""
   local c
   if [ -n "${XUI_DB_FOLDER:-}" ] && [ -f "$XUI_DB_FOLDER/x-ui.db" ]; then
@@ -1571,11 +1578,14 @@ rt_detect_xui_db() {
     return 0
   fi
 
-  for c in /etc/x-ui/x-ui.db /usr/local/x-ui/x-ui.db /etc/3x-ui/x-ui.db; do
-    if [ -f "$c" ] && rt_is_sqlite_db "$c"; then
-      RT_XUI_DB="$c"
-      return 0
+  for c in "${RT_XUI_DB_DEFAULTS[@]}"; do
+    [ -f "$c" ] || continue
+    if ! rt_is_sqlite_db "$c"; then
+      rt_warn "panel database is not an SQLite database: $c (not falling back to another database; set XUI_DB_FOLDER to the panel's database folder)"
+      return 1
     fi
+    RT_XUI_DB="$c"
+    return 0
   done
 
   return 1
