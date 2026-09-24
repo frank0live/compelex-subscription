@@ -21,7 +21,9 @@ function bashProgram() {
   return "bash";
 }
 
-test("P5A hardening: corrupt sqlite database fails closed", () => {
+/* Run rt_detect_xui_db against a database file holding CONTENTS, named through
+ * XUI_DB_FOLDER. Prints "detected" or "failed-closed". */
+function detectWith(contents) {
   const base = mkdtempSync(join(tmpdir(), "row-hardening-"));
 
   try {
@@ -33,10 +35,7 @@ test("P5A hardening: corrupt sqlite database fails closed", () => {
     mkdirSync(rt, { recursive: true });
     mkdirSync(bin, { recursive: true });
 
-    writeFileSync(
-      join(dbFolder, "x-ui.db"),
-      "THIS IS NOT SQLITE"
-    );
+    writeFileSync(join(dbFolder, "x-ui.db"), contents);
 
     const script = `
 set -Eeuo pipefail
@@ -53,8 +52,7 @@ export PATH
 source installer/lib/row-template.sh
 
 if rt_detect_xui_db; then
-  echo "unexpected-success"
-  exit 1
+  echo "detected"
 else
   echo "failed-closed"
 fi
@@ -69,11 +67,25 @@ fi
       }
     );
     if (r.error) throw r.error;
-
-    console.log("STATUS:", r.status); console.log("STDOUT:", r.stdout); console.log("STDERR:", r.stderr); assert.equal(r.status, 0, r.stderr);
-    assert.equal(r.stdout.trim(), "failed-closed");
-
+    return r;
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
+}
+
+test("P5A hardening: corrupt sqlite database fails closed", () => {
+  const r = detectWith("THIS IS NOT SQLITE");
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "failed-closed");
+  assert.match(r.stderr, /XUI_DB_FOLDER database is not an SQLite database/,
+    "the operator must be told why the configured database was refused");
+});
+
+test("P5A hardening: a valid configured database is detected without a warning", () => {
+  /* The real header is "SQLite format 3" plus a NUL. Reading the NUL into a
+   * command substitution makes bash print "ignored null byte" on every run. */
+  const r = detectWith(Buffer.concat([Buffer.from("SQLite format 3\0"), Buffer.alloc(84)]));
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "detected");
+  assert.doesNotMatch(r.stderr, /null byte|warn/, "a healthy database must be detected silently");
 });
