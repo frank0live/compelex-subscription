@@ -23,6 +23,9 @@
 #   shells/<panel>/<id>/shell.html      # the assembled shell for each supported
 #   shells/<panel>/<id>/shell.html.sha256  # panel, in that panel's own dialect
 #   VERSION  install.sh  lib/row-template.sh  bin/row-template
+#   lib/transaction.sh  panels/*.sh     # the library's companions: it sources
+#                                       # them at load time, so they ship and
+#                                       # install with it (RT_INSTALLER_COMPANIONS)
 #   SHA256SUMS                          # inner checksums of the payload files
 #
 # The shells are PACKAGED, not installed. Nothing here places them on a target
@@ -73,15 +76,24 @@ for f in "$ART_HTML" "$LIB" "$CLI" "$BOOT" "$ROOT/VERSION"; do
   [ -f "$f" ] || die "missing required file: $f"
 done
 
+# The library's companions, read from the library's own declaration so the
+# packaging cannot drift from what the installer loads and installs.
+COMPANIONS="$(sed -n 's/^RT_INSTALLER_COMPANIONS="\(.*\)"$/\1/p' "$LIB")"
+[ -n "$COMPANIONS" ] || die "the management library declares no RT_INSTALLER_COMPANIONS."
+for rel in $COMPANIONS; do
+  [ -f "$ROOT/installer/$rel" ] || die "missing companion: installer/$rel"
+done
+
 NAME="row-template-$VERSION"
 STAGE="$(mktemp -d)"; trap 'rm -rf -- "$STAGE"' EXIT
 PAY="$STAGE/$NAME"
-mkdir -p "$PAY/lib" "$PAY/bin" "$PAY/templates"
+mkdir -p "$PAY/lib" "$PAY/bin" "$PAY/panels" "$PAY/templates"
 
 cp -- "$ART_HTML" "$PAY/template.html"
 cp -- "$ROOT/VERSION" "$PAY/VERSION"
 cp -- "$BOOT" "$PAY/install.sh"
 cp -- "$LIB" "$PAY/lib/row-template.sh"
+for rel in $COMPANIONS; do cp -- "$ROOT/installer/$rel" "$PAY/$rel"; done
 cp -- "$CLI" "$PAY/bin/row-template"
 chmod 755 "$PAY/install.sh" "$PAY/bin/row-template"
 
