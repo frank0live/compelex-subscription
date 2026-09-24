@@ -6,18 +6,35 @@
 // Locales: English is the root locale (and the documentation source of truth),
 // Persian and Arabic are declared with dir: "rtl" rather than mirrored after the fact.
 //
-// No "site" is configured: hosting is a Phase 5 decision, and setting a URL now would
-// mean inventing one. The sitemap integration therefore stays skipped — that warning is
-// expected, not suppressed.
+// Hosting: GitHub Pages, published by .github/workflows/docs.yml. A project site is
+// served under /<repository>/, so `base` is set to it. Content keeps writing links
+// root-relative (/installation/); plugins/base-links.mjs adds the base at build
+// time, and the components prefix import.meta.env.BASE_URL to files in public/.
 
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import { satteri } from "@astrojs/markdown-satteri";
+import baseLinks from "./plugins/base-links.mjs";
+
+const SITE = "https://iitzseridev.github.io";
+const BASE = "/Row-Template";
 
 export default defineConfig({
+  site: SITE,
+  base: BASE,
+  markdown: {
+    processor: satteri({ mdastPlugins: [baseLinks(BASE)] }),
+  },
   integrations: [
     starlight({
       title: "Row-Template",
       description: "Documentation for the Row-Template subscription page.",
+      social: [
+        { icon: "github", label: "GitHub", href: "https://github.com/frank0live/Row-Template" },
+      ],
+      editLink: {
+        baseUrl: "https://github.com/frank0live/Row-Template/edit/main/docs/",
+      },
       // The design system's tokens, applied over Starlight's own variables.
       customCss: ["./src/styles/tokens.css"],
       defaultLocale: "root",

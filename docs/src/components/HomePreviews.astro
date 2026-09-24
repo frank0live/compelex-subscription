@@ -21,6 +21,8 @@ import { join } from "node:path";
 // See TemplateGallery: the compiled component's import.meta.url is not the source
 // path, so the preview directory is resolved from the build's working directory.
 const PREVIEW_DIR = join(process.cwd(), "public", "previews");
+// URL of the same folder once built: files in public/ are served under the site base.
+const PREVIEW_URL = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/previews`;
 const locale = Astro.currentLocale === "fa" ? "fa" : Astro.currentLocale === "ar" ? "ar" : "en";
 
 const PICKS = ["row", "editorial", "brutal", "pulsenova"];
@@ -42,7 +44,7 @@ const available = PICKS.filter((id) => existsSync(join(PREVIEW_DIR, `${id}-deskt
     {available.map((id) => (
       <figure class="rt-home-shot">
         <img
-          src={`/previews/${id}-desktop.webp`}
+          src={`${PREVIEW_URL}/${id}-desktop.webp`}
           alt={CAPTION.alt(CAPTION[id])}
           width="1440" height="1000"
           loading="lazy" decoding="async"
