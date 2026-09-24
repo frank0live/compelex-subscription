@@ -1541,29 +1541,46 @@ rt_check_min_version() {
   fi
 }
 
+rt_is_sqlite_db() {
+  # true when FILE begins with the SQLite header. The header is "SQLite format 3"
+  # plus a NUL; only the 15 printable bytes are read, because bash warns on
+  # every NUL a command substitution drops.
+  local magic
+  magic="$(head -c 15 -- "$1" 2>/dev/null || true)"
+  [ "$magic" = "SQLite format 3" ]
+}
+
 rt_detect_xui_db() {
   # sets RT_XUI_DB if a panel database can be located. Absence is not fatal —
   # it only means subThemeDir must be set manually rather than programmatically.
+  #
+  # A database named by XUI_DB_FOLDER is authoritative. If it exists but is not
+  # an SQLite database, detection FAILS CLOSED: falling back to a default
+  # location could select a different install's database, and the adapter would
+  # then read, write and restore the wrong panel. Only when the configured file
+  # does not exist are the default locations searched.
   RT_XUI_DB=""
-  local candidates=() c
-  [ -n "${XUI_DB_FOLDER:-}" ] && candidates+=("$XUI_DB_FOLDER/x-ui.db")
-  candidates+=(/etc/x-ui/x-ui.db /usr/local/x-ui/x-ui.db /etc/3x-ui/x-ui.db)
+  local c
+  if [ -n "${XUI_DB_FOLDER:-}" ] && [ -f "$XUI_DB_FOLDER/x-ui.db" ]; then
+    c="$XUI_DB_FOLDER/x-ui.db"
+    if ! rt_is_sqlite_db "$c"; then
+      rt_warn "XUI_DB_FOLDER database is not an SQLite database: $c (not falling back to another database)"
+      return 1
+    fi
+    RT_XUI_DB="$c"
+    return 0
+  fi
 
-  for c in "${candidates[@]}"; do
-    if [ -f "$c" ]; then
-      local magic
-      # the header is "SQLite format 3" plus a NUL; read only the 15 printable
-      # bytes, because bash warns on every NUL a command substitution drops.
-      magic="$(head -c 15 -- "$c" 2>/dev/null || true)"
-      if [ "$magic" = "SQLite format 3" ]; then
-        RT_XUI_DB="$c"
-        return 0
-      fi
+  for c in /etc/x-ui/x-ui.db /usr/local/x-ui/x-ui.db /etc/3x-ui/x-ui.db; do
+    if [ -f "$c" ] && rt_is_sqlite_db "$c"; then
+      RT_XUI_DB="$c"
+      return 0
     fi
   done
 
   return 1
 }
+
 # --- service safety ----------------------------------------------------------
 
 rt_service_active() {

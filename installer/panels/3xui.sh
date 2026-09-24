@@ -207,14 +207,13 @@ rt_panel_3xui_detect() {
   #                           would stage against, write to, and then restore
   #                           stale state onto a panel that was never there
   #   0 signals   NOT_APPLICABLE -- the panel is not on this host
-  local signals=0 db magic
+  local signals=0 db
   rt_detect_xui >/dev/null 2>&1 || true
   [ -n "${RT_XUI_BIN:-}" ]  && signals=$((signals + 1))
   [ -n "${RT_XUI_UNIT:-}" ] && signals=$((signals + 1))
   if rt_detect_xui_db >/dev/null 2>&1; then
     db="${RT_XUI_DB:-}"
-    magic="$(head -c 16 -- "$db" 2>/dev/null || true)"
-    [ "$magic" = "SQLite format 3" ] && signals=$((signals + 1))
+    rt_is_sqlite_db "$db" && signals=$((signals + 1))
   fi
   if [ "$signals" -ge 2 ]; then
     return "$RT_PANEL_OK"
