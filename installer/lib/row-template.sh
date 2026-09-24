@@ -1542,7 +1542,9 @@ rt_detect_xui_db() {
   for c in "${candidates[@]}"; do
     if [ -f "$c" ]; then
       local magic
-      magic="$(head -c 16 -- "$c" 2>/dev/null || true)"
+      # the header is "SQLite format 3" plus a NUL; read only the 15 printable
+      # bytes, because bash warns on every NUL a command substitution drops.
+      magic="$(head -c 15 -- "$c" 2>/dev/null || true)"
       if [ "$magic" = "SQLite format 3" ]; then
         RT_XUI_DB="$c"
         return 0
