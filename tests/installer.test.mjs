@@ -675,14 +675,18 @@ function writeArtifact(dir, html, sha) {
 }
 
 /* Run a snippet against a Node-prepared install root. `prepare` receives the
-   POSIX-style root path before bash starts. */
+   POSIX-style root path before bash starts. No release source is reachable:
+   the manager, config and verify complete an incomplete install by
+   downloading, and a test must never reach the network. A test that needs a
+   payload redefines rt_fetch_release in its body. */
 function shRoot(body, { input, prepare, env } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'row-t-')).replace(/\\/g, '/');
   try {
     if (prepare) prepare(root);
     const r = spawnSync(
       'bash',
-      ['-c', 'set -Eeuo pipefail\nexport RT_ROOT="' + root + '"\nsource installer/lib/row-template.sh\n' + body],
+      ['-c', 'set -Eeuo pipefail\nexport RT_ROOT="' + root + '"\nsource installer/lib/row-template.sh\n' +
+        'rt_fetch_release(){ return 1; }\n' + body],
       { cwd: ROOT, encoding: 'utf8', input, env: env ? { ...process.env, ...env } : undefined },
     );
     if (r.error) throw r.error;
@@ -743,11 +747,16 @@ function writePayload(root, { withStore = true } = {}) {
   }
 }
 
+/* No release source is reachable unless a test provides one: verify, config
+   and the manager complete an incomplete install by downloading, and a test
+   must never reach the network. A test that needs a payload redefines
+   rt_fetch_release after these stubs. */
 const FLOW_STUBS = [
   'rt_require_root(){ :; }',
   'rt_detect_xui(){ return 1; }',
   'rt_detect_xui_version(){ return 1; }',
   'rt_detect_xui_db(){ return 1; }',
+  'rt_fetch_release(){ return 1; }',
   '',
 ].join('\n');
 
