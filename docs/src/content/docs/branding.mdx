@@ -1,0 +1,55 @@
+---
+title: Branding
+description: Your service name, support link and logo — and why they are white-label by default.
+---
+
+Row-Template is **white-label by default**. Your subscribers see your service, not ours.
+Row-Template's own name appears nowhere on the served page unless you deliberately enter
+it as your service identity.
+
+## Changing your branding
+
+```bash
+row-template config
+```
+
+Prompts for three things, all optional:
+
+| Field | Notes |
+|---|---|
+| **Service name** | Up to 120 characters. Shown in the page header. |
+| **Support link** | Only schemes a browser should open are accepted — for example `https://…`, `tg://…` or `mailto:…`. |
+| **Logo** | PNG, JPEG or WebP, identified **by content** rather than by file extension. Capped at 256 KB before base64 encoding. |
+
+**Leave a field blank for an unbranded page.** A blank service name produces a clean
+white-label page rather than a placeholder.
+
+## How your branding is stored
+
+Your inputs are stored **as data** and injected into the page **as text**. They are never
+executed. A value containing markup, control characters or a script fragment is rejected
+rather than sanitised-and-hoped-for — the installer refuses to generate a page from it and
+tells you why.
+
+That is why the support link only accepts schemes a browser should open: a link that
+could run code is not a link.
+
+## Branding persists across updates
+
+`row-template update` replaces the code, not your configuration. Your service name,
+support link and logo survive every update and every rollback.
+
+## Removing branding
+
+Re-run `row-template config` and clear the fields, or set `RT_LOGO_REMOVE=1` to drop the
+logo specifically. The page returns to its unbranded state.
+
+## A note on logos
+
+Logos are your asset, supplied by you. Row-Template ships **no logo of its own** into the
+served page, and the documentation site uses text branding rather than a logo image.
+
+## Next
+
+- [Configuration](/configuration/) — the full command set
+- [Security](/security/) — how branding input is handled safely

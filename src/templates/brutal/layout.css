@@ -1,0 +1,166 @@
+/* Page skeleton: an exposed board grid.
+
+   The page is one poster surface divided by hard rules. The status band is an
+   intentionally uneven twelve-column grid — a narrow anchor, a wide figure
+   column, a narrow aside — so the composition is asymmetric by construction
+   rather than by decoration. No zone is framed; every separation is a rule.
+
+   One DOM order serves every composition: stripe, poster, rows, switchboard,
+   colophon. The twelve-column grid only places those blocks; it never reorders
+   them, so focus order is the mobile reading order. */
+
+.board {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--sp-4);
+  flex: 1 0 auto;
+}
+
+/* The top band is a hard strip: identity, state and controls on one line,
+   closed by the heaviest rule on the page. */
+.stripe {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-5);
+  flex-wrap: wrap;
+  padding-block: var(--sp-3);
+  border-block-end: var(--rule-hard) solid var(--text);
+}
+
+.stripe-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stripe-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-5);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.stripe-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+/* The status band: an uneven twelve-column poster grid. */
+.poster {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sp-4) var(--sp-5);
+  padding-block: var(--sp-6);
+  border-block-end: var(--rule-hard) solid var(--text);
+}
+
+.poster-anchor {
+  grid-column: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.poster-body {
+  grid-column: 3 / span 7;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.poster-aside {
+  grid-column: 10 / span 3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.poster-actions {
+  grid-column: 1 / span 12;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.rows,
+.switchboard,
+.colophon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-6);
+  border-block-end: var(--rule-hard) solid var(--text);
+}
+
+.colophon { border-block-end: 0; }
+
+.rows-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.rows-head .label { flex: 1; }
+
+/* Below the twelve-column threshold the poster folds to one column. The
+   asymmetry is not lost: the anchor still leads, the figure still dominates by
+   scale, and the rules still run full width. */
+@media (max-width: 859px) {
+  .poster {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-4);
+  }
+
+  .poster-anchor,
+  .poster-body,
+  .poster-aside,
+  .poster-actions { grid-column: 1; }
+}

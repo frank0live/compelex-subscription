@@ -15,23 +15,74 @@ const RI_LAST = 0x1f1ff;
 /* ISO 3166-1 alpha-2 (assigned), plus the exceptionally reserved codes that
    have a widely rendered flag emoji (EU, UN, UK and the CP/DG/EA/IC/AC/TA
    dependencies). A regional-indicator pair outside this set is a flag no reader
-   would recognise, so it is treated as no flag at all. */
-const CODES = new Set((
-  'AC AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ ' +
-  'BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
-  'CA CC CD CF CG CH CI CK CL CM CN CO CP CR CU CV CW CX CY CZ ' +
-  'DE DG DJ DK DM DO DZ EA EC EE EG EH ER ES ET EU ' +
-  'FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY ' +
-  'HK HM HN HR HT HU IC ID IE IL IM IN IO IQ IR IS IT ' +
-  'JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ ' +
-  'LA LB LC LI LK LR LS LT LU LV LY ' +
-  'MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ ' +
-  'NA NC NE NF NG NI NL NO NP NR NU NZ OM ' +
-  'PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
-  'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ ' +
-  'TA TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ ' +
-  'UA UG UK UM UN US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'
-).split(' '));
+   would recognise, so it is treated as no flag at all.
+
+   Held as a bitmap over the 26x26 letter grid rather than a list, because the
+   list cost 907 bytes of every artifact and this costs a fraction of that. Bit
+   (a*26 + b) is set when that pair is assigned, and the grid is 676 bits: 84.5
+   bytes, so the array is 85. Reading it as 676/8 would truncate to 84 and
+   silently drop ZW.
+
+   The readable list this was generated from is not lost — it lives in
+   tests/flag.test.mjs, which decodes this bitmap and compares the two, so the
+   mapping stays reviewable and a wrong bit fails a test rather than a reader. */
+const BITS = atob('fFnf7u+93d4vP5QVgNUAHgBcCbCf+xUAjQYceA9AQAMAHSv0QYFP/fz/1yVLCAABQDyPUwEAAEAAUfH953q7n5pBNARXhUAAAkAAAAAAEAAIBEAAAQ==');
+const CODES = { has(code) { const i = (code.charCodeAt(0) - 65) * 26 + code.charCodeAt(1) - 65; return (BITS.charCodeAt(i >> 3) >> (i & 7) & 1) > 0; } };
+
+/* Flags this renderer can draw as a CSS gradient, keyed by alpha-2 code.
+   Membership here is deliberately much narrower than CODES, and the two sets
+   answer different questions. CODES decides whether a pair is a real country
+   at all — it is the gate between an emoji and a monogram. FLAGS decides
+   whether that country can be drawn faithfully without an image, and a code
+   absent from it is not a failure: the badge keeps the emoji the platform
+   already renders, which is the unchanged path.
+
+   A country is listed only when the gradient IS the flag rather than a
+   likeness of it, so no emblem is ever faked. The flags that are absent are
+   absent for a reason, not by omission: the Union Jack's counterchanged
+   saltire, Canada's maple leaf, Hong Kong's bauhinia, Korea's taegeuk, the
+   five-star groups of China and Singapore, the crescents of Singapore and
+   Turkey and Iran's central emblem are all identities that no gradient
+   primitive draws, and at a badge 16 px tall they are sub-pixel besides.
+   Drawing bands-only versions of them would ship a different flag.
+
+   Two approximations are accepted deliberately and were approved as such: SE
+   carries a 15% cross rather than the true 18.75% / 20%, and US carries the
+   canton and the thirteen stripes but omits the fifty stars.
+
+   The entries below are deliberately unindented and unspaced. This is the one
+   place in the sources where formatting is load-bearing: the artifact carries
+   every one of these bytes, the size ceiling is fixed, and the wider layout
+   costs 18 bytes that the tightest template does not have. Re-indenting them is
+   not a tidy-up. Comments are stripped at build time, so this note is free. */
+const FLAGS = {
+DE:'linear-gradient(#000 33.3%,#d00 33.3% 66.6%,#fc0 66.6%)',
+FR:'linear-gradient(90deg,#039 33.3%,#fff 33.3% 66.6%,#e33 66.6%)',
+NL:'linear-gradient(#a11 33.3%,#fff 33.3% 66.6%,#249 66.6%)',
+JP:'radial-gradient(circle closest-side,#b02 0 60%,#fff 60%)',
+SE:'linear-gradient(90deg,#0000 30%,#fc0 30% 45%,#0000 45%),linear-gradient(#0000 40%,#fc0 40% 55%,#0000 55%),#06a',
+US:'linear-gradient(#3c3b6e,#3c3b6e) 0 0/40% 54% no-repeat,repeating-linear-gradient(#b22 0 7.7%,#fff 7.7% 15.4%)',
+};
+
+/* Paints a covered flag onto its badge, or leaves the badge exactly as it is.
+   The text node is never touched: it is what gives the badge its size, so
+   hiding it with colour keeps the geometry identical to the emoji it stands in
+   for — clearing textContent would collapse the badge to nothing, and
+   replacing the node would lose the emoji a reader may still be relying on.
+
+   Forced colours wins, and so does a host that cannot be asked. The system
+   only overrides colours when the user has asked it to, so the emoji stays
+   visible rather than becoming an empty box on a gradient. globalThis rather
+   than window, so a host without matchMedia falls through to the emoji path
+   instead of throwing. */
+export function paintFlag(badge, flag) {
+  if (!badge || !flag || typeof globalThis.matchMedia !== 'function') return;
+  if (globalThis.matchMedia('(forced-colors: active)').matches) return;
+  const g = FLAGS[letter(flag.codePointAt(0)) + letter(flag.codePointAt(2))];
+  if (!g) return;
+  badge.style.background = g;
+  badge.style.color = 'transparent';
+}
 
 function isIndicator(cp) {
   return cp >= RI_FIRST && cp <= RI_LAST;

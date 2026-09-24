@@ -1,0 +1,221 @@
+/* Page skeleton: one cabinet, one screen, and open regions.
+
+   The cabinet is the only framed object on the page and the bezel screen is the
+   only inset one. The cartridge rail and the lower bay deliberately draw no box
+   of their own - they are separated by rules and spacing, so the page reads as a
+   single machine rather than a stack of panels.
+
+   One DOM order serves every composition: marquee, bezel screen (status, plan,
+   figure, gauge, expiry, actions), cartridge rail, lower bay (control mode then
+   system). The bay split only places those regions; it never reorders them, so
+   focus order is the mobile reading order. */
+
+.cabinet {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+  flex: 1 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-cabinet);
+  overflow: hidden;
+}
+
+/* The top plate. It carries the same top radius as the cabinet so the frame
+   stays a frame without clipping the absolutely-positioned menus. */
+.marquee {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border-block-end: 1px solid var(--edge);
+}
+
+.marquee-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  border-radius: var(--r-control);
+  background: var(--surface);
+  border: 1px solid var(--edge-strong);
+  color: var(--signal);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* State and controls sit at the far end of the plate as one readout run. */
+.marquee-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.marquee-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+/* --- the bezel screen: the one inset object ------------------------------- */
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--screen);
+  border: 2px solid var(--edge-strong);
+  border-radius: var(--r-screen);
+  box-shadow: var(--screen-glow);
+}
+
+.stage-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-inline-size: 0;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.stage-controls {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 480px) {
+  .stage-controls { grid-template-columns: 1fr auto; }
+}
+
+/* --- the cartridge rail: open, no box ------------------------------------- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4) var(--sp-5);
+}
+
+#config-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+  gap: var(--sp-3);
+}
+
+/* --- the lower bay: two regions, one rule between them -------------------- */
+
+.bay {
+  display: flex;
+  flex-direction: column;
+  border-block-start: 1px solid var(--edge);
+}
+
+.modes,
+.system {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  min-inline-size: 0;
+}
+
+.system { border-block-start: 1px solid var(--edge); }
+
+/* Issue 1: the brand and the status pair need 290px together, and the strip's
+   content box is the viewport less 56px - so below a 346px viewport they cannot
+   share a row in source order and the strip was forced into three. Stacking the
+   status pair narrows it from 161px to 82px, the brand and the status share row
+   one, and the controls take one compact line beneath. Nothing is hidden and
+   nothing is reordered; 360 and above keep their existing two-row form. */
+@media (max-width: 345px) {
+  .marquee-state {
+    flex-direction: column;
+    gap: var(--sp-1);
+  }
+
+  .marquee-controls { margin-inline-start: auto; }
+}
+
+@media (min-width: 768px) {
+  /* Issue 2: the bezel was one left-aligned column in a 1086px screen, so most
+     of its width was inert. Splitting it into a traffic zone and an expiry zone
+     gives the expiry its own readout area and lets the gauge occupy a
+     deliberate share of the display, using only existing elements. */
+  .screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+    grid-template-rows: repeat(4, auto);
+    grid-auto-flow: column;
+    gap: var(--sp-3) var(--sp-6);
+  }
+
+  .stage {
+    margin: var(--sp-5);
+    padding: var(--sp-5) var(--sp-6);
+  }
+
+  .rail { padding-inline: var(--sp-5); }
+
+  .bay {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .modes {
+    padding-inline-end: var(--sp-5);
+    border-inline-end: 1px solid var(--edge);
+  }
+
+  .system {
+    padding-inline-start: var(--sp-5);
+    border-block-start: 0;
+  }
+}

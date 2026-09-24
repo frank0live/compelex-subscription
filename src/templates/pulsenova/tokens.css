@@ -1,0 +1,158 @@
+/* Design tokens. Every value that a theme can change lives here and nowhere
+   else; the rest of the stylesheet only ever reads custom properties. */
+
+:root {
+  /* A neutral interface face for the chrome and a monospace face for every
+     figure, so the numbers hold their column the way an instrument panel does. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-display: var(--font);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+               "Liberation Mono", monospace;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-display: 2.25rem;
+  --fs-title: 1.0625rem;
+  --fs-section: 0.75rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.75rem;
+
+  --lh-display: 1.15;
+  --lh-tight: 1.35;
+  --lh-body: 1.6;
+  --measure: 68ch;
+  --ls-section: 0.1em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  --r-card: 14px;
+  --r-control: 10px;
+  --r-mark: 8px;
+  --r-pill: 999px;
+
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+  --ease: cubic-bezier(0.22, 0.6, 0.2, 1);
+
+  --page-max: 760px;
+  --tap: 44px;
+
+  --header-h: 60px;
+  --mark: 36px;
+  --btn-h: 46px;
+  --ring: 212px;
+}
+
+/* Dark is the default so that a client with no matchMedia and no stored
+   preference still lands on a coherent theme. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #08090C;
+  --surface: #11141A;
+  --surface-2: #171B23;
+  --track: #1E2430;
+
+  --border: #242933;
+  --border-strong: #333A48;
+  --control-border: #6E7A8F;
+
+  --text: #E9EDF5;
+  --muted: #98A2B8;
+  --subtle: #6C7688;
+
+  --accent: #5EE7FF;
+  --accent-2: #7C5CFF;
+  --accent-solid: #35D6F5;
+  --accent-hover: #6FECFF;
+  --info-surface: #101B24;
+  --info-border: #1C2C38;
+  --on-accent: #04141A;
+
+  --success: #42E88A;
+  --warning: #F2C14E;
+  --danger: #FF6B6B;
+  --focus: #5EE7FF;
+
+  --ring-core: rgb(94 231 255 / 0.13);
+  --ring-edge: rgb(124 92 255 / 0.5);
+  --wave: rgb(94 231 255 / 0.4);
+
+  --shadow-pop: 0 16px 40px rgb(0 0 0 / 0.6);
+  --scrim: rgb(0 0 0 / 0.66);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F7F7F2;
+  --surface: #FFFFFF;
+  --surface-2: #F1F2EE;
+  --track: #E4E6E1;
+
+  --border: #DEE0DA;
+  --border-strong: #C3C7BF;
+  --control-border: #8A8F86;
+
+  --text: #101214;
+  --muted: #5C625C;
+  --subtle: #7A807A;
+
+  --accent: #1677FF;
+  --accent-2: #5B3FD6;
+  --accent-solid: #1677FF;
+  --accent-hover: #0E63DB;
+  --info-surface: #EEF3FB;
+  --info-border: #D8E4F6;
+  --on-accent: #FFFFFF;
+
+  --success: #12894F;
+  --warning: #8A6100;
+  --danger: #C0322B;
+  --focus: #1677FF;
+
+  --ring-core: rgb(22 119 255 / 0.10);
+  --ring-edge: rgb(91 63 214 / 0.32);
+  --wave: rgb(22 119 255 / 0.3);
+
+  --shadow-pop: 0 16px 40px rgb(16 18 20 / 0.18);
+  --scrim: rgb(16 18 20 / 0.42);
+}
+
+@media (min-width: 720px) {
+  :root {
+    --fs-display: 2.625rem;
+    --page-max: 1080px;
+    --ring: 240px;
+  }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --font-mono: var(--font-arabic);
+  --lh-body: 1.8;
+}

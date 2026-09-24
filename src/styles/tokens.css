@@ -1,20 +1,31 @@
-/* Design tokens. Every value that a theme can change lives here and nowhere
-   else; the rest of the stylesheet only ever reads custom properties. */
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties.
+
+   Row is the reference minimal template. The scale is deliberately plain: one
+   family, one accent, three rule weights and a spacing ladder. Nothing here is
+   decorative, so the whole design can be read off this file. */
 
 :root {
-  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-          "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
   --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
                  "Geeza Pro", sans-serif;
 
-  --fs-display: 1.75rem;
-  --fs-title: 1.0625rem;
+  --fs-figure: 2.25rem;
+  --fs-title: 1.125rem;
+  --fs-record: 0.9375rem;
+  --fs-label: 0.6875rem;
   --fs-body: 0.9375rem;
   --fs-caption: 0.8125rem;
   --fs-micro: 0.75rem;
 
-  --lh-tight: 1.25;
-  --lh-body: 1.5;
+  --lh-figure: 1.1;
+  --lh-tight: 1.35;
+  --lh-body: 1.55;
+  --measure: 68ch;
+  --ls-label: 0.08em;
 
   --sp-1: 4px;
   --sp-2: 8px;
@@ -23,111 +34,87 @@
   --sp-5: 20px;
   --sp-6: 24px;
   --sp-7: 32px;
-  --sp-8: 40px;
 
-  --r-card: 14px;
-  --r-control: 10px;
-  --r-mark: 8px;
+  /* One small radius on interactive controls, nothing else. */
+  --r-control: 4px;
   --r-pill: 999px;
 
-  --dur-fast: 120ms;
-  --dur: 160ms;
-  --dur-slow: 240ms;
-  --ease: cubic-bezier(0.2, 0.6, 0.3, 1);
+  --dur: 120ms;
+  --dur-slow: 180ms;
+  --ease: cubic-bezier(0.3, 0.5, 0.2, 1);
 
-  --page-max: 768px;
+  --page-max: 1000px;
   --tap: 44px;
-
-  /* Measurements the layout repeats often enough that a single name is worth
-     more than the literal: the header band, the brand tile, the padding every
-     card shares, and the two button heights the hierarchy depends on. */
-  --header-h: 56px;
-  --mark: 40px;
-  --card-pad: var(--sp-5);
-  --btn-h: 48px;
+  --mark: 28px;
 }
 
-/* Dark is the default so that a client with no matchMedia and no stored
-   preference still lands on a coherent theme. */
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Near-neutral, with one restrained blue. */
 [data-theme="dark"] {
   color-scheme: dark;
 
-  /* Four steps of near-black, not one: the page, the card that sits on it, the
-     secondary fill inside that card, and the progress track. Elevation is read
-     from those steps first and from the border second. */
-  --bg: #08090B;
-  --surface: #101215;
-  --surface-2: #191C21;
-  --track: #1D2126;
+  --bg: #0B0B0C;
+  --surface: #131315;
+  --track: #222226;
 
-  --hairline: #1B1E23;
-  --border: #23262C;
-  --border-strong: #33373F;
-  --control-border: #646B78;
+  --rule: #222226;
+  --rule-strong: #3A3A40;
+  --control-border: #55555E;
 
-  --text: #F2F3F5;
-  --muted: #A2A8B2;
-  --subtle: #8B92A0;
+  --text: #EDEDEF;
+  --muted: #9C9CA4;
+  --subtle: #75757E;
 
-  --accent: #3B82F6;
-  --accent-solid: #2563EB;
-  --accent-hover: #1D4ED8;
-  --info-surface: #101520;
-  --info-border: #202B3D;
-  --on-accent: #FFFFFF;
+  --accent: #6E9BFF;
+  --accent-solid: #4C7EF0;
+  --accent-hover: #8AB0FF;
+  --on-accent: #08101F;
 
-  /* Held one step below the usual bright dark-mode green so that the 8px
-     online dot cannot outshout the brand blue on a perfectly healthy page. */
-  --success: #3DBE74;
-  --warning: #FBBF24;
-  --danger: #F87171;
-  --focus: #60A5FA;
+  --warning: #D8A54A;
+  --danger: #E0726A;
+  --success: #5FBE8E;
+  --info: #74B4D6;
+  --focus: #8AB0FF;
 
-  --shadow-card: none;
-  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.5);
-  --scrim: rgb(0 0 0 / 0.6);
+  --shadow-pop: 0 12px 30px rgb(0 0 0 / 0.6);
+  --scrim: rgb(4 4 5 / 0.72);
 }
 
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #F1F2F5;
+  --bg: #FAFAFA;
   --surface: #FFFFFF;
-  --surface-2: #F4F5F8;
-  --track: #E9EBF0;
+  --track: #ECECEE;
 
-  --hairline: #EDEFF3;
-  --border: #E2E5EA;
-  --border-strong: #CDD2DA;
-  --control-border: #808895;
+  --rule: #E4E4E7;
+  --rule-strong: #B6B6BD;
+  --control-border: #7C7C86;
 
-  --text: #14161A;
-  --muted: #565E6B;
-  --subtle: #656D79;
+  --text: #101013;
+  --muted: #55555E;
+  --subtle: #71717A;
 
-  --accent: #2563EB;
-  --accent-solid: #2563EB;
-  --accent-hover: #1D4ED8;
-  --info-surface: #F6F9FE;
-  --info-border: #DBE7FB;
+  --accent: #2B54C4;
+  --accent-solid: #2B54C4;
+  --accent-hover: #1F3F99;
   --on-accent: #FFFFFF;
 
-  --success: #15803D;
-  --warning: #8A5406;
-  --danger: #C81E1E;
-  --focus: #2563EB;
+  --warning: #8A5A00;
+  --danger: #B03226;
+  --success: #1F6B45;
+  --info: #1C5E75;
+  --focus: #2B54C4;
 
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05);
-  --shadow-pop: 0 10px 30px rgb(16 24 40 / 0.14);
-  --scrim: rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 12px 30px rgb(16 16 19 / 0.14);
+  --scrim: rgb(16 16 19 / 0.38);
 }
 
-@media (min-width: 480px) {
-  :root { --card-pad: var(--sp-6); }
-}
-
-@media (min-width: 720px) {
-  :root { --fs-display: 2.125rem; }
+@media (min-width: 780px) {
+  :root {
+    --fs-figure: 2.75rem;
+    --fs-record: 1rem;
+  }
 }
 
 /* row:font-face */
@@ -142,10 +129,12 @@
 }
 /* row:font-face end */
 
-/* The Arabic-script face is opted into by language, and its unicode-range
-   keeps it off Latin, Cyrillic and CJK text even here. */
+/* Arabic and Persian are first-class. The Arabic face replaces both voices: a
+   monospace font has no Arabic glyphs, and faux-mono tracking closes the joins
+   that carry the script. */
 [lang="fa"],
 [lang="ar"] {
   --font: var(--font-arabic);
-  --lh-body: 1.7;
+  --font-mono: var(--font-arabic);
+  --lh-body: 1.75;
 }

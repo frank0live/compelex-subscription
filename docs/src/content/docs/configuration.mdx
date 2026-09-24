@@ -1,0 +1,92 @@
+---
+title: Configuration
+description: The row-template manager commands, and what each one does.
+---
+
+Everything is managed through one command. Run it with no arguments in a terminal to
+open the interactive manager, or call a subcommand directly.
+
+```bash
+row-template
+```
+
+## Commands
+
+| Command | What it does | Changes the system? |
+|---|---|---|
+| `row-template config` | Change the service name, support URL or logo, then regenerate | Yes — root |
+| `row-template update` | Download, verify and activate a newer release (checksum enforced) | Yes — root |
+| `row-template rollback` | Restore a previous version (`--auto` or `--to <backup-dir>`) | Yes — root |
+| `row-template verify` | Check the install, panel wiring and live render | **No** — read-only |
+| `row-template version` | Show installed, minimum-supported and detected 3X-UI versions | **No** — read-only |
+| `row-template uninstall` | Remove Row-Template and revert the panel to its built-in page | Yes — root |
+| `row-template menu` | Open the interactive manager explicitly | — |
+| `row-template help` | Show usage | — |
+
+Commands that change the system must run as root.
+
+## Running without a terminal
+
+Run with no arguments in a terminal and the manager opens. In a non-interactive context
+— a script, CI, or `curl | bash` — it prints help instead, so nothing ever hangs waiting
+for input. `RT_ASSUME_NONINTERACTIVE` forces that behaviour explicitly.
+
+## Reading the current state
+
+```bash
+row-template version
+```
+
+Prints the installed version, the minimum supported 3X-UI version, and the 3X-UI version
+detected on the server. Useful before reporting a problem.
+
+```bash
+row-template verify
+```
+
+Checks the installed artifact, the panel wiring and the live render. Read-only, so it is
+always safe to run.
+
+## Updating
+
+```bash
+row-template update
+```
+
+Checks the public stable release channel, shows the installed and available versions, and
+updates **only when a newer stable version exists**. If the network or the release source
+is unreachable it reports that it could not check — your installation is never treated as
+damaged.
+
+**Your branding configuration is preserved across updates.**
+
+## Rolling back
+
+```bash
+row-template rollback
+```
+
+Restores the previous version from a validated backup. The current version is
+snapshotted first, so a failed rollback can itself be recovered.
+
+```bash
+row-template rollback --to <backup-dir>
+```
+
+Rolls back to a specific backup instead of the previous one.
+
+## Uninstalling
+
+```bash
+row-template uninstall
+```
+
+Removes Row-Template and its files, and reverts the panel to its built-in page. It does
+**not** touch 3X-UI, its database, your inbounds, clients, or certificates.
+
+Non-interactive uninstall requires `RT_ASSUME_YES=1`.
+
+## Next
+
+- [Branding](/branding/) — the `config` command in detail
+- [Troubleshooting](/troubleshooting/) — when a command refuses to run

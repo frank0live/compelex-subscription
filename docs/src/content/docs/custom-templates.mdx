@@ -1,0 +1,88 @@
+---
+title: Custom Templates
+description: What a custom template must satisfy before it can be added.
+---
+
+Fifteen core designs ship with Row-Template. Adding your own is possible, and the
+contract it must satisfy is written down rather than discovered by breaking things.
+
+> **Status:** the tier mechanism that separates core templates from custom ones is
+> implemented, but **no custom template has been added yet**, and the authoring workflow
+> is not final. This page describes the contract. It is not yet a step-by-step guide.
+
+## The tier model
+
+Every template belongs to a tier:
+
+| | `core` | `custom` |
+|---|---|---|
+| ships in the release | yes | optionally |
+| **byte-locked** | **yes** | **no** |
+| changeable | only via an explicit freeze update | at will, by its author |
+| held to the runtime contract | yes | **yes** |
+| held to the accessibility contract | yes | **yes** |
+
+> **The only difference between a core template and a custom one is the byte lock.**
+> Every runtime, accessibility and artifact requirement is identical.
+
+A custom template is not a second-class template. It is a template nobody has promised
+not to change.
+
+## The runtime contract
+
+A custom template must satisfy all of the following:
+
+- **79 required hooks**, each exactly once.
+- `validateLayout()` passes.
+- The **boot runtime** is byte-identical to Row's.
+- The **application runtime** is byte-identical to Row's.
+- The **locale island** is byte-identical.
+- **Exactly three `<script>` tags** — boot, locale island, application.
+- **No per-template JavaScript.** The runtime is shared precisely so templates cannot
+  drift into their own dialects of the same behaviour.
+
+## Layout ownership
+
+A template owns its own directory and its own DOM:
+
+```
+src/templates/<id>/
+├── layout.html
+├── tokens.css
+├── base.css
+├── layout.css
+├── components.css
+└── rtl.css
+```
+
+- **No template may import another template's layout or stylesheet.**
+- **Shared runtime is expected. Shared visual structure is forbidden.**
+
+## Accessibility
+
+Every interactive element must clear **44px**, with no exceptions — buttons, links, tabs,
+dialog controls and dropdown items.
+
+## Artifact rules
+
+- One **self-contained** file.
+- **No remote assets, no external fonts, no network dependency.** Assets are inlined at
+  build time.
+- **Deterministic output.**
+- Within the **204,800-byte** ceiling.
+
+## RTL
+
+Persian and Arabic are first-class. Logical properties throughout, `dir="auto"` on
+content whose direction is genuinely unknown, and no horizontal overflow at 320, 390, 430
+or 1440.
+
+## Branding
+
+A template must not override subscription branding. Branding belongs to the subscription,
+not to the design.
+
+## Next
+
+- [Developer Reference](/developer/) — the build pipeline and verification gates
+- [Template Gallery](/templates/) — the fifteen core designs

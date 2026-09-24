@@ -1,0 +1,214 @@
+/* Page skeleton: one continuous console surface.
+
+   There are no panels. Every zone boundary on this page is a 1px rule, and the
+   zones are separated by alignment, spacing and typography rather than by
+   boxes. The only filled surfaces are controls.
+
+   The chrome is a genuine full-width document region: body carries no inline
+   padding, so it spans the viewport on its own while #main insets the deck
+   below it. Nothing here uses a viewport unit, a negative margin or a
+   transform, so the chrome cannot produce a horizontal scrollbar.
+
+   One DOM order serves every composition: chrome, session deck (status, plan,
+   traffic, expiry, actions), workbench (ledger then dock), console footer. The
+   desktop split only places those zones; it never reorders them, so focus
+   order is the mobile reading order. */
+
+.chrome {
+  border-block-end: 1px solid var(--rule);
+}
+
+.chrome-inner,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--sp-4);
+}
+
+/* Interface chrome, not navigation: one dense line of machine-labelled readouts
+   closed by a rule. The brand is set in the mono voice so the strip reads as
+   part of the instrument rather than as a site header. */
+.chrome-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-5);
+  flex-wrap: wrap;
+  min-block-size: 52px;
+  padding-block: var(--sp-2);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.brand-name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* State and controls sit at the far end of the strip as one run of readouts, so
+   the chrome stays a single line on a wide screen. */
+.chrome-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+}
+
+.chrome-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+  margin-inline-start: auto;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  padding-block-end: var(--sp-8);
+  flex: 1 0 auto;
+}
+
+/* --- session deck: a full-width operational band, not a card -------------- */
+
+.deck {
+  padding-block: var(--sp-5) var(--sp-6);
+}
+
+.deck-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+  padding-block-end: var(--sp-4);
+  border-block-end: 1px solid var(--rule);
+}
+
+/* The readouts ARE the composition: large numerals in columns divided by
+   vertical rules. On a phone the same three readouts stack and are divided by
+   horizontal rules instead. */
+.readouts {
+  display: flex;
+  flex-direction: column;
+}
+
+.readout + .readout {
+  margin-block-start: var(--sp-4);
+  padding-block-start: var(--sp-4);
+  border-block-start: 1px solid var(--rule);
+}
+
+.traffic-block,
+.expiry-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.actions {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 480px) {
+  .actions { grid-template-columns: 1fr auto; }
+}
+
+/* --- workbench: ledger and dock as peers, divided by one rule ------------- */
+
+.workbench {
+  display: flex;
+  flex-direction: column;
+  border-block-start: 1px solid var(--rule);
+}
+
+.ledger,
+.dock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+  padding-block: var(--sp-5);
+}
+
+.dock { border-block-start: 1px solid var(--rule); }
+
+/* --- console footer ------------------------------------------------------ */
+
+.console-foot {
+  border-block-start: 1px solid var(--rule);
+}
+
+@media (min-width: 1000px) {
+  #main {
+    padding-inline: var(--sp-6);
+    padding-block-start: var(--sp-6);
+  }
+
+  .deck {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    padding-block: 0 var(--sp-6);
+  }
+
+  .deck-head {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-5);
+    padding-block-end: 0;
+    border-block-end: 0;
+  }
+
+  .readouts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(max-content, 1fr) minmax(0, auto);
+    align-items: start;
+  }
+
+  /* The stacked rules become column rules: the same division, on the other
+     axis, so no extra markup is needed for the wide layout. */
+  .readout + .readout {
+    margin-block-start: 0;
+    padding-block-start: 0;
+    border-block-start: 0;
+    border-inline-start: 1px solid var(--rule);
+  }
+
+  .readout { padding-inline: var(--sp-6); }
+  .readout:first-child { padding-inline-start: 0; }
+  .readout:last-child { padding-inline-end: 0; }
+
+  .workbench {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    border-block-start: 0;
+  }
+
+  .ledger {
+    padding-block: var(--sp-6);
+    padding-inline-end: var(--sp-6);
+    border-inline-end: 1px solid var(--rule);
+  }
+
+  .dock {
+    padding-block: var(--sp-6);
+    padding-inline-start: var(--sp-6);
+    border-block-start: 0;
+  }
+}

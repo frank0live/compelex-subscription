@@ -1,0 +1,111 @@
+/* Page skeleton: one measured document.
+
+   The sheet is a running head and then a single text column capped at the
+   reading measure. Every zone is separated by one hairline that runs the width
+   of the measure, the way a printed sheet separates sections. There is no
+   frame, no panel and no side-by-side metric split anywhere on the page.
+
+   One DOM order serves every composition: masthead, session, entries,
+   destinations, notice. The desktop measure only constrains width; it never
+   reorders anything, so focus order is the mobile reading order. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--sp-4);
+  flex: 1 0 auto;
+}
+
+/* The running head: identity on the leading edge, session state and controls on
+   the trailing edge, closed by a heavier rule than the section separators. */
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  padding-block: var(--sp-3);
+  border-block-end: 2px solid var(--rule-strong);
+}
+
+.masthead-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  background: var(--track);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.masthead-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.masthead-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+/* Every zone is the same text column: capped at the reading measure, separated
+   by one hairline, and never wrapped in a frame. */
+.session,
+.entries,
+.destinations,
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-5);
+  border-block-start: 1px solid var(--rule);
+  max-inline-size: var(--measure);
+}
+
+.entries-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.entries-head .label { flex: 1; }

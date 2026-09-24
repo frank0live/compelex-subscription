@@ -1,0 +1,136 @@
+/* Page skeleton: an open canvas.
+
+   The page is a field, not a grid of panels. Zones are placed on a twelve-column
+   canvas at deliberately uneven spans and separated by whitespace rather than by
+   frames, so alignment and space carry the hierarchy and nothing is boxed. The
+   expiry readout is anchored in its own column and dropped below the traffic
+   block, which is what makes the composition read as spatial rather than as a
+   dashboard row.
+
+   One DOM order serves every composition: header, traffic, expiry, actions,
+   clients, index. The canvas only places those zones; it never reorders them, so
+   focus order is the mobile reading order. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* The header is a hairline and a line of type. It is the only rule on the page. */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-4);
+  min-block-size: var(--header-h);
+  border-block-end: 1px solid var(--hairline);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  margin-inline-start: auto;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+/* The two spatial zones. Both are open fields: nothing inside them is framed,
+   and the only separation between zones is a large gap. */
+.cx-dash,
+.cx-work {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding-block: var(--sp-7);
+}
+
+.cx-dash { padding-block: var(--sp-7) var(--sp-6); }
+
+.cx-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.cx-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+.cx-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.cx-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 1000px) {
+  /* The canvas opens. The traffic block takes the leading six columns, the
+     expiry anchor is dropped into the far column well below the traffic line,
+     and the index runs wide beneath both. Nothing is boxed, so the eye follows
+     the alignment rather than a border. */
+  .cx-dash {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-7) var(--sp-6);
+    align-items: start;
+    padding-block: var(--sp-7) var(--sp-6);
+  }
+
+  .cx-hero { grid-column: 1 / span 6; }
+  .cx-rail { grid-column: 9 / span 4; margin-block-start: var(--sp-7); }
+  .cx-actions { grid-column: 1 / span 6; }
+
+  .cx-work {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-7) var(--sp-6);
+    align-items: start;
+    padding-block: var(--sp-6) var(--sp-7);
+  }
+
+  .connect { grid-column: 1 / span 4; }
+  .explorer { grid-column: 6 / span 7; }
+}

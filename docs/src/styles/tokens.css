@@ -1,0 +1,388 @@
+/* Row-Template documentation — design tokens.
+ *
+ * These are the tokens from DOCUMENTATION-DESIGN-SYSTEM-PROPOSAL.md section 3,
+ * which are Row's own palette promoted from the template tokens. Nothing here is
+ * invented; every colour value exists in src/styles/tokens.css.
+ *
+ * The values are applied to Starlight's own custom properties so the site inherits
+ * the design system rather than replacing Starlight's theme wholesale.
+ *
+ * Phase 1 defined the palette and the accent. The Phase 2 definitions — the type
+ * scale and measure, the RTL adjustments, the interactive-target floor and the motion
+ * rules — follow in this same file, below.
+ */
+
+/* --- dark theme (Starlight's default is [data-theme='dark']) --------------- */
+:root,
+:root[data-theme="dark"] {
+  /* surfaces */
+  --rt-bg: #0b0b0c;
+  --rt-surface: #131315;
+  --rt-track: #222226;
+
+  /* rules */
+  --rt-rule: #222226;
+  --rt-rule-strong: #3a3a40;
+  --rt-control-border: #55555e;
+
+  /* text */
+  --rt-text: #ededef;
+  --rt-muted: #9c9ca4;
+  --rt-subtle: #75757e;
+
+  /* accent */
+  --rt-accent: #6e9bff;
+  --rt-accent-solid: #4c7ef0;
+  --rt-accent-hover: #8ab0ff;
+
+  /* semantic */
+  --rt-success: #5fbe8e;
+  --rt-warning: #d8a54a;
+  --rt-danger: #e0726a;
+  --rt-info: #74b4d6;
+
+  /* Map onto Starlight's variables so its components pick up the palette. */
+  --sl-color-bg: var(--rt-bg);
+  --sl-color-bg-nav: var(--rt-bg);
+  --sl-color-bg-sidebar: var(--rt-bg);
+  --sl-color-hairline: var(--rt-rule);
+  --sl-color-hairline-shade: var(--rt-rule);
+  --sl-color-text: var(--rt-text);
+  --sl-color-text-accent: var(--rt-accent);
+  --sl-color-accent: var(--rt-accent-solid);
+  --sl-color-accent-low: #1b2740;
+  --sl-color-accent-high: var(--rt-accent-hover);
+  --sl-color-white: var(--rt-text);
+  --sl-color-gray-1: var(--rt-text);
+  --sl-color-gray-2: var(--rt-muted);
+  --sl-color-gray-3: var(--rt-subtle);
+  --sl-color-gray-4: var(--rt-rule-strong);
+  --sl-color-gray-5: var(--rt-track);
+  --sl-color-gray-6: var(--rt-surface);
+  --sl-color-black: var(--rt-bg);
+}
+
+/* --- light theme ----------------------------------------------------------- */
+:root[data-theme="light"] {
+  --rt-bg: #fafafa;
+  --rt-surface: #ffffff;
+  --rt-track: #ececee;
+
+  --rt-rule: #e4e4e7;
+  --rt-rule-strong: #b6b6bd;
+  --rt-control-border: #7c7c86;
+
+  --rt-text: #101013;
+  --rt-muted: #55555e;
+  --rt-subtle: #71717a;
+
+  --rt-accent: #2b54c4;
+  --rt-accent-solid: #2b54c4;
+  --rt-accent-hover: #1f3f99;
+
+  --rt-success: #1f6b45;
+  --rt-warning: #8a5a00;
+  --rt-danger: #b03226;
+  --rt-info: #1c5e75;
+
+  --sl-color-bg: var(--rt-bg);
+  --sl-color-bg-nav: var(--rt-bg);
+  --sl-color-bg-sidebar: var(--rt-bg);
+  --sl-color-hairline: var(--rt-rule);
+  --sl-color-hairline-shade: var(--rt-rule);
+  --sl-color-text: var(--rt-text);
+  --sl-color-text-accent: var(--rt-accent);
+  --sl-color-accent: var(--rt-accent-solid);
+  --sl-color-accent-low: #dbe4f8;
+  --sl-color-accent-high: var(--rt-accent-hover);
+  --sl-color-white: var(--rt-text);
+  --sl-color-gray-1: var(--rt-text);
+  --sl-color-gray-2: var(--rt-muted);
+  --sl-color-gray-3: var(--rt-subtle);
+  --sl-color-gray-4: var(--rt-rule-strong);
+  --sl-color-gray-5: var(--rt-track);
+  --sl-color-gray-6: var(--rt-surface);
+  --sl-color-black: var(--rt-bg);
+}
+
+/* --- the identity rules ----------------------------------------------------
+ * From the design system: rules and whitespace do the work, not containers.
+ * One accent, used sparingly. No gradients, no glass, no glow.
+ */
+
+/* The identity rules from the design system, applied to the prose area. */
+.sl-markdown-content {
+  /* Measure: 68-72 characters. The single cheapest readability improvement. */
+  --rt-measure: 68ch;
+}
+
+.sl-markdown-content > p,
+.sl-markdown-content > ul,
+.sl-markdown-content > ol {
+  max-inline-size: var(--rt-measure);
+}
+
+/* Code is ALWAYS LTR, in every locale. Reversing a shell command's direction would
+ * change what it looks like while doing nothing to its meaning. */
+.sl-markdown-content pre,
+.sl-markdown-content code {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Inline code sits on the track colour, matching the templates. */
+.sl-markdown-content :not(pre) > code {
+  background-color: var(--rt-track);
+}
+
+/* Tables: real header cells, hairlines not boxes. */
+.sl-markdown-content table {
+  border-collapse: collapse;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  border-block-end: 1px solid var(--rt-rule);
+  border-inline: 0;
+}
+
+/* --- RTL -------------------------------------------------------------------
+ * Starlight sets dir on <html> from the locale config. These are the adjustments
+ * that the direction alone does not cover.
+ */
+
+/* Arabic and Persian need more leading than Latin. */
+[dir="rtl"] {
+  --sl-line-height: 1.75;
+}
+
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins that
+ * carry the script, so any tracked label is reset. */
+[dir="rtl"] .sl-markdown-content h1,
+[dir="rtl"] .sl-markdown-content h2,
+[dir="rtl"] .sl-markdown-content h3 {
+  letter-spacing: 0;
+}
+
+/* --- accessibility ---------------------------------------------------------
+ * The 44px floor. Stated once, and measured by the audit rather than trusted.
+ */
+.sl-markdown-content a {
+  /* Links in prose are inline text, not tap targets; the rule applies to the
+   * site's controls, which Starlight sizes itself. Measured in the audit. */
+  text-underline-offset: 0.2em;
+}
+
+/* --- the 44px tap-target floor ---------------------------------------------
+ * Measured, not assumed. The Phase 1 gate found three of Starlight's own controls
+ * below the floor, all of them framework defaults:
+ *
+ *   button[data-open-modal]   the search control   40 x 32
+ *   .sl-menu-button           the mobile menu      32 x 32
+ *   button[data-copied]       the code copy button 32 x 32
+ *
+ * The design system sets 44px with no exceptions, so the floor is stated here
+ * once rather than patched per control. The selectors are the ones actually
+ * present in the built markup - verified against the output, not guessed.
+ *
+ * `data-copied` is the copy button's own attribute; expressive-code renders it
+ * without a class, which is why a class selector would have missed it.
+ */
+button[data-open-modal],
+button[data-close-modal],
+button[data-copied],
+.sl-menu-button {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Phase 2 — information architecture polish
+ *
+ * The design system in one line: rules and whitespace do the work, not
+ * containers. One accent, used sparingly. No gradients, no glass, no glow, no
+ * decorative animation.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --- typography ------------------------------------------------------------
+ * Hierarchy comes from the type scale, not from boxes. The scale is deliberately
+ * small: four steps of heading, one body size, one caption.
+ */
+:root {
+  --rt-measure: 68ch;
+  --rt-lh-body: 1.65;
+  --rt-lh-heading: 1.2;
+}
+
+.sl-markdown-content {
+  line-height: var(--rt-lh-body);
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4 {
+  line-height: var(--rt-lh-heading);
+  text-wrap: balance;
+}
+
+/* A section rule above h2 gives the page structure without a container. */
+.sl-markdown-content h2 {
+  margin-block-start: 2.5em;
+  padding-block-start: 1.25em;
+  border-block-start: 1px solid var(--rt-rule);
+}
+
+/* Prose measure: 68 characters. The single cheapest readability improvement. */
+.sl-markdown-content > p,
+.sl-markdown-content > ul,
+.sl-markdown-content > ol,
+.sl-markdown-content > blockquote {
+  max-inline-size: var(--rt-measure);
+}
+
+/* --- the 320px guard -------------------------------------------------------
+ * No horizontal overflow at the narrowest supported width. Long unbroken strings
+ * (URLs, identifiers, checksums) are the usual cause, so they are allowed to
+ * break rather than push the page wide.
+ */
+.sl-markdown-content p,
+.sl-markdown-content li,
+.sl-markdown-content td,
+.sl-markdown-content th,
+.sl-markdown-content a {
+  overflow-wrap: break-word;
+}
+
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  max-inline-size: 100%;
+}
+
+/* --- code ------------------------------------------------------------------
+ * Code is ALWAYS left-to-right, in every locale, including inside RTL prose. The
+ * frame may mirror; its contents never do. Reinforced here for inline code inside
+ * a table cell or a heading, which the earlier rule does not reach.
+ */
+.sl-markdown-content code,
+.sl-markdown-content kbd,
+.sl-markdown-content samp {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-ligatures: none;
+}
+
+/* Code blocks scroll internally. The page itself never scrolls sideways. */
+.sl-markdown-content pre {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  line-height: 1.7;
+}
+
+/* --- navigation ------------------------------------------------------------
+ * Quiet chrome: the sidebar recedes, the content is the interface. Separation is
+ * a hairline, never a panel or a shadow.
+ */
+.sidebar-content a,
+nav a {
+  border-radius: 4px;
+}
+
+/* The current page is marked by weight, not by a filled pill. */
+.sidebar-content a[aria-current="page"] {
+  font-weight: 600;
+}
+
+/* The language and theme controls are text-weight changes, not badges. */
+starlight-lang-select label,
+starlight-theme-select label {
+  font-weight: 500;
+}
+
+/* --- RTL -------------------------------------------------------------------
+ * Persian and Arabic are layout modes, not mirroring passes. The direction comes
+ * from the locale config; these are the adjustments direction alone does not give.
+ */
+
+/* More leading than Latin: the script needs the vertical room. */
+[dir="rtl"] .sl-markdown-content {
+  line-height: 1.85;
+}
+
+/* Tracking is a Latin device. Applied to Arabic or Persian it closes the joins
+ * that carry the script, so it is reset everywhere it could be inherited. */
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] .sl-markdown-content,
+[dir="rtl"] nav,
+[dir="rtl"] aside {
+  letter-spacing: normal;
+}
+
+/* Punctuation and numbers keep their own direction inside RTL prose. */
+[dir="rtl"] .sl-markdown-content code,
+[dir="rtl"] .sl-markdown-content kbd {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* --- interactive targets ---------------------------------------------------
+ * The 44px floor, stated once. Measured by the audit rather than trusted: the
+ * Phase 1 gate found three framework controls below it, which is why the floor
+ * is asserted rather than assumed.
+ */
+.pagination-links a {
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* --- motion ----------------------------------------------------------------
+ * Restrained: a colour transition on hover and nothing else. The design language
+ * has no decorative animation, so this is a small surface by construction.
+ */
+a,
+button {
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- forced colours --------------------------------------------------------
+ * The page must stay usable when the platform overrides the palette.
+ */
+@media (forced-colors: active) {
+  .sl-markdown-content h2 {
+    border-block-start-color: CanvasText;
+  }
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+
+/* --- the sidebar disclosure floor -------------------------------------------
+ * Phase 2 gate finding: Starlight's sidebar group <summary> measures 29px, below
+ * the 44px floor. It is a real tap target (it expands and collapses a group), so
+ * it carries the floor like any other control. Measured, not assumed.
+ */
+.sidebar-content summary,
+.sidebar-pane summary,
+details > summary {
+  min-block-size: 44px;
+  display: flex;
+  align-items: center;
+}

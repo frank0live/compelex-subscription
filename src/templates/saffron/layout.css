@@ -1,0 +1,140 @@
+/* Page skeleton: an editorial control sheet.
+
+   The page is set like a printed page: a masthead rule, then a headline status
+   block, then an asymmetric spread in which the index runs wide and the client
+   utility rail stands in a narrow column beside it. Hierarchy is carried by type
+   scale and column measure, not by panels, and the composition is deliberately
+   asymmetric so it reads as an edited page rather than an admin panel.
+
+   Proportions are set for Persian first and then verified in Latin: the headline
+   measure, the leading and the column ratio are all chosen so Arabic and Persian
+   ascenders and descenders have room without the Latin layout going slack.
+
+   One DOM order serves every composition: masthead, hero, actions, utility rail,
+   index. The spread only places those zones; it never reorders them, so focus
+   order is the mobile reading order. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* The masthead: identity on the leading edge, controls on the trailing edge,
+   closed by the one heavy rule on the page. */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-5) var(--sp-3);
+  min-block-size: var(--header-h);
+  border-block-end: 2px solid var(--border-strong);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+/* The headline block: the kicker line, then the headline figure, then the
+   expiry as a second headline set in its own column. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-6);
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.expiry-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.action-band {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding-block-end: var(--sp-6);
+  border-block-end: 1px solid var(--hairline);
+}
+
+.connect,
+.explorer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+@media (min-width: 900px) {
+  /* The sheet widens on the same declaration that opens the spread: an editorial
+     page needs the measure the phone column does not have. The custom property is
+     set on body so it inherits to the masthead and the sheet. */
+  body { --page-max: 1080px; padding-inline: var(--sp-6); }
+
+  /* The spread opens. The headline takes the leading measure, the expiry is set
+     as a second headline in the far column, and beneath them the index runs wide
+     with the utility rail in the narrow column beside it. */
+  .hero {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-5) var(--sp-6);
+    align-items: start;
+  }
+
+  .status-line { grid-column: 1 / -1; }
+  #traffic-value { grid-column: 1 / span 6; }
+  #traffic-caption { grid-column: 1 / span 6; }
+  #bar-slot { grid-column: 1 / span 6; }
+  #traffic-trailing { grid-column: 1 / span 6; }
+  .expiry-hero { grid-column: 9 / span 4; margin-block-start: var(--sp-6); }
+
+  .action-band { grid-column: 1 / -1; }
+
+  #main > .connect,
+  #main > .explorer {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-5) var(--sp-6);
+    align-items: start;
+  }
+
+  #main > .connect > * { grid-column: 1 / span 3; }
+  #main > .explorer > * { grid-column: 5 / span 8; }
+}

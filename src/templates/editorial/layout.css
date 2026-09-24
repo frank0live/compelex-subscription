@@ -1,0 +1,112 @@
+/* Page skeleton: a masthead band, then the magazine column. The lede carries
+   the only grid — the feature story and the metadata rail stand side by side
+   above the fold and stack in source order below it. */
+
+.site-header,
+#main {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+}
+
+/* A masthead rather than a toolbar: the serif wordmark sits on the left, the
+   language and theme controls on the right, and a thick-thin double rule closes
+   the band the way a broadsheet closes its title. It is the page's one strong
+   rule; everything below it is a hairline, which is what makes it read. */
+.site-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-block: var(--sp-6) var(--sp-3);
+  min-block-size: var(--header-h);
+  border-block-end: 2px solid var(--border-strong);
+}
+
+.site-header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -5px;
+  block-size: 1px;
+  background: var(--hairline);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+/* One line, with the full value in the title attribute: a name long enough to
+   wrap would push the language and theme controls off the first screen. The
+   serif holds its own shape, so no negative tracking is needed here. */
+.brand-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-7);
+  flex: 1 0 auto;
+}
+
+.lede {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* Source order is the phone's reading order: story, rail, actions. From 720px
+   the rail moves beside the story and the actions stay under it in the left
+   column. Nothing changes place in the document, so nothing here uses order. */
+.lede-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+.feature,
+.rail,
+.actions {
+  grid-column: 1 / -1;
+}
+
+.footnotes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+@media (min-width: 720px) {
+  /* The page widens on the same declaration that turns the grid on: a magazine
+     spread needs room the phone column does not have. The custom property is
+     set here, on body, so it inherits to the masthead and the column and no
+     shared token has to change. */
+  body {
+    --page-max: 1040px;
+    padding-inline: var(--sp-6);
+  }
+
+  .feature { grid-column: 1 / span 8; }
+  .rail { grid-column: 9 / -1; }
+  .actions { grid-column: 1 / span 8; }
+}

@@ -1,0 +1,987 @@
+/* Components. Nothing here reads a raw colour; every surface, border and accent
+   comes from tokens.css so the two themes stay in step. The voice is a console:
+   each region is a bordered panel on the page's own ground, every figure is set
+   in the monospace face, and a running head is a tracked micro-label. */
+
+[hidden] { display: none !important; }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+}
+
+/* A running head, not a heading: tracked micro-capitals one step below the
+   figures, so the numbers are the only thing competing for the first read.
+   This one rule is the console's running head everywhere. */
+.section-title {
+  font-size: var(--fs-section);
+  font-weight: 600;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-section);
+  color: var(--muted);
+}
+
+/* A tile, not a bare glyph: the mark reads as an app icon in the header. */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  border-radius: var(--r-mark);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  overflow: hidden;
+  user-select: none;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+/* The hero label under the ring: a heading that names the plan without
+   competing with the state the ring is carrying. */
+#plan-slot:empty { display: none; }
+
+.plan-label {
+  display: block;
+  max-inline-size: 100%;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 4.5vw, 1.625rem);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+/* The state pill sits at the centre of the ring. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-block-size: 28px;
+  padding-inline: var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dot {
+  position: relative;
+  inline-size: 8px;
+  block-size: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--subtle);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.pill[data-state="active"] .dot { background: var(--success); }
+.pill[data-state="expired"] .dot { background: var(--danger); }
+.pill[data-state="limited"] .dot { background: var(--warning); }
+
+.live-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--subtle);
+  transition: color var(--dur) var(--ease);
+}
+
+.live-state[data-online="1"] { color: var(--text); }
+.live-state[data-online="1"] .dot { background: var(--success); }
+
+/* The one animated thing on the page, and it runs only while the poller says
+   the connection is up: a halo leaving the status dot. It reports activity,
+   never a measurement, so it cannot mislead when the link is down. */
+.live-state[data-online="1"] .dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--wave);
+  animation: wave 2.4s var(--ease) infinite;
+}
+
+@keyframes wave {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(5);
+    opacity: 0;
+  }
+}
+
+/* The lead figure of the usage panel. */
+.big-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-display);
+  font-weight: 700;
+  line-height: var(--lh-display);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.value {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+}
+
+/* Colour repeats what the words already say. "Expires tomorrow" and "Expired"
+   are the signal; the tint only makes the row findable at a glance. */
+.value[data-level="warn"] { color: var(--warning); }
+.value[data-level="over"] { color: var(--danger); }
+
+.caption {
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}
+
+.caption:empty { display: none; }
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-block-start: var(--sp-2);
+}
+
+/* A bandwidth channel: a rounded track with the accent drawn across it. The
+   fill is the only gradient on the page, and it encodes nothing but the
+   proportion the label beside it already states. */
+.bar {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 10px;
+  border-radius: var(--r-pill);
+  background: var(--track);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  animation: bar-grow var(--dur-slow) var(--ease);
+  transition: inline-size var(--dur-slow) var(--ease),
+              background-color var(--dur-slow) var(--ease);
+}
+
+@keyframes bar-grow {
+  from { inline-size: 0; }
+}
+
+.bar[data-level="warn"] .bar-fill { background: var(--warning); }
+.bar[data-level="over"] .bar-fill { background: var(--danger); }
+
+.bar-pct {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  min-inline-size: 4ch;
+  text-align: end;
+}
+
+/* The freshness line: the panel's last reading, and the closest thing this page
+   has to a "last check" clock. Empty until the first poll answers. */
+.stamp {
+  font-size: var(--fs-caption);
+  color: var(--subtle);
+}
+
+.stamp:empty { display: none; }
+
+.stamp[data-stale] { color: var(--warning); }
+
+/* The status panel divides its readings with a hairline rather than a box. */
+.status > * + * {
+  padding-block-start: var(--sp-3);
+  border-block-start: 1px solid var(--border);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.btn-primary {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
+}
+
+.btn-outline {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* Third rank, for the copy a node offers beside its View: a soft ghost fill
+   with no border, so it reads as pressable at rest yet stays quieter than the
+   outlined copy a copy-only row shows. */
+.btn-quiet {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+/* Both labels of a copy button occupy the same grid cell, so the button is laid
+   out at the width of the longer word and confirming a copy cannot move the
+   buttons beside it. The unused one is hidden rather than removed, which also
+   keeps it out of the accessible name. */
+.btn-swap {
+  display: grid;
+  grid-template-areas: "label";
+  place-items: center;
+  min-inline-size: 0;
+}
+
+.btn-swap > span {
+  grid-area: label;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-swap > .swap-done { visibility: hidden; }
+
+.btn[data-flash] .swap-live { visibility: hidden; }
+
+.btn[data-flash] .swap-done { visibility: visible; }
+
+/* The filled button confirms with its icon, so only the two flat variants —
+   which have no icon to change — tint the word itself, and only while it is up. */
+.btn-outline[data-flash],
+.btn-quiet[data-flash] { color: var(--success); }
+
+.btn-sm {
+  min-block-size: 40px;
+  padding-inline: var(--sp-3);
+  font-size: var(--fs-caption);
+}
+
+.btn-sm .icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.btn-outline:active,
+.btn-quiet:active { background: var(--track); }
+
+.btn-primary:active {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+}
+
+/* The page's one filled action is the tallest thing a thumb can hit. */
+.actions .btn-primary { min-block-size: var(--btn-h); }
+
+.actions {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+@media (min-width: 480px) {
+  .actions { grid-template-columns: 1fr auto; }
+}
+
+.support-cta {
+  inline-size: 100%;
+  min-block-size: var(--btn-h);
+}
+
+.support-cta .icon { color: var(--muted); }
+
+.ctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-block-size: 40px;
+  min-inline-size: 40px;
+  padding-inline: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.ctl-icon { padding-inline: 0; }
+
+.ctl .icon-chevron {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+/* An open menu keeps its trigger lit, which is the only cue that the panel
+   below belongs to this control and not to the one beside it. */
+.ctl[aria-expanded="true"] {
+  background: var(--track);
+  color: var(--text);
+}
+
+.ctl:active,
+.menu-item:active { background: var(--track); }
+
+.btn:disabled,
+.ctl:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.menu-wrap { position: relative; }
+
+.menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--sp-2));
+  inset-inline-end: 0;
+  z-index: 20;
+  min-inline-size: 180px;
+  padding: var(--sp-1);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
+  animation: menu-in var(--dur) var(--ease);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: 40px;
+  padding-inline: var(--sp-2);
+  border: 0;
+  border-radius: var(--r-mark);
+  background: transparent;
+  font-size: var(--fs-caption);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.menu-item .icon:last-child {
+  margin-inline-start: auto;
+  opacity: 0;
+}
+
+.menu-item[aria-checked="true"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.menu-item[aria-checked="true"] .icon:last-child { opacity: 1; }
+
+/* The client picker is a segmented control again: a dashboard switches between
+   scopes, it does not list them. The runtime owns the container and its
+   buttons, so only the presentation lives here. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.tab {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 36px;
+  padding-inline: var(--sp-3);
+  border: 0;
+  border-radius: var(--r-mark);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.clients {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Rows divided by a hairline instead of enclosed by a border each: the list
+   still scans, and nothing in it looks like a form field. */
+.client {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  padding-block: var(--sp-3);
+}
+
+.client + .client { border-block-start: 1px solid var(--border); }
+
+.client:first-child { padding-block-start: var(--sp-1); }
+
+.client:last-child { padding-block-end: 0; }
+
+.client-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.client-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-tag {
+  flex: none;
+  color: var(--subtle);
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+}
+
+.client-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  margin-inline-start: auto;
+}
+
+/* The page's two inline controls — the announcement toggle and the retry in a
+   stopped footer — are words rather than buttons, so the padding is what gives
+   them a thumb-sized box without drawing one. */
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  align-self: flex-start;
+  min-block-size: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Service information, not an alert: a tinted panel defined by a faint border
+   and one accent edge, so it reads as information without pulling attention
+   off the status the ring is carrying. */
+.announce {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: var(--r-card);
+}
+
+.announce-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--accent);
+}
+
+.announce-head .section-title {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+/* Clamped by default; the panel carries the open state, because whether the
+   toggle is needed at all is measured against this clamp. */
+.announce-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.announce[data-open="1"] .announce-text {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  overflow: visible;
+}
+
+.support { margin-block-start: var(--sp-2); }
+
+.dialog {
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  color: var(--text);
+  inline-size: calc(100% - 2 * var(--sp-4));
+  max-inline-size: 360px;
+  box-shadow: var(--shadow-pop);
+}
+
+.dialog::backdrop { background: var(--scrim); }
+
+.dialog[open] { animation: pop var(--dur-slow) var(--ease); }
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  border-block-end: 1px solid var(--border);
+}
+
+.dialog-head .ctl { color: var(--text); }
+
+.dialog-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+/* The frame stays white in both themes because the code has to scan, and a
+   quiet zone is part of the symbol rather than padding around a picture. */
+.qr-frame {
+  padding: var(--sp-3);
+  border-radius: var(--r-control);
+  background: #FFFFFF;
+  border: 1px solid var(--border-strong);
+}
+
+/* Bounded by the shorter axis as well: a phone held sideways has room for the
+   width but not for the height, and a code the reader has to scroll to is worse
+   than a smaller one shown beside the address it encodes. */
+#qr-canvas {
+  inline-size: min(280px, 72vw, 36vh);
+  block-size: auto;
+}
+
+.url-field {
+  display: flex;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.url-field input {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+}
+
+.url-plain {
+  padding: var(--sp-3);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* Reserved for what a button cannot say in place: a manual-copy prompt or a
+   failure. Success is reported on the control that was pressed. */
+.toast {
+  position: fixed;
+  inset-block-end: var(--sp-5);
+  inset-inline: 0;
+  z-index: 60;
+  inline-size: fit-content;
+  max-inline-size: calc(100% - 2 * var(--sp-4));
+  margin-inline: auto;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur) var(--ease),
+              transform var(--dur) var(--ease);
+}
+
+.toast[data-show] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Nodes. One panel, one row per usable configuration: a country badge, the
+   node's name and protocol, and its two actions. The list is an inventory, not
+   a dump, so the credential never appears here — only in the dialog a row
+   opens. */
+.explorer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.explorer-head .section-title { flex: 1; }
+
+.cfg-count {
+  flex: none;
+  min-inline-size: 24px;
+  padding-inline: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  text-align: center;
+}
+
+.cfg-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-inline: var(--sp-3);
+  min-block-size: var(--tap);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--subtle);
+}
+
+.cfg-search:focus-within { border-color: var(--accent); }
+
+.cfg-search input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-caption);
+}
+
+.cfg-search input:focus { outline: none; }
+
+.cfg-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A node row: the badge is a framed square, the name is the entry, and the
+   protocol sits under it as a tracked micro-label. A hairline separates it
+   from the row above. */
+.cfg {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-block: var(--sp-3);
+  border-block-start: 1px solid var(--border);
+}
+
+.cfg:first-child { border-block-start: 0; }
+.cfg[hidden] { display: none; }
+
+.cfg-flag {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 34px;
+  block-size: 34px;
+  border-radius: var(--r-mark);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 20px;
+  line-height: 1;
+  overflow: hidden;
+}
+
+/* Monogram fallback when a node carries no country flag: the first letter of
+   its name in the running-head style, so the placeholder reads as an avatar
+   rather than a stray glyph. */
+.cfg-flag[data-mono] {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+.cfg-body {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cfg-name {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfg-proto {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-micro);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cfg-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* The empty-state line shown when a search matches nothing. */
+.cfg-empty {
+  margin-block-start: var(--sp-3);
+  text-align: center;
+}
+
+/* The expand/collapse control for a long list: a subtle full-width ghost
+   button, not a primary action — a hairline border, no fill, a centred label
+   and a chevron that turns when the list is open. */
+.cfg-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  margin-block-start: var(--sp-2);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--subtle);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cfg-toggle .icon { transition: transform var(--dur) var(--ease); }
+.cfg-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
+
+/* Config dialog. It reuses the .dialog / .qr-body / .qr-frame / .url-field
+   shell (so the bottom-sheet media query below applies unchanged); only the
+   canvas size and the protocol-specific extras are new. */
+#config-canvas {
+  display: block;
+  inline-size: min(240px, 64vw);
+  block-size: auto;
+  image-rendering: pixelated;
+}
+
+.cfg-open {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.cfg-conf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  inline-size: 100%;
+}
+
+.conf-text {
+  inline-size: 100%;
+  box-sizing: border-box;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  resize: none;
+}
+
+.conf-text:focus { outline: none; border-color: var(--accent); }
+
+/* Copy and Download sit side by side under the configuration text, sharing the
+   width so neither reads as the primary action. */
+.conf-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.conf-actions .btn { flex: 1; }
+
+/* Hover is a pointer affordance, so it lives behind the capability query; the
+   press and focus states above do not, because a thumb needs them too. */
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+
+  .btn-outline:hover {
+    background: var(--track);
+    border-color: var(--border-strong);
+  }
+
+  .btn-quiet:hover {
+    background: var(--track);
+    color: var(--text);
+  }
+
+  .ctl:hover {
+    background: var(--track);
+    color: var(--text);
+  }
+
+  .menu-item:hover { background: var(--surface-2); }
+
+  .cfg-toggle:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+
+  .tab:hover:not([aria-selected="true"]) { color: var(--text); }
+
+  .text-link:hover { text-decoration: underline; }
+}
+
+/* Below the phone breakpoint the dialog becomes a bottom sheet: the thumb
+   reaches the close button and the copy field without stretching. */
+@media (max-width: 479px) {
+  .dialog {
+    inline-size: 100%;
+    max-inline-size: none;
+    margin-block: auto 0;
+    border-radius: var(--r-card) var(--r-card) 0 0;
+    border-block-end: 0;
+  }
+
+  .dialog[open] { animation: sheet-in var(--dur-slow) var(--ease); }
+
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: var(--control-border);
+    --border-strong: var(--control-border);
+    --muted: var(--text);
+    --subtle: var(--text);
+  }
+
+  .panel,
+  .ctl,
+  .btn-outline { border-color: var(--control-border); }
+}
+
+@media (forced-colors: active) {
+  .panel,
+  .menu,
+  .announce,
+  .dialog { border: 1px solid CanvasText; }
+
+  .announce { border-inline-start-width: 3px; }
+
+  .bar { box-shadow: inset 0 0 0 1px CanvasText; }
+
+  .dot,
+  .bar-fill { forced-color-adjust: none; }
+
+  .tab[aria-selected="true"] {
+    color: Highlight;
+    border: 1px solid Highlight;
+  }
+}

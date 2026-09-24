@@ -1,0 +1,148 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties.
+
+   The screen is a launcher: one wide field of selectable lanes under a single
+   horizontal scoreboard. Type is set in a heavy grotesque at display scale
+   because the lanes are meant to be read across the room. */
+
+:root {
+  --font: "Bahnschrift", "DIN Alternate", "Avenir Next", system-ui,
+          -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+               "Liberation Mono", monospace;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-figure: 2.5rem;
+  --fs-lane: 1.125rem;
+  --fs-title: 1.125rem;
+  --fs-label: 0.6875rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.75rem;
+
+  --lh-figure: 1;
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+  --measure: 58ch;
+  --ls-label: 0.14em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Shallow radii: a launcher has plates, not cards. */
+  --r-lane: 3px;
+  --r-control: 3px;
+  --r-pill: 999px;
+
+  --dur: 120ms;
+  --dur-slow: 200ms;
+  --ease: cubic-bezier(0.3, 0.6, 0.2, 1);
+
+  --page-max: 1180px;
+  --tap: 44px;
+  --mark: 30px;
+  --lane-h: 60px;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. The cabinet palette is deep indigo with one
+   electric magenta family. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #14101E;
+  --surface: #1C1626;
+  --lane: #221A2E;
+  --lane-hover: #2A2038;
+  --track: #322647;
+
+  --edge: #302544;
+  --edge-strong: #453560;
+  --control-border: #5C4880;
+
+  --text: #EDE8F6;
+  --muted: #A79EB8;
+  --subtle: #7E7592;
+
+  --signal: #D946EF;
+  --signal-solid: #C026D3;
+  --signal-hover: #E879F9;
+  --on-signal: #1B0A22;
+
+  --warning: #E0A33D;
+  --danger: #F0655C;
+  --success: #58C48A;
+  --info: #6FA8C0;
+  --focus: #E879F9;
+
+  --shadow-pop: 0 14px 34px rgb(6 2 12 / 0.66);
+  --scrim: rgb(8 4 16 / 0.72);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F6F4FA;
+  --surface: #FFFFFF;
+  --lane: #FFFFFF;
+  --lane-hover: #F2ECFA;
+  --track: #E6DFF2;
+
+  --edge: #DED5EE;
+  --edge-strong: #B7A6D4;
+  --control-border: #8B78AC;
+
+  --text: #16121F;
+  --muted: #5A5270;
+  --subtle: #746C88;
+
+  --signal: #A21CAF;
+  --signal-solid: #A21CAF;
+  --signal-hover: #86198F;
+  --on-signal: #FFFFFF;
+
+  --warning: #8A5A00;
+  --danger: #B03226;
+  --success: #1F6B45;
+  --info: #1C5E75;
+  --focus: #A21CAF;
+
+  --shadow-pop: 0 14px 34px rgb(22 18 31 / 0.16);
+  --scrim: rgb(22 18 31 / 0.42);
+}
+
+@media (min-width: 900px) {
+  :root {
+    --fs-figure: 3.5rem;
+    --fs-lane: 1.375rem;
+    --lane-h: 72px;
+  }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* Arabic and Persian are first-class. The Arabic face replaces both voices: a
+   monospace font has no Arabic glyphs, and faux-mono tracking closes the joins
+   that carry the script. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --font-mono: var(--font-arabic);
+  --lh-body: 1.75;
+}

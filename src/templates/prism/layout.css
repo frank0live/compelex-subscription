@@ -1,0 +1,173 @@
+/* Page skeleton: a faceted sheet.
+
+   The sheet is cut by geometry rather than framed by boxes. The status facet sets
+   a heavy anchor against a deliberately offset second column; beneath it the
+   record field is drawn across three vertical rails, and the records are set
+   over them so the geometry is visible between and through the content. Nothing
+   is boxed.
+
+   One DOM order serves every composition: masthead, facet, rails, band,
+   colophon. The facet grid only places the readouts; it never reorders them, so
+   focus order is the mobile reading order. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--sp-4);
+  flex: 1 0 auto;
+}
+
+/* The masthead: identity on the leading edge, state and controls on the
+   trailing edge, closed by the heaviest rule on the sheet. */
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  padding-block: var(--sp-4) var(--sp-3);
+  border-block-end: 3px solid var(--rule-strong);
+}
+
+.masthead-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  inline-size: var(--mark);
+  block-size: var(--mark);
+  flex: none;
+  background: var(--track);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: var(--lh-tight);
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.masthead-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+.masthead-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+/* The status facet. */
+.facet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-6);
+  border-block-end: 1px solid var(--rule);
+}
+
+.facet-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.facet-head .label { flex: 1; }
+
+/* The anchor: the heavy first facet. */
+.anchor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-4);
+  min-inline-size: 0;
+}
+
+.anchor > #bar-slot { flex: 1 1 100%; }
+
+/* The offset facet: set apart by a cut rule and a hard inset, never by a box. */
+.offset {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  padding-inline-start: var(--sp-4);
+  border-inline-start: 3px solid var(--accent);
+}
+
+.facet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.rails,
+.band,
+.colophon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-block: var(--sp-6);
+  border-block-end: 1px solid var(--rule);
+}
+
+.colophon { border-block-end: 0; }
+
+.rails-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.rails-head .label { flex: 1; }
+
+@media (min-width: 860px) {
+  /* The facet opens. The anchor takes the leading measure, the offset facet is
+     cut into the far column and dropped well below the anchor's baseline - that
+     vertical offset is the diagonal of the composition. */
+  .facet {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--sp-5) var(--sp-6);
+    align-items: start;
+  }
+
+  .facet-head { grid-column: 1 / -1; }
+  .anchor { grid-column: 1 / span 7; }
+  .offset { grid-column: 9 / span 4; margin-block-start: var(--sp-7); }
+  .facet-actions { grid-column: 1 / span 7; }
+}

@@ -1,0 +1,143 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties.
+
+   The sheet is a technical document: one mono voice for values and annotations,
+   one sans voice for prose, and a rule weight that is meant to be seen. */
+
+:root {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+
+  --fs-figure: 2.25rem;
+  --fs-title: 1.0625rem;
+  --fs-record: 1rem;
+  --fs-label: 0.6875rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.6875rem;
+
+  --lh-figure: 1.1;
+  --lh-tight: 1.35;
+  --lh-body: 1.55;
+  --measure: 66ch;
+  --ls-label: 0.12em;
+  --ls-annot: 0.06em;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* A drawn sheet has square corners and one rule weight. */
+  --r-control: 0px;
+  --r-pill: 999px;
+  --rule-w: 1px;
+  --tick-h: 26px;
+
+  --dur: 120ms;
+  --dur-slow: 180ms;
+  --ease: cubic-bezier(0.3, 0.5, 0.2, 1);
+
+  --page-max: 940px;
+  --tap: 44px;
+  --mark: 28px;
+  --rail: 2.25rem;
+}
+
+/* Dark is the default so a client with no matchMedia and no stored preference
+   still lands on a coherent theme. Graphite paper with one indigo pencil. */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #131317;
+  --surface: #191920;
+  --track: #26262F;
+
+  --rule: #2A2A34;
+  --rule-strong: #43435A;
+  --control-border: #5F5F7E;
+
+  --text: #E8E6F0;
+  --muted: #9C99AD;
+  --subtle: #75728A;
+
+  --ink: #9D8FFF;
+  --ink-solid: #7C6BE8;
+  --ink-hover: #B6ABFF;
+  --on-ink: #12101C;
+
+  --warning: #D9A94F;
+  --danger: #E0726A;
+  --success: #5FBE8E;
+  --info: #7FB3D0;
+  --focus: #B6ABFF;
+
+  --shadow-pop: 0 12px 30px rgb(4 4 8 / 0.6);
+  --scrim: rgb(6 6 10 / 0.7);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F5F4F8;
+  --surface: #FFFFFF;
+  --track: #E4E2EC;
+
+  --rule: #DCDAE6;
+  --rule-strong: #B0ADC2;
+  --control-border: #7B7890;
+
+  --text: #14131A;
+  --muted: #565468;
+  --subtle: #6F6C82;
+
+  --ink: #4B3BB8;
+  --ink-solid: #4B3BB8;
+  --ink-hover: #3A2D93;
+  --on-ink: #FFFFFF;
+
+  --warning: #8A5A00;
+  --danger: #B03226;
+  --success: #1F6B45;
+  --info: #1C5E75;
+  --focus: #4B3BB8;
+
+  --shadow-pop: 0 12px 30px rgb(20 19 26 / 0.16);
+  --scrim: rgb(20 19 26 / 0.4);
+}
+
+@media (min-width: 780px) {
+  :root {
+    --fs-figure: 2.75rem;
+    --rail: 2.75rem;
+  }
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
+
+/* Arabic and Persian are first-class. The Arabic face replaces both voices: a
+   monospace font has no Arabic glyphs, and faux-mono tracking closes the joins
+   that carry the script. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --font-mono: var(--font-arabic);
+  --lh-body: 1.75;
+}

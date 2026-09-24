@@ -1,0 +1,60 @@
+{
+  "panel": "pasarguard",
+  "case": "18-missing-optional",
+  "note": "all optional headers absent",
+  "source": {
+    "route": "GET /{token}/info",
+    "version": "5.4.1",
+    "recorded": "static-read",
+    "clock": 1789732800
+  },
+  "native": {
+    "info": {
+      "id": 42,
+      "username": "alice",
+      "status": "active",
+      "used_traffic": 42949672960,
+      "lifetime_used_traffic": 98784247808,
+      "data_limit": 107374182400,
+      "expire": "2026-11-02T12:00:00Z",
+      "on_hold_expire_duration": null,
+      "on_hold_timeout": null,
+      "online_at": "2026-09-18T11:58:30Z",
+      "created_at": "2026-01-11T12:00:00Z",
+      "edit_at": null,
+      "data_limit_reset_strategy": "no_reset",
+      "hwid_limit": null,
+      "group_ids": [
+        1
+      ],
+      "ip": null
+    },
+    "headers": {
+      "subscription-userinfo": "upload=0; download=42949672960; total=107374182400; expire=1793620800",
+      "profile-web-page-url": "https://sub.example.com/sub/e3b0c44298fc1c14",
+      "profile-update-interval": "12",
+      "content-disposition": "inline; filename=\"alice\"",
+      "Cache-Control": "no-store"
+    }
+  },
+  "expected": {
+    "model": {
+      "enabled": true,
+      "online": true,
+      "download": 42949672960,
+      "upload": 0,
+      "used": 42949672960,
+      "total": 107374182400,
+      "expire": 1793620800,
+      "lastOnline": 1789732710000,
+      "subUrl": "https://sub.example.com/sub/e3b0c44298fc1c14",
+      "subJsonUrl": "",
+      "subClashUrl": "https://sub.example.com/sub/e3b0c44298fc1c14/clash-meta",
+      "title": "",
+      "supportUrl": "",
+      "announce": "",
+      "jalali": false,
+      "links": []
+    }
+  }
+}

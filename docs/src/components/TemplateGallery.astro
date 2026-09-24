@@ -1,0 +1,335 @@
+---
+/**
+ * TemplateGallery — renders all fifteen core templates from shared data.
+ *
+ * One component, three locales. The structural facts live in src/data/templates.json
+ * and the per-locale prose lives alongside them, so there is no duplicated metadata
+ * across the English, Persian and Arabic gallery pages.
+ *
+ * PREVIEWS
+ * Real previews are produced by docs/scripts/capture-previews.mjs from the project's
+ * own fixture preview server — genuine rendered output of each frozen artifact, not a
+ * reconstruction. Presence is inferred from the filesystem rather than recorded as a
+ * hand-maintained flag, so a preview can never be claimed that does not exist.
+ *
+ * When a preview is absent the entry shows an explicit labelled placeholder instead.
+ *
+ * Design notes:
+ * - No cards. Each entry is a ruled section, consistent with the documentation's
+ *   language of rules and whitespace.
+ * - The structural detail is in a native <details> element, so it works with no
+ *   JavaScript, is keyboard operable and is announced correctly.
+ * - Both previews are lazy-loaded and carry intrinsic dimensions, so nothing shifts.
+ */
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import data from "../data/templates.json";
+
+// `import.meta.url` does not point at this source file once Astro has compiled the
+// component, so it cannot be used to locate the preview directory. The Astro build
+// runs with the docs workspace as its working directory, which is stable.
+const PREVIEW_DIR = join(process.cwd(), "public", "previews");
+
+const locale = Astro.currentLocale === "fa" ? "fa" : Astro.currentLocale === "ar" ? "ar" : "en";
+
+const L = {
+  en: {
+    id: "ID", family: "Layout family", composition: "Composition", density: "Density",
+    grouping: "Grouping", radius: "Corner treatment", measure: "Page width",
+    themes: "Themes", detail: "Structural detail", select: "Selecting this template",
+    selectBody: "Choose it in the installer, or switch to it later from the manager:",
+    preview: "Preview not captured yet",
+    previewNote: "Previews are captured from the frozen artifacts. They are not published yet.",
+    desktop: "Desktop", mobile: "Mobile",
+    altDesktop: (n) => `${n} template rendered at desktop width`,
+    altMobile: (n) => `${n} template rendered at mobile width`,
+    facts: {
+      family: { "single-column": "Single column", "narrow-column": "Narrow column", "faceted": "Faceted", "dashboard": "Dashboard", "wide-board": "Wide board", "dossier": "Dossier", "console": "Console", "cabinet": "Cabinet" },
+      composition: { "type-led": "Type-led", "reading-first": "Reading-first", "airy": "Airy", "record-led": "Record-led", "session-sheet": "Session sheet", "status-led": "Status-led", "grid-led": "Grid-led", "choice-led": "Choice-led", "hand-ruled": "Hand-ruled", "document-led": "Document-led", "centred": "Centred", "card-led": "Card-led", "information-forward": "Information-forward", "monospace": "Monospace", "framed-screen": "Framed screen" },
+      density: { compact: "Compact", comfortable: "Comfortable", spacious: "Spacious", dense: "Dense" },
+      grouping: { rules: "Rules", columns: "Columns", space: "Space", facets: "Facets", bands: "Bands", grid: "Grid", panels: "Panels", cards: "Cards" },
+      radius: { square: "Square", soft: "Softened" },
+      measure: { narrow: "Narrow", medium: "Medium", wide: "Wide" },
+    },
+  },
+  fa: {
+    id: "شناسه", family: "خانوادهٔ چیدمان", composition: "ترکیب‌بندی", density: "تراکم",
+    grouping: "گروه‌بندی", radius: "گوشه‌ها", measure: "عرض صفحه",
+    themes: "پوسته‌ها", detail: "جزئیات ساختاری", select: "انتخاب این تمپلیت",
+    selectBody: "آن را در نصب‌کننده برگزینید، یا بعداً از مدیر به آن جابه‌جا شوید:",
+    preview: "پیش‌نمایش هنوز گرفته نشده",
+    previewNote: "پیش‌نمایش‌ها از فایل‌های قفل‌شده گرفته می‌شوند و هنوز منتشر نشده‌اند.",
+    desktop: "دسکتاپ", mobile: "موبایل",
+    altDesktop: (n) => `تمپلیت ${n} در عرض دسکتاپ`,
+    altMobile: (n) => `تمپلیت ${n} در عرض موبایل`,
+    facts: {
+      family: { "single-column": "تک‌ستونی", "narrow-column": "ستون باریک", "faceted": "چندوجهی", "dashboard": "داشبورد", "wide-board": "تختهٔ پهن", "dossier": "پرونده", "console": "کنسول", "cabinet": "کابینت" },
+      composition: { "type-led": "تایپ‌محور", "reading-first": "خواندن‌محور", "airy": "باز و سبک", "record-led": "رکوردمحور", "session-sheet": "برگهٔ نشست", "status-led": "وضعیت‌محور", "grid-led": "شبکه‌محور", "choice-led": "انتخاب‌محور", "hand-ruled": "دست‌کشیده", "document-led": "سندمحور", "centred": "وسط‌چین", "card-led": "کارت‌محور", "information-forward": "اطلاعات‌محور", "monospace": "مونواسپیس", "framed-screen": "صفحهٔ قاب‌دار" },
+      density: { compact: "فشرده", comfortable: "راحت", spacious: "فراخ", dense: "متراکم" },
+      grouping: { rules: "خطوط", columns: "ستون‌ها", space: "فاصله", facets: "وجه‌ها", bands: "نوارها", grid: "شبکه", panels: "پنل‌ها", cards: "کارت‌ها" },
+      radius: { square: "تیز", soft: "نرم" },
+      measure: { narrow: "باریک", medium: "متوسط", wide: "پهن" },
+    },
+  },
+  ar: {
+    id: "المعرّف", family: "عائلة التخطيط", composition: "التركيب", density: "الكثافة",
+    grouping: "التجميع", radius: "معالجة الحواف", measure: "عرض الصفحة",
+    themes: "المظهران", detail: "التفصيل البنيوي", select: "اختيار هذا القالب",
+    selectBody: "اختره في المثبّت، أو انتقل إليه لاحقًا من المدير:",
+    preview: "لم تُلتقط معاينة بعد",
+    previewNote: "تُلتقط المعاينات من الملفات المجمّدة، ولم تُنشر بعد.",
+    desktop: "سطح المكتب", mobile: "الجوال",
+    altDesktop: (n) => `قالب ${n} بعرض سطح المكتب`,
+    altMobile: (n) => `قالب ${n} بعرض الجوال`,
+    facts: {
+      family: { "single-column": "عمود واحد", "narrow-column": "عمود ضيّق", "faceted": "متعدد الأوجه", "dashboard": "لوحة معلومات", "wide-board": "لوحة عريضة", "dossier": "ملف", "console": "طرفية", "cabinet": "خزانة" },
+      composition: { "type-led": "قيادة الخطوط", "reading-first": "القراءة أولًا", "airy": "متنفّس", "record-led": "قيادة السجلة", "session-sheet": "ورقة جلسة", "status-led": "قيادة الحالة", "grid-led": "قيادة الشبكة", "choice-led": "قيادة الاختيار", "hand-ruled": "مرسوم يدويًا", "document-led": "قيادة المستند", "centred": "متوسّط", "card-led": "قيادة البطاقات", "information-forward": "متقدّم معلوماتيًا", "monospace": "خط ثابت العرض", "framed-screen": "شاشة مؤطَّرة" },
+      density: { compact: "مضغوط", comfortable: "مريح", spacious: "فسيح", dense: "كثيف" },
+      grouping: { rules: "خطوط", columns: "أعمدة", space: "مسافة", facets: "أوجه", bands: "أشرطة", grid: "شبكة", panels: "لوحات", cards: "بطاقات" },
+      radius: { square: "حادة", soft: "ناعمة" },
+      measure: { narrow: "ضيّق", medium: "متوسط", wide: "عريض" },
+    },
+  },
+};
+
+const t = L[locale];
+const themesLabel = { en: "Dark and light", fa: "تیره و روشن", ar: "داكن وفاتح" }[locale];
+const selectCmd = "row-template";   // manager menu: 2 Reconfigure -> 4 Template
+const envCmd = (id) => `RT_TEMPLATE=${id} bash install.sh   # from an extracted release bundle`;
+
+// Presence is read from disk, never asserted in data.
+const previews = Object.fromEntries(
+  data.templates.map((tpl) => [
+    tpl.id,
+    {
+      desktop: existsSync(join(PREVIEW_DIR, `${tpl.id}-desktop.webp`)),
+      mobile: existsSync(join(PREVIEW_DIR, `${tpl.id}-mobile.webp`)),
+    },
+  ])
+);
+---
+
+<div class="rt-gallery">
+  {data.templates.map((tpl) => (
+    <article class="rt-entry" id={`template-${tpl.id}`}>
+      <header class="rt-entry-head">
+        <h3>{tpl.name}</h3>
+        <code class="rt-id">{tpl.id}</code>
+      </header>
+
+      <p class="rt-desc">{tpl.description[locale] || tpl.description.en}</p>
+
+      <dl class="rt-facts">
+        <dt>{t.family}</dt><dd>{t.facts.family[tpl.family] || tpl.family}</dd>
+        <dt>{t.composition}</dt><dd>{t.facts.composition[tpl.composition] || tpl.composition}</dd>
+        <dt>{t.density}</dt><dd>{t.facts.density[tpl.density] || tpl.density}</dd>
+        <dt>{t.grouping}</dt><dd>{t.facts.grouping[tpl.grouping] || tpl.grouping}</dd>
+        <dt>{t.radius}</dt><dd>{t.facts.radius[tpl.radius] || tpl.radius}</dd>
+        <dt>{t.measure}</dt><dd>{t.facts.measure[tpl.measure] || tpl.measure}</dd>
+        <dt>{t.themes}</dt><dd>{themesLabel}</dd>
+      </dl>
+
+      <details class="rt-detail">
+        <summary>{t.detail}</summary>
+        <div class="rt-detail-body">
+          <p>{t.selectBody}</p>
+          <pre><code>{selectCmd}</code></pre>
+          <pre><code>{envCmd(tpl.id)}</code></pre>
+        </div>
+      </details>
+
+      {previews[tpl.id].desktop && previews[tpl.id].mobile ? (
+        <div class="rt-previews">
+          <figure class="rt-shot rt-shot-desktop">
+            <img
+              src={`/previews/${tpl.id}-desktop.webp`}
+              alt={t.altDesktop(tpl.name)}
+              width="1440" height="1000"
+              loading="lazy" decoding="async"
+            />
+            <figcaption>{t.desktop}</figcaption>
+          </figure>
+          <figure class="rt-shot rt-shot-mobile">
+            <img
+              src={`/previews/${tpl.id}-mobile.webp`}
+              alt={t.altMobile(tpl.name)}
+              width="390" height="844"
+              loading="lazy" decoding="async"
+            />
+            <figcaption>{t.mobile}</figcaption>
+          </figure>
+        </div>
+      ) : (
+        <>
+          <div class="rt-preview" role="img" aria-label={`${tpl.name} — ${t.preview}`}>
+            <span class="rt-preview-label">{t.preview}</span>
+          </div>
+          <p class="rt-preview-note">{t.previewNote}</p>
+        </>
+      )}
+    </article>
+  ))}
+</div>
+
+<style>
+  .rt-gallery {
+    display: block;
+    margin-block-start: 1.5rem;
+  }
+
+  /* Each entry is a ruled section, not a card. */
+  .rt-entry {
+    border-block-start: 1px solid var(--rt-rule, #222226);
+    padding-block: 1.75rem;
+  }
+
+  .rt-entry-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .rt-entry-head h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    line-height: 1.25;
+  }
+
+  .rt-id {
+    font-size: 0.8125rem;
+    color: var(--rt-muted, #9c9ca4);
+    background: var(--rt-track, #222226);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    /* Identifiers are always LTR, in every locale. */
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .rt-desc {
+    margin-block: 0.6rem 1rem;
+    max-inline-size: 68ch;
+    line-height: 1.7;
+  }
+
+  /* A definition list, two columns, hairlines between rows. */
+  .rt-facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.25rem 1.25rem;
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
+  }
+
+  .rt-facts dt {
+    color: var(--rt-muted, #9c9ca4);
+  }
+
+  .rt-facts dd {
+    margin: 0;
+  }
+
+  .rt-detail summary {
+    min-block-size: 44px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .rt-detail-body pre {
+    margin-block: 0.5rem;
+    max-inline-size: 100%;
+    overflow-x: auto;
+  }
+
+  /* Code is always LTR. */
+  .rt-detail-body code {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* --- real previews --------------------------------------------------------
+   * Two frames side by side: the desktop capture at its own aspect ratio, and the
+   * mobile capture at its own. The mobile shot is never stretched into the desktop
+   * shape — its figure is capped so its true proportions stay visible, and each
+   * carries its own caption so the two are never confused.
+   */
+  .rt-previews {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+    margin-block-start: 1.25rem;
+  }
+
+  .rt-shot {
+    margin: 0;
+    border: 1px solid var(--rt-rule, #222226);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--rt-surface, #131315);
+  }
+
+  .rt-shot img {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+  }
+
+  .rt-shot figcaption {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    color: var(--rt-muted, #9c9ca4);
+    border-block-start: 1px solid var(--rt-rule, #222226);
+  }
+
+  .rt-shot-mobile {
+    inline-size: 220px;
+  }
+
+  @media (max-width: 700px) {
+    .rt-previews {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .rt-shot-mobile {
+      inline-size: 180px;
+    }
+  }
+
+  /* The preview slot is an explicit placeholder, labelled as such. */
+  .rt-preview {
+    margin-block-start: 1rem;
+    border: 1px dashed var(--rt-rule-strong, #3a3a40);
+    border-radius: 4px;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--rt-subtle, #75757e);
+    font-size: 0.8125rem;
+  }
+
+  .rt-preview-note {
+    margin-block: 0.5rem 0;
+    font-size: 0.75rem;
+    color: var(--rt-subtle, #75757e);
+  }
+
+  @media (max-width: 480px) {
+    .rt-facts {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.15rem;
+    }
+    .rt-facts dd {
+      margin-block-end: 0.5rem;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .rt-preview,
+    .rt-shot {
+      border-color: CanvasText;
+    }
+  }
+</style>
