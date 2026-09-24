@@ -24,6 +24,7 @@ The tarball expands to a single `row-template-<version>/` directory:
 | `templates/<id>/template.html` (+ `.sha256`) | Every selectable design, each with its own checksum. |
 | `shells/<panel>/<id>/shell.html` (+ `.sha256`) | Each design's page shell per panel, packaged for research; the installer does not place them. |
 | `VERSION`, `install.sh`, `lib/`, `bin/` | The version, the installer and the `row-template` manager. |
+| `panels/` | The panel interface layer the manager loads; installed next to `lib/`. |
 | `SHA256SUMS` | The checksum of every payload file, so the contents can be checked after extraction as well. |
 
 The build is deterministic: the same sources always produce a byte-identical

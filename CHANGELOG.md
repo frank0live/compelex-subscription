@@ -60,6 +60,10 @@ panel.
   panel interface, a transaction engine, a 3X-UI panel adapter, and a
   format-2 backup snapshot. No `row-template` command calls any of it yet;
   backups and rollback still use the 1.1.0 format.
+- The release ships the management library's companion files
+  (`lib/transaction.sh` and `panels/`), and install and update put them next
+  to the library. A payload whose library is present without them is refused
+  before anything changes.
 
 ### Development
 
@@ -75,6 +79,12 @@ panel.
 ### Compatibility
 
 - Requires 3X-UI (MHSanaei) **>= 3.6.0**.
+- **Updating from 1.1.0 takes two runs of `row-template update`.** The first
+  is carried out by 1.1.0's own updater: it installs the new version — the
+  page updates and your branding is kept — but copies only the library and
+  the command, so only Row is available. The second, carried out by 1.2.0,
+  installs every design and the remaining installer files. `row-template
+  verify` reports whether the second run is still needed.
 
 ## [1.1.0] - 2026-08-30
 
