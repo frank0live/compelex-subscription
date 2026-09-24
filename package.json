@@ -24,8 +24,10 @@
     "build": "node tools/build.mjs",
     "build:panels": "node tools/build-panel.mjs",
     "verify": "node tools/verify.mjs",
+    "pretest": "node tools/fixtures-all.mjs",
     "test": "node --test \"tests/*.test.mjs\"",
     "fixtures": "go -C tools/fixtures run .",
+    "fixtures:all": "node tools/fixtures-all.mjs",
     "preview": "go -C tools/fixtures run . -serve 127.0.0.1:8787"
   }
 }
