@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  A polished, self-contained custom subscription page for <a href="https://github.com/MHSanaei/3x-ui">3X-UI</a> panels — one HTML file, fully white-label, with no third-party CDNs and no external requests from the page your subscribers open.
+  A polished, self-contained subscription page for <a href="https://github.com/MHSanaei/3x-ui">3X-UI</a> panels — fifteen designs, each a single HTML file, fully white-label, with no third-party requests from the page your subscribers open.
 </p>
 
 <p align="center">
@@ -19,36 +19,136 @@
   <a href="https://github.com/frank0live/Row-Template/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/frank0live/Row-Template?sort=semver"></a>
   <img alt="Panel" src="https://img.shields.io/badge/panel-3X--UI%20%E2%89%A5%203.6.0-informational">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
+  <a href="https://iitzseridev.github.io/Row-Template/"><img alt="Documentation" src="https://img.shields.io/badge/docs-GitHub%20Pages-blue"></a>
+</p>
+
+<p align="center">
+  <a href="#installation">Install</a> ·
+  <a href="#designs">Designs</a> ·
+  <a href="https://iitzseridev.github.io/Row-Template/">Documentation</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="https://github.com/frank0live/Row-Template/releases">Releases</a>
 </p>
 
 ---
 
+## What it is
+
+3X-UI can serve a custom page to subscribers instead of its built-in one. Row-Template is that page: a subscriber opens their subscription link and sees their plan, their usage, their expiry date, and one-tap ways to add the subscription to the app they use.
+
+It ships as one self-contained HTML file per design, with every style, script, font, and the QR code generator inlined. A single command installs it next to your panel, points the panel at it, and gives you a `row-template` manager for branding, updates, and rollback.
+
 ## Why Row-Template?
 
-- **Private by design.** The page your subscribers open makes no third-party requests. QR codes are generated locally, and your branding is injected as text — never executed, never sent anywhere.
+- **Private by design.** The page your subscribers open makes no third-party requests. QR codes are generated on the page, and your branding is injected as text — never executed, never sent anywhere.
 - **Genuinely white-label.** Your service name, your support link, your logo. Nothing on the served page identifies Row-Template.
-- **One file, no runtime dependencies.** CSS, JavaScript, fonts, and the QR generator are inlined into a single HTML file that installs with standard Linux userland — no Node.js, Python, or database.
+- **Fifteen designs, one file each.** Pick the look that fits your service. Every design shares the same features, languages, and safety checks.
 - **Made for your subscribers.** Live usage and expiry, one-tap import into popular apps, and a searchable list of individual configurations for adding a single server by hand.
-- **Safe to operate.** Atomic install with validation and one-command rollback. It never patches 3X-UI and never touches your panel's files.
+- **Safe to operate.** Checksum-verified releases, atomic activation, and one-command rollback. It never patches 3X-UI: the only panel setting it changes is the subscription page directory (`subThemeDir`).
 
-## Screenshots
+## Designs
+
+Row-Template 1.2.0 ships fifteen designs. Row is the default.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/assets/screenshot-mobile-dark.png" alt="Row-Template — dark theme"></td>
-    <td width="50%"><img src="docs/assets/screenshot-mobile-light.png" alt="Row-Template — light theme"></td>
+    <td align="center"><img src="docs/public/previews/row-mobile.webp" width="150" alt="Row"><br><sub>Row</sub></td>
+    <td align="center"><img src="docs/public/previews/editorial-mobile.webp" width="150" alt="Editorial"><br><sub>Editorial</sub></td>
+    <td align="center"><img src="docs/public/previews/canvas-mobile.webp" width="150" alt="Canvas"><br><sub>Canvas</sub></td>
+    <td align="center"><img src="docs/public/previews/prism-mobile.webp" width="150" alt="Prism"><br><sub>Prism</sub></td>
+    <td align="center"><img src="docs/public/previews/terminal-mobile.webp" width="150" alt="Terminal"><br><sub>Terminal</sub></td>
   </tr>
   <tr>
-    <td align="center"><sub>Dark theme</sub></td>
-    <td align="center"><sub>Light theme</sub></td>
+    <td align="center"><img src="docs/public/previews/pulse-mobile.webp" width="150" alt="Pulse"><br><sub>Pulse</sub></td>
+    <td align="center"><img src="docs/public/previews/brutal-mobile.webp" width="150" alt="Brutal"><br><sub>Brutal</sub></td>
+    <td align="center"><img src="docs/public/previews/arcade-mobile.webp" width="150" alt="Arcade"><br><sub>Arcade</sub></td>
+    <td align="center"><img src="docs/public/previews/sketch-mobile.webp" width="150" alt="Sketch"><br><sub>Sketch</sub></td>
+    <td align="center"><img src="docs/public/previews/signature-mobile.webp" width="150" alt="Signature"><br><sub>Signature</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/public/previews/saffron-mobile.webp" width="150" alt="Saffron"><br><sub>Saffron</sub></td>
+    <td align="center"><img src="docs/public/previews/pulsenova-mobile.webp" width="150" alt="Pulse Nova"><br><sub>Pulse Nova</sub></td>
+    <td align="center"><img src="docs/public/previews/prismnova-mobile.webp" width="150" alt="Prism Nova"><br><sub>Prism Nova</sub></td>
+    <td align="center"><img src="docs/public/previews/terminalnova-mobile.webp" width="150" alt="Terminal Nova"><br><sub>Terminal Nova</sub></td>
+    <td align="center"><img src="docs/public/previews/arcadenova-mobile.webp" width="150" alt="Arcade Nova"><br><sub>Arcade Nova</sub></td>
   </tr>
 </table>
 
-<sub>Screens use placeholder data; the configuration list and country badges shown are examples.</sub>
+<sub>Previews are rendered from the project's own placeholder data. Desktop and mobile previews of every design are in the <a href="https://iitzseridev.github.io/Row-Template/templates/">template gallery</a>.</sub>
 
-## Quick install
+Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scripted one, or change it later from the manager (**Reconfigure branding → Template**). Updates keep your choice.
+
+## Features
+
+**For your subscribers**
+
+- **Live status.** Plan state, traffic used and remaining, and expiry, refreshed from your panel while the page is visible.
+- **One-tap import** into popular apps, grouped by platform: v2rayNG, Happ and sing-box on Android; Streisand, V2Box and Shadowrocket on iOS; Clash Verge Rev, Mihomo Party and v2rayN on Windows; Clash Verge Rev, Streisand and V2Box on macOS.
+- **Copy and QR.** Copy the subscription link or scan it as a QR code generated on the page.
+- **Configuration Explorer.** Every server on its own row, with a country flag or monogram and a protocol label (VLESS, VMess, Trojan, Shadowsocks, Hysteria/Hysteria2, WireGuard, AmneziaWG, Telegram MTProto), plus per-configuration QR and copy, and search for long lists.
+- **Five languages** — English, Persian, Arabic, Russian, and Chinese — with right-to-left layout, and a System / Light / Dark theme choice.
+
+**For you**
+
+- **White-label branding.** Service name, support link, and logo, all optional, stored as data and injected as text.
+- **A manager for everything.** An interactive menu and direct commands for branding, updates, verification, rollback, and uninstall.
+- **Stable-channel updates.** `row-template update` installs a newer stable release only when one exists.
+
+**Privacy and safety**
+
+- **No third-party requests** from the served page: no CDNs, no external QR or geolocation lookups, no telemetry. Live status comes from your own panel.
+- **Mandatory SHA-256** verification of every release download, with no option to skip it.
+- **Atomic activation.** A new page is generated and validated before it replaces the live one, so a failed step never leaves a broken page live.
+- **Fail-closed panel detection.** If the panel database Row-Template finds is not a valid SQLite database, it refuses to use it rather than guessing another one.
+
+## Supported panels
+
+| Panel | Status | Notes |
+| ----- | ------ | ----- |
+| [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ Supported | Requires version **>= 3.6.0** |
+| [PasarGuard](https://github.com/PasarGuard/panel) | 🔬 Research | Not supported; no installation path |
+| [Rebecca](https://github.com/rebeccapanel/Rebecca) | 🔬 Research | Not supported; no installation path |
+
+3X-UI is the only supported panel. PasarGuard and Rebecca use different template engines (Jinja2 and pongo2); each design's page shell is built for them and packaged in the release for study, but the installer does not place it and there are no installation instructions for them. See [Compatibility](https://iitzseridev.github.io/Row-Template/compatibility/) for the research findings.
+
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph build ["Build and release"]
+    direction LR
+    SRC["src/<br/>runtime, styles, locales,<br/>15 design layouts"] --> BUILD["tools/build.mjs"]
+    BUILD --> ART["One self-contained<br/>HTML file per design"]
+    ART --> REL["tools/make-release.sh<br/>tarball + SHA256SUMS"]
+  end
+  subgraph host ["Your 3X-UI server"]
+    direction LR
+    INST["install.sh / row-template<br/>verify checksum, stage, validate,<br/>back up, activate"] --> DIR["/etc/3x-ui/<br/>sub_templates/row-template"]
+    DIR -- "subThemeDir" --> XUI["3X-UI renders the page<br/>with the subscriber's data"]
+  end
+  build -- "GitHub Releases" --> host
+  host -- "serves the page" --> BROWSER["Subscriber's browser"]
+  BROWSER -. "live status: ?format=info" .-> host
+```
+
+- **One file per design.** `tools/build.mjs` inlines the shared runtime, the translations, the fonts, and the QR generator into a design's layout, and refuses a layout that is missing any hook the runtime needs. `tools/verify.mjs` then rejects an artifact that loads anything remote or carries a forbidden construct.
+- **The panel does the rendering.** The page is a template: 3X-UI fills in the subscriber's data when it serves it, and the page then refreshes its status from the same panel.
+- **The installer never edits 3X-UI.** It writes its own directory and changes one panel setting, `subThemeDir`, to point at it.
+
+| Path | What lives there |
+| ---- | ---------------- |
+| `src/` | The page's runtime, styles, and translations; each design in `src/templates/<id>/` |
+| `template/index.html` | The built Row page, committed |
+| `tools/` | Build, verification, release, and the Go fixture renderer |
+| `installer/` | `install.sh`, the `row-template` command, and its management library |
+| `tests/` | The test suites |
+| `docs/` | The documentation site; design records in [`docs/design/`](docs/design/README.md) |
+
+## Installation
 
 > **Recommended OS: Ubuntu 24.04 LTS (x86_64).** Other modern Linux distributions may work but have not had the same validation coverage.
+
+**Requirements:** a server running 3X-UI **>= 3.6.0**, root access to it, and `curl`, `tar`, and `sha256sum` (present on virtually all Linux systems). Automatic activation also needs `sqlite3`.
 
 Run as **root** on the server that hosts your 3X-UI panel:
 
@@ -56,161 +156,109 @@ Run as **root** on the server that hosts your 3X-UI panel:
 bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
 
-The installer downloads the latest stable release, verifies its SHA-256 checksum (there is no skip option), extracts it safely, and walks you through branding. It never patches 3X-UI and never touches your panel's own files.
+The installer:
 
-## Supported panels
+1. Downloads the latest stable release from GitHub.
+2. Verifies its SHA-256 checksum (mandatory — no bypass).
+3. Extracts it safely and installs to `/etc/3x-ui/sub_templates/row-template`.
+4. On a fresh install, offers the design chooser (Enter keeps Row).
+5. Prompts for your branding (service name, support link, logo — all optional).
+6. Generates and validates the page, then activates it in the panel where possible.
 
-| Panel | Status | Notes |
-| ----- | ------ | ----- |
-| [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ Supported | Requires version **>= 3.6.0** |
-| [Marzban](https://github.com/Gozargah/Marzban) | ⬜ Planned | Not yet supported |
-| [Marzneshin](https://github.com/marzneshin/marzneshin) | ⬜ Planned | Not yet supported |
-| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ⬜ Planned | Not yet supported |
-| [PasarGuard](https://github.com/PasarGuard/panel) | ⬜ Planned | Not yet supported |
-
-Only 3X-UI is supported today. The other panels are on the roadmap and are listed here for transparency — there is no partial or experimental support for them in this release.
-
-## Features
-
-- **One self-contained page.** All CSS, JavaScript, fonts, and the QR code generator are inlined into a single HTML file. The page your subscribers open makes no third-party requests.
-- **White-label.** Set your own service name, support link, and logo. Nothing identifies Row-Template on the served page.
-- **Five languages.** English, Persian, Arabic, Russian, and Chinese, with right-to-left layout support.
-- **Safe by construction.** Your branding is treated as data and injected as text, never executed. The page never sends subscriber data anywhere.
-- **Live usage view.** Shows plan status, traffic used and remaining, expiry, and per-client links with copy buttons and QR codes.
-- **Atomic install and rollback.** Each change is staged, validated, then swapped in. A failed step never leaves a broken page live, and you can roll back to a previous version.
-- **No runtime dependencies.** Standard Linux userland only (bash, coreutils, curl, tar, sha256sum). No Node.js, Python, or database is required to install or run it.
-
-## Requirements
-
-- A server running a 3X-UI panel (version **>= 3.6.0**).
-- Root access to that server.
-- `curl`, `tar`, and `sha256sum` (present on virtually all Linux systems).
-
-## Compatibility
-
-- **Panel:** 3X-UI (MHSanaei) **>= 3.6.0**. Validated against stock 3.7.0.
-- **Operating system:** recommended Ubuntu 24.04 LTS. Validated on Ubuntu 24.04 LTS (x86_64). Other distributions may work but have not received the same validation coverage.
-
-## Installation
-
-Run the [Quick install](#quick-install) command as root. The installer will:
-
-1. Download the latest stable release from GitHub.
-2. Verify the release checksum (SHA-256, mandatory — no bypass).
-3. Extract it safely and install to `/etc/3x-ui/sub_templates/row-template`.
-4. Prompt for your branding (service name, support link, logo — all optional).
-5. Generate the served page and, where possible, activate it in the panel.
-
-If you prefer not to pipe from the network, you can download the release assets from the [Releases page](https://github.com/frank0live/Row-Template/releases/latest), verify the checksum yourself, and run the bundled `install.sh` from the extracted directory.
-
-## Manager
-
-After installation, manage everything with the `row-template` command. Run it with no arguments in a terminal to open the interactive manager:
+To choose a design without the chooser, for example in a script:
 
 ```bash
-row-template
+RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
 
-Or use the direct commands:
+If you prefer not to pipe from the network, download the release assets from the [Releases page](https://github.com/frank0live/Row-Template/releases/latest), verify the checksum yourself as described in [PROVENANCE.md](PROVENANCE.md), and run the bundled `install.sh` from the extracted directory.
 
-| Command | What it does |
-| ------- | ------------ |
-| `row-template config` | Reconfigure branding (service name, support link, logo) |
-| `row-template update` | Check the stable channel and update if a newer version exists |
-| `row-template rollback` | Roll back to the previous version (`--auto` or `--to <backup>`) |
-| `row-template verify` | Check that the installation is healthy |
-| `row-template version` | Print the installed version |
-| `row-template uninstall` | Remove Row-Template (leaves 3X-UI untouched) |
-| `row-template help` | Show usage |
+### Activation
 
-## Branding and configuration
-
-Set your service name, support link, and logo during installation, or change them any time:
-
-```bash
-row-template config
-```
-
-Your inputs are stored as data (never executed) and injected into the page as text. Leave a field blank for an unbranded, white-label page. The support link accepts only schemes a browser should open (for example `https://…`, `tg://…`, or `mailto:…`).
-
-## Activation
-
-Row-Template installs to a directory that the panel serves as the subscription page:
+Row-Template installs to a directory that the panel serves as its subscription page:
 
 ```
 /etc/3x-ui/sub_templates/row-template
 ```
 
-- **Automatic:** when `sqlite3` is available, the installer/manager can point the panel at Row-Template for you.
-- **Manual:** otherwise, set it in the panel yourself — open **Panel Settings → Subscription → Profile → Sub Theme Directory** and enter exactly:
+- **Automatic:** when `sqlite3` is available, Row-Template sets it for you. It briefly stops the panel service, writes the setting, starts the service again, and checks the value. An interactive install shows the current setting and asks first.
+- **Manual:** otherwise, open **Panel Settings → Subscription → Profile → Sub Theme Directory** and enter exactly:
 
   ```
   /etc/3x-ui/sub_templates/row-template
   ```
 
-## Update
+## Usage
+
+Run the manager with no arguments in a terminal to open the interactive menu:
 
 ```bash
-row-template update
+row-template
 ```
 
-This checks the public stable release channel, shows the installed and available versions, and updates only when a newer stable version exists. If the network or release source is unreachable, it reports that it could not check — your installation is never treated as damaged. Normal use needs no URLs or manual downloads.
+Or use a command directly:
 
-## Rollback
+| Command | What it does |
+| ------- | ------------ |
+| `row-template config` | Change the service name, support link, or logo, then regenerate the page |
+| `row-template update` | Download, verify, and activate a newer stable release (checksum enforced) |
+| `row-template rollback` | Restore a previous version (`--auto` or `--to <backup>`) |
+| `row-template verify` | Check the install, the panel wiring, and the live page (read-only) |
+| `row-template version` | Show the installed, minimum-supported, and detected 3X-UI versions |
+| `row-template uninstall` | Remove Row-Template and revert the panel to its built-in page |
+| `row-template help` | Show usage |
+
+Commands that change the system (`config`, `update`, `rollback`, `uninstall`) must run as root.
+
+- **Branding** is stored as data, never executed, and injected into the page as text. Leave a field blank for an unbranded page. The support link accepts only schemes a browser should open, such as `https://…`, `tg://…`, or `mailto:…`.
+- **Updates** check the public stable channel and change nothing unless a newer stable version exists. If the release source is unreachable, `update` reports that it could not check; your installation is never treated as damaged.
+- **Rollback** restores a previous version from a validated backup. The current version is snapshotted first, so a failed rollback can be recovered, and your branding is preserved.
+- **Uninstall** removes Row-Template's files. It clears the panel's `subThemeDir` only if it points at Row-Template, so the panel falls back to its built-in page; your inbounds, clients, and certificates are not touched.
+
+The [documentation](https://iitzseridev.github.io/Row-Template/) covers configuration, branding, and troubleshooting in more depth.
+
+## Development
+
+The pages are built from readable sources in `src/`. You need Node.js 22 or newer, and Go 1.22 or newer to run the tests.
 
 ```bash
-row-template rollback
+npm run build          # regenerate template/index.html from src/
+npm run verify         # check the built page against the safety gates
+npm test               # render the fixture pages, then run every test suite
+npm run fixtures:all   # render every design's fixture pages on their own
+npm run lint:sh        # ShellCheck every shell script
+npm run preview        # preview the fixture pages at http://127.0.0.1:8787
 ```
 
-Restores the previous version from a validated backup. The current version is snapshotted first, so a failed rollback can be recovered. Your branding configuration is preserved.
+The build is deterministic — the same sources always produce a byte-identical `template/index.html`. The documentation site is a separate workspace in `docs/`; see [docs/README.md](docs/README.md).
 
-## Verify
+## Testing
 
-```bash
-row-template verify
-```
+- **`npm test`** renders every design's fixture pages with the Go renderer, then runs the suites: the page's scripts, the build, every design's artifact, the release payload, and the installer — which runs the shipped shell library in real `bash` against throwaway fixtures.
+- **`npm run verify`** checks a built page against its safety gates, including: a whole document, every build marker substituted, everything inlined, no remote references, no forbidden constructs, intact translations, and no invisible characters in the sources.
+- **`npm run lint:sh`** fails on any ShellCheck error; `npm run lint:sh -- -S warning` shows the full report.
+- **The Docs workflow** builds the documentation site on every pull request that changes it.
 
-Reports whether the installed artifact, panel wiring, and service are healthy.
+## Roadmap
 
-## Uninstall
+Direction, not promises:
 
-```bash
-row-template uninstall
-```
+- **Row-Template 1.2.0** — the fifteen designs and the design chooser described above.
+- **PasarGuard and Rebecca** — research. Page shells are built for both; live status needs a small runtime change or a reverse proxy, and that decision is deferred. See [Compatibility](https://iitzseridev.github.io/Row-Template/compatibility/).
+- **Installing on more than one panel** — the installer groundwork (a panel interface, a transaction engine, a 3X-UI adapter, and a new backup format) is in place but not yet used by any command.
+- **Custom templates** — a proposal for adding your own design: [`docs/design/CUSTOM-TEMPLATES-PROPOSAL.md`](docs/design/CUSTOM-TEMPLATES-PROPOSAL.md).
 
-Removes Row-Template and its files. It **does not** touch 3X-UI, its database, your inbounds, clients, or certificates.
+## Contributing
 
-## Languages
+Bug reports, translations, and documentation fixes are very welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-The subscription page ships in five interface languages and follows the subscriber's panel/browser locale:
-
-**English · فارسی · العربية · Русский · 简体中文**
-
-Arabic and Persian are rendered right-to-left.
-
-## Bug reports
-
-Please open an issue: <https://github.com/frank0live/Row-Template/issues>
-
-Include your Row-Template version (`row-template version`), 3X-UI version, operating system and version, CPU architecture, the output of `row-template verify`, and clear steps to reproduce.
+**Bug reports:** open an issue at <https://github.com/frank0live/Row-Template/issues>. Include your Row-Template version (`row-template version`), 3X-UI version, operating system and version, CPU architecture, the output of `row-template verify`, and clear steps to reproduce.
 
 > **Do not include secrets.** Never paste subscription URLs, `subId` values, client UUIDs, panel usernames or passwords, cookies, tokens, the panel `webBasePath`, TLS keys, or real server addresses. Redact logs before sharing them.
 
 ## Security
 
-Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md). Do not open a public issue for security problems.
-
-## Development
-
-The single-file artifact is built from readable sources in `src/`:
-
-```bash
-npm run build     # regenerate template/index.html from src/
-npm run verify    # check the artifact against the safety gates
-npm test          # run the unit and installer test suites
-```
-
-The build is deterministic — the same sources always produce a byte-identical `template/index.html`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md). Do not open a public issue for security problems. [PROVENANCE.md](PROVENANCE.md) explains how releases are built and how to verify them.
 
 ## Support the project
 
@@ -234,7 +282,7 @@ Thank you.
 
 ## License
 
-Released under the [MIT License](LICENSE). The bundled QR code generator (`src/vendor/uqr`) is included under its own MIT license.
+Released under the [MIT License](LICENSE). The bundled QR code generator (`src/vendor/uqr`) is included under its own MIT license, and the embedded Vazirmatn font subset under the SIL Open Font License (`src/fonts/OFL.txt`).
 
 ## Developer
 
