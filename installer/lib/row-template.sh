@@ -64,6 +64,16 @@ RT_LIB_DIR="$RT_ROOT/lib"
 RT_BACKUPS="$RT_ROOT/backups"
 RT_BACKUPS_V2="$RT_ROOT/backups.v2"           # format-2 snapshots (P2 only)
 RT_PANEL_STAGE="$RT_ROOT/.panel-stage"        # where an adapter stages panel state (P2)
+RT_PANELS_DIR="$RT_ROOT/panels"               # the panel interface layer, beside lib/
+
+# The management library's companions: the files it sources at load time
+# (rt_panels_load, rt_transaction_load), as paths relative to a release payload
+# and to RT_ROOT. They ship and install together with lib/row-template.sh:
+# tools/make-release.sh packages exactly this list, and install and update read
+# it back from the payload's own library (rt_payload_companions). Both read the
+# line as text, which is why it is never expanded in this file.
+# shellcheck disable=SC2034
+RT_INSTALLER_COMPANIONS="lib/transaction.sh panels/3xui.sh panels/index.sh panels/interface.sh"
 
 # Limits.
 RT_LOGO_MAX_BYTES=$((256 * 1024))           # raw image cap before base64
@@ -1735,6 +1745,75 @@ rt_layout_ensure() {
   chmod 700 "$RT_BACKUPS" 2>/dev/null || true
 }
 
+rt_payload_companions() {
+  # Print the companions PAYLOAD's own management library declares, one per
+  # line. The payload's library, not the running one, decides: a v1.1.0
+  # payload's library declares none and needs none, so installing it (a
+  # deliberate downgrade) stays possible. Fails on any path outside the two
+  # directories a companion may live in, so a payload can never direct a write
+  # elsewhere under -- or outside -- the install root.
+  local lib="$1/lib/row-template.sh" list rel
+  local -a rels=()
+  [ -f "$lib" ] || return 0
+  list="$(LC_ALL=C sed -n 's/^RT_INSTALLER_COMPANIONS="\(.*\)"$/\1/p' "$lib" | head -n 1)"
+  # split with read, never an unquoted expansion: the declaration is payload
+  # data, and a word like panels/*.sh must reach the check below as written
+  # rather than be glob-expanded first.
+  read -r -a rels <<< "$list" || true
+  for rel in ${rels[@]+"${rels[@]}"}; do
+    case "$rel" in
+      lib/row-template.sh) rt_err "the release payload declares an invalid companion: $rel"; return 1 ;;
+      lib/*.sh|panels/*.sh)
+        case "${rel#*/}" in
+          */*|.*|*[!A-Za-z0-9._-]*) rt_err "the release payload declares an invalid companion: $rel"; return 1 ;;
+        esac ;;
+      *) rt_err "the release payload declares an invalid companion: $rel"; return 1 ;;
+    esac
+    printf '%s\n' "$rel"
+  done
+}
+
+rt_payload_companions_ok() {
+  # 0 when PAYLOAD carries every companion its management library declares, as
+  # regular files that match the payload's SHA256SUMS. The library and its
+  # companions are one unit: a payload whose library is present but whose
+  # companions are not is refused, because installing it would pair a new
+  # library with missing or stale companions. A payload without a library has
+  # nothing to check; the installed library and its companions stay as they are.
+  local payload="$1" list rel want
+  list="$(rt_payload_companions "$payload")" || return 1
+  for rel in $list; do
+    if [ ! -f "$payload/$rel" ] || [ -L "$payload/$rel" ]; then
+      rt_err "the release payload is incomplete: $rel is missing."; return 1
+    fi
+    want="$(rt_sums_lookup "$rel" "$payload/SHA256SUMS")"
+    if [ -n "$want" ] && ! rt_verify_sha256 "$payload/$rel" "$want" >/dev/null 2>&1; then
+      rt_err "payload checksum mismatch: $rel"; return 1
+    fi
+  done
+  return 0
+}
+
+rt_install_companions() {
+  # Install the companions PAYLOAD's library declares beside it, each one
+  # atomically. Only after rt_payload_companions_ok has accepted the payload.
+  local payload="$1" list rel
+  list="$(rt_payload_companions "$payload")" || return 1
+  [ -n "$list" ] || return 0
+  rt_assert_not_symlink "$RT_PANELS_DIR" || return 1
+  for rel in $list; do
+    rt_atomic_install "$payload/$rel" "$RT_ROOT/$rel" 644 || return 1
+  done
+  return 0
+}
+
+rt_installer_complete() {
+  # 0 when this library loaded both companion layers. A host updated to this
+  # version by the 1.1.0 updater has neither -- that updater copies only the
+  # library and the CLI -- until `row-template update` installs them.
+  [ -n "${RT_PANELS_LOADED:-}" ] && [ -n "${RT_TRANSACTION_LOADED:-}" ]
+}
+
 rt_set_dist() {
   # install SRC as the pristine canonical artifact and record its checksum.
   # SRC must already be a structurally valid Row-Template artifact.
@@ -2106,6 +2185,7 @@ rt_cmd_install() {
     if [ -n "$w" ]; then rt_verify_sha256 "$payload/template.html" "$w" || rt_die "payload artifact checksum mismatch."; fi
   fi
   rt_validate_template "$payload/template.html" || rt_die "install artifact failed structural validation."
+  rt_payload_companions_ok "$payload" || rt_die "the release payload is incomplete; nothing was changed."
 
   # environment discovery + hard version gate (fail closed)
   rt_detect_xui || rt_die "no 3x-ui installation was detected on this host."
@@ -2153,6 +2233,8 @@ rt_cmd_install() {
     rt_atomic_install "$payload/lib/row-template.sh" "$RT_LIB_DIR/row-template.sh" 644 \
       || rt_warn "could not install the management library; the CLI may be unavailable."
   fi
+  rt_install_companions "$payload" \
+    || rt_warn "could not install the management library's companions; run 'row-template update' to retry."
   if [ -f "$payload/bin/row-template" ]; then
     rt_atomic_install "$payload/bin/row-template" "$RT_BIN" 755 \
       || rt_warn "could not install the row-template CLI to $RT_BIN."
@@ -2335,7 +2417,7 @@ rt_cmd_verify() {
       rt_err "selected template '$sel_id' is missing from the template store."; fails=$((fails + 1))
     fi
   else
-    rt_err "template store missing or empty; re-run the installer."; fails=$((fails + 1))
+    rt_err "template store missing or empty; run 'row-template update' to install it."; fails=$((fails + 1))
   fi
 
   if [ -f "$RT_LIVE" ] && [ -r "$RT_LIVE" ]; then
@@ -2357,6 +2439,11 @@ rt_cmd_verify() {
 
   [ -f "$RT_LIB_DIR/row-template.sh" ] && rt_ok "Management library present." \
     || { rt_warn "management library not found under the install root."; warns=$((warns + 1)); }
+  if rt_installer_complete; then rt_ok "Installer components present."
+  else
+    rt_warn "installer components are missing (lib/transaction.sh, panels/), as after an update from 1.1.0; run 'row-template update' to complete the installation."
+    warns=$((warns + 1))
+  fi
   [ -x "$RT_BIN" ] && rt_ok "CLI present: $RT_BIN" \
     || { rt_warn "CLI not found or not executable at $RT_BIN."; warns=$((warns + 1)); }
 
@@ -2488,6 +2575,7 @@ rt_cmd_update() {
     if [ -n "$w" ]; then rt_verify_sha256 "$payload/template.html" "$w" || rt_die "payload artifact checksum mismatch."; fi
   fi
   rt_validate_template "$payload/template.html" || rt_die "the release artifact failed structural validation."
+  rt_payload_companions_ok "$payload" || rt_die "the release payload is incomplete; nothing was changed."
 
   # stage the release's template store, then keep the operator's selection when
   # this release still ships it. The top-level template.html stays the Row
@@ -2522,6 +2610,8 @@ rt_cmd_update() {
     rt_atomic_install "$payload/lib/row-template.sh" "$RT_LIB_DIR/row-template.sh" 644 \
       || rt_warn "could not update the management library."
   fi
+  rt_install_companions "$payload" \
+    || rt_warn "could not update the management library's companions; run 'row-template update' to retry."
   if [ -f "$payload/bin/row-template" ]; then
     rt_atomic_install "$payload/bin/row-template" "$RT_BIN" 755 \
       || rt_warn "could not update the row-template CLI."
@@ -2773,7 +2863,10 @@ rt_manager_update() {
   rt_ui_kv "Installed" "${cur:-unknown}"
   if avail="$(rt_remote_version 2>/dev/null)" && [ -n "$avail" ]; then
     rt_ui_kv "Available" "$avail"
-    if [ -n "$cur" ] && rt_semver_ge "$cur" "$avail"; then
+    if [ -n "$cur" ] && rt_semver_ge "$cur" "$avail" && ! rt_installer_complete; then
+      rt_ui_warn "This installation is incomplete: some installer components are missing, as after an update from 1.1.0."
+      rt_ui_confirm "Re-install $avail now to complete it?" yes || return 0
+    elif [ -n "$cur" ] && rt_semver_ge "$cur" "$avail"; then
       rt_ui_success "Row-Template is up to date."
       rt_ui_confirm "Re-install $avail anyway?" no || return 0
     else
@@ -3198,18 +3291,25 @@ rt_install_success_screen() {
 # interface.sh resolves against at CALL time. Neither reads the other at load
 # time, so the order is a readability choice, not a load-bearing one.
 #
-# This layer must not be sourced by a build that has no panels/ directory
-# (an older payload). That is a FAILURE rather than a silent skip: a caller
-# must never reach a panel operation and find the function simply absent,
-# because "command not found" is an exit 127 that no return-code contract
-# describes. Detectable failure beats an undefined symbol.
+# ABSENT is not the same as BROKEN. A host updated to this version by the
+# 1.1.0 updater has no panels/ directory: that updater copies only the library
+# and the CLI, and nothing in a release can change what it copies. Refusing to
+# load there would leave every `row-template` command dead, including the
+# `update` that installs the layer. So an absent layer loads WITHOUT it:
+# rt_panels_load returns 2, RT_PANELS_LOADED stays empty, rt_installer_complete
+# reports the gap, `verify` names it and `update` repairs it. No command calls
+# a panel operation today; one that ever does must check rt_installer_complete
+# first, so it meets a reported gap rather than an exit 127. A layer that is
+# PRESENT but fails to load is damage, not an older updater, and still fails
+# loudly at source time.
 rt_panels_load() {
   # Source the frozen panel interface layer exactly once. Idempotent, so a
-  # re-source of this library cannot double-define anything.
+  # re-source of this library cannot double-define anything. Returns 2 when
+  # the layer is absent, 1 when it is present but will not load.
   [ -n "${RT_PANELS_LOADED:-}" ] && return 0
   local dir
   dir="$(dirname "${BASH_SOURCE[0]}")/../panels"
-  [ -d "$dir" ] || { rt_err "panel interface missing: $dir"; return 1; }
+  [ -d "$dir" ] || return 2
   . "$dir/interface.sh" || { rt_err "could not load panel interface"; return 1; }
   . "$dir/index.sh"     || { rt_err "could not load panel registry";   return 1; }
   RT_PANELS_LOADED=1
@@ -3217,11 +3317,12 @@ rt_panels_load() {
 }
 
 # Loaded eagerly, because every caller of a panel operation should be able to
-# assume the contract is present rather than remembering to load it. A failure
-# here is loud and fatal at source time -- the same posture as a missing
-# row-template.sh in the payload -- rather than deferred to first use.
+# assume the contract is present rather than remembering to load it. A layer
+# that is present but broken is loud and fatal at source time rather than
+# deferred to first use; an absent one is the older-updater case above.
 RT_PANELS_LOADED=""
-if ! rt_panels_load; then
+rt_load_rc=0; rt_panels_load || rt_load_rc=$?
+if [ "$rt_load_rc" -ne 0 ] && [ "$rt_load_rc" -ne 2 ]; then
   # Sourced: abort the source so the caller sees a failure. Executed
   # directly: exit, since there is no caller to return to. Both paths end
   # the run rather than leaving a half-loaded interface behind.
@@ -3238,27 +3339,30 @@ fi
 # is loaded eagerly: a caller of rt_transaction_run must be able to assume the
 # engine is present rather than remembering to load it. The order is not
 # load-bearing -- neither file reads the other at load time, and the engine
-# resolves rt_panel_* at CALL time -- but a missing engine must fail loudly at
-# source time rather than surfacing as an undefined command at run time, which
-# is an exit 127 no return-code contract describes.
+# resolves rt_panel_* at CALL time. Absent and broken are told apart exactly as
+# for the panel layer: an engine the 1.1.0 updater never installed loads
+# without it (return 2, reported by rt_installer_complete); an engine that is
+# present but will not load fails loudly at source time.
 rt_transaction_load() {
   # Source the transaction engine exactly once. Idempotent, so a re-source of
-  # this library cannot double-define anything.
+  # this library cannot double-define anything. Returns 2 when the engine is
+  # absent, 1 when it is present but will not load.
   [ -n "${RT_TRANSACTION_LOADED:-}" ] && return 0
   local dir
   dir="$(dirname "${BASH_SOURCE[0]}")"
-  [ -f "$dir/transaction.sh" ] || {
-    rt_err "transaction engine missing: $dir/transaction.sh"; return 1; }
+  [ -f "$dir/transaction.sh" ] || return 2
   . "$dir/transaction.sh" || { rt_err "could not load the transaction engine"; return 1; }
   RT_TRANSACTION_LOADED=1
   return 0
 }
 RT_TRANSACTION_LOADED=""
-if ! rt_transaction_load; then
+rt_load_rc=0; rt_transaction_load || rt_load_rc=$?
+if [ "$rt_load_rc" -ne 0 ] && [ "$rt_load_rc" -ne 2 ]; then
   # Sourced: abort the source so the caller sees a failure. Executed directly:
   # exit, since there is no caller to return to. Both paths end the run rather
   # than leaving an engine half-loaded behind.
   return 1 2>/dev/null || exit 1
 fi
+unset rt_load_rc
 
 
