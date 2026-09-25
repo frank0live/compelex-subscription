@@ -2360,13 +2360,21 @@ rt_restore_from_backup() {
   # the TEMPLATE selection, however, is re-derived from the artifact itself
   # (checksum match against the template store) and persisted, so the restored
   # artifact and the stored selection always agree — including when the backup
-  # predates the current release's store.
+  # predates the current release's store. If the checksum match fails (the backup
+  # artifact is not byte-identical to any installed template), fall back to the
+  # template recorded in the backup's meta, then to Row as a last resort.
   local dir="$1" tpl_id
   rt_backup_validate "$dir" || { rt_err "backup failed validation: $dir"; return 1; }
   tpl_id="$(rt_template_id_for_artifact "$dir/template.html")"
   if [ -z "$tpl_id" ]; then
-    rt_err "backup artifact matches no installed template; the template store may be damaged"
-    return 1
+    tpl_id="$(rt_backup_meta template "$dir")"
+    if [ -z "$tpl_id" ]; then
+      tpl_id="row"
+      rt_warn "backup artifact has no store match and no recorded template; defaulting to Row."
+    elif ! rt_template_allowed "$tpl_id"; then
+      rt_warn "backup artifact recorded template '$tpl_id' is not installed; defaulting to Row."
+      tpl_id="row"
+    fi
   fi
   rt_set_dist "$dir/template.html" || return 1
   if [ -f "$dir/VERSION" ]; then
