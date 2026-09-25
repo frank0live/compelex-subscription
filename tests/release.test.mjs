@@ -266,7 +266,7 @@ test('the release tarball is byte-deterministic', () => {
 /* The management library's companions: what rt_panels_load and
    rt_transaction_load source, so what a release must ship and an install
    must put next to the library. */
-const COMPANIONS = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', 'panels/interface.sh'];
+const COMPANIONS = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', 'panels/interface.sh', 'panels/pasarguard.sh', 'panels/rebecca.sh'];
 
 /* installer/lib/row-template.sh exactly as released in v1.1.0; see its README. */
 const V110_LIB = join(ROOT, 'tests', 'fixtures', 'installer-1.1.0', 'row-template.sh');

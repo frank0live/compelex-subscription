@@ -8,11 +8,17 @@
  * itself, and every README and compatibility page is checked against it:
  *
  *   - the panel registry (installer/panels/index.sh) is asked which panels have
- *     an implementation, and every panel operation is called for the others;
- *   - the install command is run on a host that has PasarGuard or Rebecca and no
- *     3X-UI, with real detection, to show there is no other install path;
+ *     an implementation, and every panel operation is called on a host where
+ *     the panel is NOT installed, where none may report success;
+ *   - the install command is run on a host where a panel is only half there
+ *     (one detection signal), with real detection, to show it refuses;
  *   - the capability matrix in docs/.../compatibility.mdx (English, Persian,
  *     Arabic) and the panel table in all five READMEs must match those results.
+ *
+ * Since 1.3.0 all three panels have an implementation, so all three are
+ * Supported; the full install/activate/verify/rollback/uninstall behaviour of
+ * PasarGuard and Rebecca is exercised in tests/installer-panel-pasarguard.test.mjs
+ * and tests/installer-panel-rebecca.test.mjs.
  *
  * A panel becomes "Supported" in the docs only when this file, unchanged, finds
  * an implementation for it. Nothing here is satisfied by an adapter file merely
@@ -81,28 +87,39 @@ const MATRIX = installerMatrix();
 const INSTALLABLE = Object.keys(MATRIX).filter((p) => MATRIX[p].implemented);
 const UNAVAILABLE = 2;
 
-test('the installer implements 3X-UI and no other panel', () => {
+test('the installer implements all three panels', () => {
   assert.deepEqual(Object.keys(MATRIX).sort(), ['3xui', 'pasarguard', 'rebecca'], 'the closed panel set');
-  assert.deepEqual(INSTALLABLE, ['3xui'], 'only 3X-UI has an installer implementation');
+  assert.deepEqual(INSTALLABLE.sort(), ['3xui', 'pasarguard', 'rebecca'],
+    'every panel in the registry has an installer implementation');
   assert.deepEqual(buildablePanelIds().sort(), ['3xui', 'pasarguard', 'rebecca'],
-    'while a page shell is still BUILT for all three -- which is not support');
+    'and a page shell is built for each');
 });
 
-test('every installer operation on PasarGuard and Rebecca is UNAVAILABLE', () => {
-  for (const p of ['pasarguard', 'rebecca']) {
+test('on a host without the panel, no operation reports success', () => {
+  /* This test host runs none of the panels. An operation that answered
+     SUCCESS here would be claiming work it could not have done. Detection must
+     say the panel is not here (NOT_APPLICABLE); everything else must refuse. */
+  const HAS = { '3xui': ['/usr/local/x-ui/x-ui', '/usr/local/bin/x-ui'],
+    pasarguard: ['/opt/pasarguard/.env'], rebecca: ['/opt/rebecca/.env'] };
+  for (const [p, paths] of Object.entries(HAS)) {
+    if (paths.some((x) => existsSync(x))) continue;   // a real panel host: not this test's subject
+    assert.equal(MATRIX[p].rc.detection, 3, `${p}: detection must be NOT_APPLICABLE (3)`);
     for (const [col, rc] of Object.entries(MATRIX[p].rc)) {
-      assert.equal(rc, UNAVAILABLE, `${p}: ${col} must be UNAVAILABLE (2), got ${rc}`);
+      assert.notEqual(rc, 0, `${p}: ${col} must not report SUCCESS on a host without the panel`);
     }
   }
 });
 
-/* A PasarGuard or Rebecca host: the panel's systemd unit is present, there is
-   no x-ui binary or unit. Detection runs for real, against a stand-in
-   systemctl on PATH. Skipped where a real 3X-UI binary is installed, since the
-   library looks for it at fixed system paths. */
-const HAS_REAL_XUI = ['/usr/local/x-ui/x-ui', '/usr/local/bin/x-ui'].some((p) => existsSync(p));
+/* A host where PasarGuard or Rebecca is only HALF there: the panel's systemd
+   unit is registered, and nothing else (no .env, no data directory, no CLI).
+   One signal is not identification (installer/panels/interface.sh), so install
+   must refuse, write nothing, and say why. Detection runs for real, against a
+   stand-in systemctl on PATH. Skipped where a real panel is installed, since
+   the library looks at fixed system paths. */
+const HAS_REAL_PANEL = ['/usr/local/x-ui/x-ui', '/usr/local/bin/x-ui', '/opt/pasarguard', '/opt/rebecca',
+  '/var/lib/pasarguard', '/var/lib/rebecca'].some((p) => existsSync(p));
 
-test('on a host with PasarGuard or Rebecca and no 3X-UI, install refuses and writes nothing', { skip: HAS_REAL_XUI }, () => {
+test('on a host where PasarGuard or Rebecca is only half there, install refuses and writes nothing', { skip: HAS_REAL_PANEL }, () => {
   for (const unit of ['pasarguard.service', 'rebecca.service']) {
     const base = mkdtempSync(join(tmpdir(), 'row-panel-'));
     try {
@@ -125,7 +142,8 @@ test('on a host with PasarGuard or Rebecca and no 3X-UI, install refuses and wri
         `RT_ASSUME_YES=1 rt_cmd_install "${payload}" </dev/null`,
       ].join('\n'));
       assert.notEqual(r.code, 0, `${unit}: install must refuse`);
-      assert.match(r.err, /no 3x-ui installation was detected/, `${unit}: and say why`);
+      assert.match(r.err, /looks partly installed/, `${unit}: and say the panel is only half there`);
+      assert.match(r.err, /no supported panel was detected/, `${unit}: and that nothing can be installed`);
       assert.equal(existsSync(join(base, 'rt')), false, `${unit}: nothing is installed`);
       assert.equal(existsSync(join(base, 'row-template')), false, `${unit}: no CLI is installed`);
     } finally {
@@ -207,11 +225,49 @@ test('every README marks only installable panels as supported', () => {
   }
 });
 
-test('the changelog never calls PasarGuard or Rebecca supported', () => {
-  const sentences = read('CHANGELOG.md').replace(/\n\s*/g, ' ').split(/(?<=[.!?])\s+/);
-  for (const s of sentences) {
-    if (!/PasarGuard|Rebecca/.test(s) || !/\bsupported\b/i.test(s)) continue;
-    assert.match(s, /\bnot (?:yet )?supported\b|\bunsupported\b|not supported panels/i,
-      `a changelog sentence names PasarGuard/Rebecca as supported: "${s}"`);
+/* The changelog is history: every release's section must describe the panels
+   as they were IN THAT RELEASE. Before 1.3.0 no release supported PasarGuard or
+   Rebecca, so no older section may call them supported; from the release that
+   implements a panel on, its section may -- and only because the installer,
+   asked above, really implements it. */
+function changelogSections() {
+  const out = [];
+  let cur = null;
+  for (const line of read('CHANGELOG.md').split('\n')) {
+    const m = line.match(/^## \[?(\d+\.\d+\.\d+)\]?/);
+    if (m) { cur = { version: m[1], text: '' }; out.push(cur); continue; }
+    if (cur) cur.text += `${line}\n`;
   }
+  return out;
+}
+
+const semver = (v) => v.split('.').map(Number);
+const before = (a, b) => {
+  const [x, y] = [semver(a), semver(b)];
+  for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] < y[i];
+  return false;
+};
+
+test('the changelog calls PasarGuard or Rebecca supported only from the release that implements them', () => {
+  const sections = changelogSections();
+  assert.ok(sections.some((s) => s.version === '1.3.0'), 'the 1.3.0 section exists');
+  for (const { version, text } of sections) {
+    const sentences = text.replace(/\n\s*/g, ' ').split(/(?<=[.!?])\s+/);
+    for (const s of sentences) {
+      if (!/PasarGuard|Rebecca/.test(s) || !/\bsupported\b/i.test(s)) continue;
+      if (before(version, '1.3.0')) {
+        assert.match(s, /\bnot (?:yet )?supported\b|\bunsupported\b|not supported panels/i,
+          `${version}: a changelog sentence names PasarGuard/Rebecca as supported before 1.3.0: "${s}"`);
+      } else {
+        for (const p of ['pasarguard', 'rebecca']) {
+          if (new RegExp(p, 'i').test(s) && !/\bnot (?:yet )?supported\b|\bunsupported\b/i.test(s)) {
+            assert.ok(INSTALLABLE.includes(p), `${version}: claims ${p} is supported, but the installer does not implement it`);
+          }
+        }
+      }
+    }
+  }
+  const current = sections.find((s) => s.version === '1.3.0').text;
+  assert.match(current, /PasarGuard/, 'the 1.3.0 section names PasarGuard');
+  assert.match(current, /Rebecca/, 'the 1.3.0 section names Rebecca');
 });
