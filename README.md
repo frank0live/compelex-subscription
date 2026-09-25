@@ -92,7 +92,7 @@ Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scri
 
 - **White-label branding.** Service name, support link, and logo, all optional, stored as data and injected as text.
 - **A manager for everything.** An interactive menu and direct commands for branding, updates, verification, rollback, and uninstall.
-- **Stable-channel updates.** `row-template update` installs a newer stable release only when one exists.
+- **Stable-channel updates.** `row-template update` installs the latest stable release, verified, whenever you run it — which also makes it a quick repair.
 
 **Privacy and safety**
 
@@ -171,7 +171,11 @@ To choose a design without the chooser, for example in a script:
 RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
 
-If you prefer not to pipe from the network, download the release assets from the [Releases page](https://github.com/frank0live/Row-Template/releases/latest), verify the checksum yourself as described in [PROVENANCE.md](PROVENANCE.md), and run the bundled `install.sh` from the extracted directory.
+If you prefer not to pipe from the network, download the four release assets (`install.sh`, `manifest.txt`, `SHA256SUMS`, and `row-template-<version>.tar.gz`) from the [Releases page](https://github.com/frank0live/Row-Template/releases/latest) into one folder, verify the checksum yourself as described in [PROVENANCE.md](PROVENANCE.md), and point the installer at that folder:
+
+```bash
+RT_RELEASE_DIR=/root/row-template-release bash /root/row-template-release/install.sh
+```
 
 ### Activation
 
@@ -201,7 +205,7 @@ Or use a command directly:
 | Command | What it does |
 | ------- | ------------ |
 | `row-template config` | Change the service name, support link, or logo, then regenerate the page |
-| `row-template update` | Download, verify, and activate a newer stable release (checksum enforced) |
+| `row-template update` | Download, verify, and activate the latest stable release (checksum enforced) |
 | `row-template rollback` | Restore a previous version (`--auto` or `--to <backup>`) |
 | `row-template verify` | Check the install, the panel wiring, and the live page (read-only) |
 | `row-template version` | Show the installed, minimum-supported, and detected 3X-UI versions |
@@ -211,7 +215,7 @@ Or use a command directly:
 Commands that change the system (`config`, `update`, `rollback`, `uninstall`) must run as root.
 
 - **Branding** is stored as data, never executed, and injected into the page as text. Leave a field blank for an unbranded page. The support link accepts only schemes a browser should open, such as `https://…`, `tg://…`, or `mailto:…`.
-- **Updates** check the public stable channel and change nothing unless a newer stable version exists. If the release source is unreachable, `update` reports that it could not check; your installation is never treated as damaged.
+- **Updates** come from the public stable channel. `row-template update` always applies the latest stable release, even the version you already run; the manager's **Update** compares versions first and asks before changing anything. If the release source is unreachable, nothing is changed and your installation is never treated as damaged.
 - **Rollback** restores a previous version from a validated backup. The current version is snapshotted first, so a failed rollback can be recovered, and your branding is preserved.
 - **Uninstall** removes Row-Template's files. It clears the panel's `subThemeDir` only if it points at Row-Template, so the panel falls back to its built-in page; your inbounds, clients, and certificates are not touched.
 
