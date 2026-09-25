@@ -92,7 +92,7 @@ test('transpiling is deterministic', () => {
 
 /* --- G2 — the frozen catalogue has not moved ---------------------------- */
 
-test('G2: all 15 artifacts are byte-identical to their committed locks', () => {
+test('G2: all 17 artifacts are byte-identical to their committed locks', () => {
   const source = readFileSync(join(ROOT, 'tests', 'build.test.mjs'), 'utf8');
   const locked = {};
   for (const m of source.matchAll(/^\s*\['([a-z]+)', (\d+), '([0-9a-f]{64})'\],/gm)) {
@@ -103,7 +103,7 @@ test('G2: all 15 artifacts are byte-identical to their committed locks', () => {
     locked[id] = +m[1];
   }
 
-  assert.equal(Object.keys(locked).length, 15, 'all 15 templates must carry a byte lock');
+  assert.equal(Object.keys(locked).length, 17, 'all 17 templates must carry a byte lock');
   for (const id of templateIds()) {
     const bytes = Buffer.byteLength(build(true, id).html, 'utf8');
     assert.equal(bytes, locked[id], id + ' must not move');
@@ -113,7 +113,7 @@ test('G2: all 15 artifacts are byte-identical to their committed locks', () => {
 test('G2: no layout source has been modified by this phase', () => {
   /* The layouts are read, never written. If one ever changes, this phase has
      overstepped — the count and the shared lines are the cheap tripwire. */
-  assert.equal(Object.keys(LAYOUTS).length, 15);
+  assert.equal(Object.keys(LAYOUTS).length, 17);
   for (const id of templateIds()) {
     assert.ok(LAYOUTS[id].startsWith('<!doctype html>'), id + ' must be a whole document');
     assert.ok(LAYOUTS[id].includes('id="sub-data"'), id + ' must carry the island hook');

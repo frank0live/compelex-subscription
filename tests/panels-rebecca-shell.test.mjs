@@ -309,7 +309,7 @@ test('build:panels writes the assembled shells to dist/shells/', async () => {
 
 /* --- the 3X-UI artifacts are untouched ----------------------------------- */
 
-test('the 15 frozen 3X-UI artifacts are byte-identical to their locks', async () => {
+test('the 17 frozen 3X-UI artifacts are byte-identical to their locks', async () => {
   const { build } = await import('../tools/build.mjs');
   const source = readFileSync(join(ROOT, 'tests', 'build.test.mjs'), 'utf8');
   const locked = {};
@@ -318,7 +318,7 @@ test('the 15 frozen 3X-UI artifacts are byte-identical to their locks', async ()
     const id = m[2] === 'Row' ? 'row' : m[2] === 'Pulse Nova' ? 'pulsenova' : m[2].toLowerCase();
     locked[id] = +m[1];
   }
-  assert.equal(Object.keys(locked).length, 15);
+  assert.equal(Object.keys(locked).length, 17);
   for (const id of templateIds()) {
     assert.equal(Buffer.byteLength(build(true, id).html, 'utf8'), locked[id], id + ' must not move');
   }

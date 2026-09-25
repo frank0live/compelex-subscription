@@ -1,0 +1,58 @@
+/* The page skeleton. Placement only. */
+
+.page {
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+  padding: var(--sp-7) var(--sp-4) calc(var(--sp-7) * 2);
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-block-end: var(--sp-5);
+}
+
+.greet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-inline-size: 0;
+}
+
+.topbar-controls {
+  display: flex;
+  gap: var(--sp-2);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* Actions and the client area side by side on a wide screen; one column on a
+   phone, actions first, because copying the link is the common task. */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+@media (max-width: 680px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 380px) {
+  .page { padding-inline: var(--sp-3); }
+}

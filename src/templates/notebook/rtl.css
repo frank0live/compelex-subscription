@@ -1,0 +1,17 @@
+/* Direction-specific rules. Every offset is a logical property, so dir on
+   <html> does the layout; what remains are the glyphs with a direction of
+   their own, the hand tilt (mirrored so the page leans the same way to a
+   right-to-left reader), and Latin tracking, which breaks Arabic joins. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .brand { transform: rotate(1.5deg); }
+
+[lang="fa"] .status-word,
+[lang="ar"] .status-word {
+  letter-spacing: 0;
+  line-height: 1.35;
+}

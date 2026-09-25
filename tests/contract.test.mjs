@@ -247,7 +247,7 @@ test('validateModel rejects missing, unknown, and wrong-typed fields', () => {
 
 /* --- nothing was rebuilt ------------------------------------------------- */
 
-test('the 15 artifacts are byte-identical to their committed locks', () => {
+test('the 17 artifacts are byte-identical to their committed locks', () => {
   const source = readFileSync(join(ROOT, 'tests', 'build.test.mjs'), 'utf8');
   const locked = {};
   for (const m of source.matchAll(/^\s*\['([a-z]+)', (\d+), '([0-9a-f]{64})'\],/gm)) locked[m[1]] = +m[2];
@@ -255,7 +255,7 @@ test('the 15 artifacts are byte-identical to their committed locks', () => {
     const id = m[2] === 'Row' ? 'row' : m[2] === 'Pulse Nova' ? 'pulsenova' : m[2].toLowerCase();
     locked[id] = +m[1];
   }
-  assert.equal(Object.keys(locked).length, 15);
+  assert.equal(Object.keys(locked).length, 17);
   for (const id of templateIds()) {
     assert.equal(Buffer.byteLength(ARTIFACTS[id], 'utf8'), locked[id], id + ' must not move');
   }

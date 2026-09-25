@@ -1,13 +1,13 @@
 {
   "_comment": "Shared template gallery data. Facts are read from source (tools/templates.mjs, each template's tokens.css, and the build). Only the per-locale description prose is authored. Enum values are keyed so the gallery can render translated labels without duplicating structure.",
   "meta": {
-    "count": 15,
+    "count": 17,
     "default": "row",
     "ceiling": "204800 bytes",
     "shared": [
       "One self-contained artifact — CSS, JavaScript, fonts and the QR generator are inlined.",
       "The same shared runtime; a template is a layout and a stylesheet set, never a fork of the logic.",
-      "The same data — status, traffic, expiry, configurations and clients are identical across all fifteen.",
+      "The same data — status, traffic, expiry, configurations and clients are identical across all seventeen.",
       "Full right-to-left support for Persian and Arabic.",
       "Dark and light themes.",
       "79 required hooks, exactly three scripts, and a byte lock pinning the artifact to an exact size and SHA-256."
@@ -237,6 +237,36 @@
         "en": "The Nova-era cabinet: a framed screen with a cartridge rail, giving the page a contained, console-like presentation.",
         "fa": "کابینت دورهٔ Nova: صفحه‌ای قاب‌دار با ریل کارتریج، که به صفحه ارائه‌ای محصور و کنسول‌گونه می‌دهد.",
         "ar": "خزانة عصر Nova: شاشة مؤطَّرة مع سكة خراطيش، تمنح الصفحة عرضًا محصورًا يشبه وحدات التحكم."
+      }
+    },
+    {
+      "id": "meter",
+      "name": "Meter",
+      "family": "dashboard",
+      "composition": "card-led",
+      "density": "comfortable",
+      "grouping": "cards",
+      "radius": "soft",
+      "measure": "wide",
+      "description": {
+        "en": "A calm instrument dashboard. Rounded cards carry the status, a segmented traffic meter and the expiry, with the actions and the client area set side by side on a wide screen.",
+        "fa": "یک داشبورد ابزاری آرام. کارت‌های گرد وضعیت، کنتور بخش‌بندی‌شدهٔ ترافیک و انقضا را در خود دارند، و در صفحهٔ عریض اقدام‌ها و بخش کلاینت‌ها کنار هم قرار می‌گیرند.",
+        "ar": "لوحة قياس هادئة. تحمل البطاقات المستديرة الحالة وعدّاد حركة مقسّمًا وتاريخ الانتهاء، وتُعرض الإجراءات ومنطقة العملاء جنبًا إلى جنب على الشاشة العريضة."
+      }
+    },
+    {
+      "id": "notebook",
+      "name": "Notebook",
+      "family": "narrow-column",
+      "composition": "hand-ruled",
+      "density": "comfortable",
+      "grouping": "cards",
+      "radius": "soft",
+      "measure": "narrow",
+      "description": {
+        "en": "A page from a dotted notebook. Hand-inked cards with uneven corners, sticky-note accents and margin doodles, kept to a narrow reading column.",
+        "fa": "صفحه‌ای از یک دفترچهٔ نقطه‌دار. کارت‌هایی با جوهر دست‌کشیده و گوشه‌های ناهموار، تأکیدهایی به شکل یادداشت چسبان و طرح‌های حاشیه، در یک ستون خواندن باریک.",
+        "ar": "صفحة من دفتر منقّط. بطاقات بحبر مرسوم باليد وزوايا غير متساوية، ولمسات تشبه الملاحظات اللاصقة، ورسوم في الهوامش، ضمن عمود قراءة ضيق."
       }
     }
   ]

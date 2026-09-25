@@ -1,0 +1,161 @@
+/* Design tokens. Every value a theme can change lives here and nowhere else;
+   the rest of the stylesheet only ever reads custom properties.
+
+   Notebook is the hand-made page of the catalogue: dotted paper, ink-drawn
+   cards held on with washi tape, a status written large and underlined by
+   hand. It is a port of a design contributed by the project's author
+   ("Sketch"), rebuilt on the shared runtime. The handwriting accent uses the
+   system's own script faces: nothing is fetched. */
+
+:root {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+  --font-arabic: Vazirmatn, "Segoe UI", Tahoma, "Noto Naskh Arabic",
+                 "Geeza Pro", sans-serif;
+  --hand: "Segoe Print", "Bradley Hand", "Chalkboard SE", "Marker Felt",
+          "Comic Sans MS", cursive;
+
+  --fs-status: clamp(2.75rem, 14vw, 4.5rem);
+  --fs-title: 1rem;
+  --fs-body: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-micro: 0.75rem;
+
+  --lh-tight: 1.35;
+  --lh-body: 1.6;
+  --measure: 60ch;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* Ink lines are never quite straight: every shape has an uneven radius. */
+  --ink-w: 2.5px;
+  --r-card-a: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --r-card-b: 15px 255px 15px 225px / 225px 15px 255px 15px;
+  --r-btn: 20px 10px 18px 12px / 12px 18px 10px 20px;
+  --r-chip: 14px 8px 12px 10px / 10px 12px 8px 14px;
+  --r-note: 12px 20px 14px 18px / 18px 12px 20px 14px;
+  --r-blob: 50% 42% 48% 40% / 46% 44% 50% 42%;
+
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 500ms;
+  --ease: ease;
+
+  --page-max: 540px;
+  --tap: 44px;
+  --mark: 40px;
+  --btn-h: 44px;
+  --dots: 22px;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --paper: #F6F1E5;
+  --paper-dot: rgb(70 62 46 / 0.12);
+  --card: #FFFDF6;
+  --card-2: #FBF5E8;
+  --ink: #292724;
+  --ink-soft: #625B4E;
+  --line: #292724;
+
+  --red: #C8432B;
+  --blue: #3470C4;
+  --yellow: #EAB93A;
+  --green: #3B8551;
+  --purple: #7F52B0;
+  --pink: #C85C8A;
+  --orange: #C9742A;
+  --green-dk: #2F6B42;
+  --yellow-dk: #C99A24;
+  --red-dk: #A8361F;
+
+  --tape-pink: rgb(221 111 156 / 0.55);
+  --tape-blue: rgb(63 127 214 / 0.5);
+  --tape-green: rgb(70 148 92 / 0.5);
+  --tape-yellow: rgb(234 185 58 / 0.6);
+  --tape-purple: rgb(143 95 192 / 0.5);
+  --mark-green: rgb(70 148 92 / 0.25);
+  --mark-yellow: rgb(234 185 58 / 0.7);
+  --mark-purple: rgb(143 95 192 / 0.22);
+
+  --hard: rgb(41 39 36 / 0.14);
+  --shadow: 3px 3px 0 rgb(41 39 36 / 0.16);
+  --shadow-lg: 6px 6px 0 rgb(0 0 0 / 0.2);
+  --on-color: #FFFFFF;
+  --on-yellow: #292724;
+  --qr-bg: #FFFFFF;
+  --scrim: rgb(41 39 36 / 0.55);
+  --focus: #3470C4;
+  --doodle-opacity: 0.5;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #1F1C17;
+  --paper-dot: rgb(240 232 212 / 0.08);
+  --card: #2A261F;
+  --card-2: #322D24;
+  --ink: #F0E8D4;
+  --ink-soft: #B3AA96;
+  --line: #F0E8D4;
+
+  --red: #FF7A5C;
+  --blue: #6FA8FF;
+  --yellow: #FFD75E;
+  --green: #82D69C;
+  --purple: #C99AFF;
+  --pink: #FF9CC4;
+  --orange: #FFAB5C;
+  --green-dk: #5FBF7E;
+  --yellow-dk: #F0C23F;
+  --red-dk: #FF5C3A;
+
+  --tape-pink: rgb(255 156 196 / 0.45);
+  --tape-blue: rgb(111 168 255 / 0.42);
+  --tape-green: rgb(130 214 156 / 0.4);
+  --tape-yellow: rgb(255 215 94 / 0.5);
+  --tape-purple: rgb(201 154 255 / 0.42);
+  --mark-green: rgb(130 214 156 / 0.25);
+  --mark-yellow: rgb(255 215 94 / 0.4);
+  --mark-purple: rgb(201 154 255 / 0.25);
+
+  --hard: rgb(240 232 212 / 0.12);
+  --shadow: 3px 3px 0 rgb(0 0 0 / 0.35);
+  --shadow-lg: 6px 6px 0 rgb(0 0 0 / 0.45);
+  --on-color: #1F1C17;
+  --on-yellow: #1F1C17;
+  --qr-bg: #FFFFFF;
+  --scrim: rgb(0 0 0 / 0.6);
+  --focus: #6FA8FF;
+  --doodle-opacity: 0.35;
+}
+
+/* The Arabic-script face is opted into by language, and its unicode-range
+   keeps it off Latin, Cyrillic and CJK text even here. A Latin script face
+   has no Arabic glyphs, so the handwriting accent falls back to the body. */
+[lang="fa"],
+[lang="ar"] {
+  --font: var(--font-arabic);
+  --hand: var(--font-arabic);
+  --lh-body: 1.85;
+}
+
+/* row:font-face */
+@font-face {
+  font-family: Vazirmatn;
+  src: url("data:font/woff2;base64,__FONT_BASE64__") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+2066-2069, U+FB50-FDFF,
+                 U+FE70-FEFF;
+}
+/* row:font-face end */
