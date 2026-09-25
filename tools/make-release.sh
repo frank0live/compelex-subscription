@@ -39,7 +39,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/release}"
 
 die() { printf 'make-release: %s\n' "$1" >&2; exit 1; }
-sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
+# Always the coreutils TEXT form, "<hex>  <name>". sha256sum on Windows (Git
+# Bash, Cygwin) writes the binary-mode form "<hex> *<name>" instead, which would
+# make a release built there differ byte for byte from one built on Linux. The
+# installer reads both forms; the release is normalized so it has only one.
+sha() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi \
+    | sed 's/^\([0-9a-fA-F]\{64\}\) \*/\1  /'
+}
 
 VERSION="$(tr -d ' \t\r\n' < "$ROOT/VERSION")"
 [ -n "$VERSION" ] || die "VERSION file is empty."
