@@ -5,7 +5,71 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - Unreleased
+## [1.2.1] - Unreleased
+
+Fixes the update from 1.1.0, which could leave the manager with no designs to
+choose from. 3X-UI (>= 3.6.0) stays the only supported panel.
+
+### Fixed
+
+- **One `row-template update` is enough to move from 1.1.0.** 1.1.0's own
+  updater installs the new version but copies only four files, so in 1.2.0 the
+  designs were missing until a second update, and **Reconfigure branding →
+  Template** said "No templates are installed". Now the first time you open
+  `row-template`, or run `row-template config` or `row-template verify` as
+  root, after the update, it downloads the rest of the same release — every
+  design and the remaining installer files, checksum-verified — before doing
+  anything else. It downloads the version you have installed, never a newer
+  one, and changes nothing else: the live page, branding, selected design and
+  backups stay as they are. If the release cannot be reached, it says so and
+  tries again the next time the manager opens.
+- **Designs found outside their folder are moved back.** The designs belong in
+  `dist/templates/`. A copy at the install root's `templates/` — where a copied
+  or extracted release leaves it — is now moved into place automatically by
+  `install`, `update` and `verify`. Each design is checked against its own
+  checksum first; one that fails is reported and left where it is, and files
+  Row-Template does not recognise are never removed.
+- **Changing branding works on an install the 1.1.0 updater left incomplete.**
+  `row-template config` and the manager's branding editors refused with "the
+  template selection could not be reconciled" until a second update; they now
+  complete the install first.
+- **`row-template verify` names missing and damaged designs.** A design that
+  fails its checksum is reported by name as a failure; missing designs are a
+  warning that names them. It previously reported a failing store without
+  saying which design, and did not report missing ones at all.
+
+### Changed
+
+- `row-template verify` is no longer strictly read-only. Run as root, it first
+  repairs the template store — moving misplaced designs back into place and
+  downloading any the installed version is missing, from that same release —
+  and then checks it. It makes no other change, and none at all when run
+  without root.
+
+### Documentation
+
+- The compatibility page lists, per panel, what the installer can do today:
+  detection, install, activation, verification, and backup and rollback. For
+  PasarGuard and Rebecca the answer is none of them — only the page shells are
+  built and packaged — so both stay **research targets, not supported panels**.
+  A test checks every README and compatibility page against the installer.
+
+### Known issues
+
+- Rolling back from 1.2.x to a backup taken under 1.1.0 fails with "backup
+  artifact matches no installed template": 1.1.0's page is not one of the
+  current release's designs. The rollback stops before changing anything, so
+  the running page stays as it was. Rolling back to a backup taken under 1.2.x
+  is not affected.
+
+### Upgrading
+
+- From **1.1.0**: run `row-template update`. The next `row-template`,
+  `row-template config` or `row-template verify` completes the install.
+- From **1.2.0**: run `row-template update`. This also completes a 1.2.0
+  install that the 1.1.0 updater left without its designs.
+
+## [1.2.0] - 2026-09-24
 
 Turns Row-Template from one page into a collection of designs. A minor release:
 Row stays the default design, and 3X-UI (>= 3.6.0) stays the only supported
@@ -84,7 +148,8 @@ panel.
   page updates and your branding is kept — but copies only the library and
   the command, so only Row is available. The second, carried out by 1.2.0,
   installs every design and the remaining installer files. `row-template
-  verify` reports whether the second run is still needed.
+  verify` reports whether the second run is still needed. (Fixed in 1.2.1,
+  which needs one run.)
 
 ## [1.1.0] - 2026-08-30
 
@@ -162,6 +227,7 @@ First stable release.
 - Requires 3X-UI (MHSanaei) **>= 3.6.0**; validated against stock 3.7.0.
 - Recommended operating system: Ubuntu 24.04 LTS (x86_64).
 
-[1.2.0]: https://github.com/frank0live/Row-Template/compare/v1.1.0...main
+[1.2.1]: https://github.com/frank0live/Row-Template/compare/v1.2.0...main
+[1.2.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.2.0
 [1.1.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.1.0
 [1.0.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.0.0

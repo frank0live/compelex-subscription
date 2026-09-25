@@ -206,7 +206,7 @@ row-template
 | `row-template config` | 更改服务名称、支持链接或徽标，然后重新生成页面 |
 | `row-template update` | 下载、校验并激活最新的稳定版本（强制校验校验和） |
 | `row-template rollback` | 恢复到之前的版本（`--auto` 或 `--to <backup>`） |
-| `row-template verify` | 检查安装、面板连接和当前页面（只读） |
+| `row-template verify` | 检查安装、面板连接和当前页面（以 root 运行时还会补回缺失或放错位置的设计） |
 | `row-template version` | 显示已安装版本、最低支持版本以及检测到的 3X-UI 版本 |
 | `row-template uninstall` | 移除 Row-Template 并让面板恢复其内置页面 |
 | `row-template help` | 显示用法 |
@@ -215,6 +215,7 @@ row-template
 
 - **品牌信息**以数据形式存储，从不执行，并以文本形式注入页面。将某个字段留空即可得到无品牌的页面。支持链接只接受浏览器应当打开的协议，例如 `https://…`、`tg://…` 或 `mailto:…`。
 - **更新**来自公共稳定通道。`row-template update` 总是应用最新的稳定版本，即使你已安装的就是该版本；管理器中的 **Update** 会先比较版本，并在做出任何更改前询问。如果无法访问发布源，则不会做任何更改，你的安装也绝不会因此被视为已损坏。
+- **从 1.1.0 更新**只需运行一次 `row-template update`。1.1.0 自带的更新程序只会复制新版本的一部分，因此下一次以 root 运行 `row-template`、`row-template config` 或 `row-template verify` 时，会先下载同一版本的其余部分——所有设计，并校验 checksum。
 - **回滚**会从经过验证的备份中恢复之前的版本。系统会先为当前版本创建快照（snapshot），因此失败的回滚也可以恢复，且你的品牌配置会被保留。
 - **卸载**会移除 Row-Template 的文件。只有当面板的 `subThemeDir` 指向 Row-Template 时才会将其清除，使面板恢复内置页面；你的入站（inbound）、客户端和证书都不会受到影响。
 

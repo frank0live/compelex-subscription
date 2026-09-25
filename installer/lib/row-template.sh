@@ -444,11 +444,152 @@ rt_stage_template_store() {
     want="$(LC_ALL=C awk '{print $1; exit}' "$dir/template.html.sha256")"
     rt_verify_sha256 "$dir/template.html" "$want" || { rt_err "payload template $id failed its checksum"; return 1; }
     rt_validate_template "$dir/template.html" || { rt_err "payload template $id failed structural validation"; return 1; }
+    rt_assert_not_symlink "$RT_TEMPLATE_STORE/$id" || return 1
     mkdir -p "$RT_TEMPLATE_STORE/$id" || return 1
     rt_atomic_install "$dir/template.html" "$RT_TEMPLATE_STORE/$id/template.html" 644 || return 1
     rt_atomic_install "$dir/template.html.sha256" "$RT_TEMPLATE_STORE/$id/template.html.sha256" 644 || return 1
   done
   return 0
+}
+
+# --- template store self-healing ---------------------------------------------
+# Every reader above looks in ONE place, RT_TEMPLATE_STORE. A store anywhere
+# else is invisible, and the manager then reports that no design is installed
+# while the files sit one directory away. Two states lead there on real hosts:
+#
+#   ABSENT     v1.1.0's updater installs this library but copies only four
+#              files, so no design arrives with it (rt_complete_install).
+#   MISPLACED  a release payload lays its designs out at templates/<id>/; a
+#              payload copied or extracted over the install root leaves them
+#              at $RT_ROOT/templates, beside dist/ instead of inside it.
+#
+# rt_repair_template_store heals from what the host already has; install,
+# update and verify all run it, so a path mistake is repaired by whichever
+# command meets it first and no operator has to move a file by hand.
+
+# Where a store has been found outside its home, relative to RT_ROOT. A closed
+# list of fixed paths inside the install root, never derived from input.
+RT_TEMPLATE_STORE_MISPLACED="templates"
+
+rt_template_entry_ok() {
+  # 0 when DIR holds a design whose artifact matches its own sidecar. No
+  # symlinks: a linked directory or file could hand over bytes from outside the
+  # install root. Silent; callers report.
+  local d="$1" want
+  [ -d "$d" ] && [ ! -L "$d" ] || return 1
+  [ -f "$d/template.html" ] && [ ! -L "$d/template.html" ] || return 1
+  [ -f "$d/template.html.sha256" ] && [ ! -L "$d/template.html.sha256" ] || return 1
+  want="$(LC_ALL=C awk '{print $1; exit}' "$d/template.html.sha256" 2>/dev/null)"
+  rt_verify_sha256 "$d/template.html" "$want" >/dev/null 2>&1
+}
+
+rt_template_store_status() {
+  # echo ok | missing | corrupt for registry ID in the installed store.
+  # "missing" is a design with neither file; anything else short of a
+  # verifying pair (one file alone, a checksum mismatch, a symlink) is corrupt.
+  local id="$1" d
+  rt_template_allowed "$id" || return 1
+  d="$RT_TEMPLATE_STORE/$id"
+  if rt_template_entry_ok "$d"; then printf 'ok'; return 0; fi
+  if [ ! -e "$d/template.html" ] && [ ! -e "$d/template.html.sha256" ] && [ ! -L "$d" ]; then
+    printf 'missing'
+  else
+    printf 'corrupt'
+  fi
+}
+
+rt_template_store_missing() {
+  # echo the registry ids the store cannot supply (missing or corrupt), one per
+  # line, in catalogue order. Empty output means the store is complete.
+  local id
+  for id in $RT_TEMPLATES_AVAILABLE; do
+    [ "$(rt_template_store_status "$id")" = "ok" ] || printf '%s\n' "$id"
+  done
+  return 0
+}
+
+rt_template_store_retire() {
+  # remove a misplaced store's copy of every design the canonical store now
+  # supplies. Only the two files a design consists of are removed, only for
+  # registry ids, and only through real directories; a directory is then
+  # removed only if that left it empty. Anything else -- a foreign file, an
+  # unknown id, a copy of a design the store still lacks -- stays where it is.
+  local src="$1" id
+  for id in $RT_TEMPLATES_AVAILABLE; do
+    [ -d "$src/$id" ] && [ ! -L "$src/$id" ] || continue
+    [ "$(rt_template_store_status "$id")" = "ok" ] || continue
+    rm -f -- "$src/$id/template.html" "$src/$id/template.html.sha256"
+    rmdir -- "$src/$id" 2>/dev/null || true
+  done
+  rmdir -- "$src" 2>/dev/null || true
+}
+
+rt_repair_template_store() {
+  # Make RT_TEMPLATE_STORE hold a verified copy of every design this release
+  # offers, from the sources on hand, in order of authority:
+  #
+  #   1. PAYLOAD's templates/, when given: a release that already passed its
+  #      checksum. rt_stage_template_store verifies and installs every design.
+  #   2. a misplaced store inside the install root: a design the store cannot
+  #      supply is taken from it only when that copy matches its own checksum
+  #      and passes the structural gate; a copy that does not is reported and
+  #      left in place.
+  #
+  # A misplaced copy is retired once the store covers its design, so the tree
+  # is left with one store, not two. Backups, config.env, the canonical
+  # artifact and the live page are never touched: this only fills the store.
+  #
+  # Returns 0 when the store is complete, 2 when designs are still missing (the
+  # caller decides whether that matters: an older payload carries no store at
+  # all), and 1 when the payload fails verification or a write fails.
+  local payload="${1:-}" rel src id moved warned
+  if [ -L "$RT_TEMPLATE_STORE" ] || [ -L "$(dirname "$RT_TEMPLATE_STORE")" ]; then
+    rt_err "the template store path is a symlink; refusing to repair it: $RT_TEMPLATE_STORE"
+    return 1
+  fi
+  if [ -e "$RT_TEMPLATE_STORE" ] && [ ! -d "$RT_TEMPLATE_STORE" ]; then
+    rt_err "the template store path is not a directory: $RT_TEMPLATE_STORE"
+    return 1
+  fi
+
+  if [ -n "$payload" ]; then
+    rt_stage_template_store "$payload" || return 1
+  fi
+
+  for rel in $RT_TEMPLATE_STORE_MISPLACED; do
+    src="$RT_ROOT/$rel"
+    [ -e "$src" ] || [ -L "$src" ] || continue
+    if [ -L "$src" ] || [ ! -d "$src" ]; then
+      rt_warn "not reading templates from $src: it is not a plain directory."
+      continue
+    fi
+    moved=0; warned=0
+    for id in $RT_TEMPLATES_AVAILABLE; do
+      [ -e "$src/$id" ] || [ -L "$src/$id" ] || continue
+      [ "$(rt_template_store_status "$id")" = "ok" ] && continue
+      if ! rt_template_entry_ok "$src/$id" \
+         || ! rt_validate_template "$src/$id/template.html" >/dev/null 2>&1; then
+        rt_warn "the copy of design '$id' in $src fails its checksum or structural check; it was not moved."
+        warned=1
+        continue
+      fi
+      rt_assert_not_symlink "$RT_TEMPLATE_STORE/$id" || return 1
+      mkdir -p "$RT_TEMPLATE_STORE/$id" || return 1
+      rt_atomic_install "$src/$id/template.html" "$RT_TEMPLATE_STORE/$id/template.html" 644 || return 1
+      rt_atomic_install "$src/$id/template.html.sha256" "$RT_TEMPLATE_STORE/$id/template.html.sha256" 644 || return 1
+      moved=$((moved + 1))
+    done
+    rt_template_store_retire "$src"
+    if [ "$moved" -gt 0 ]; then
+      rt_ok "Template store: moved $moved design(s) from $src to $RT_TEMPLATE_STORE."
+    fi
+    if [ -e "$src" ] && [ "$warned" -eq 0 ]; then
+      rt_warn "left $src in place: it holds files Row-Template does not recognise."
+    fi
+  done
+
+  [ -z "$(rt_template_store_missing)" ] && return 0
+  return 2
 }
 
 rt_switch_template() {
@@ -2127,6 +2268,91 @@ rt_remote_version() {
   printf '%s' "$v"
 }
 
+rt_release_url_for_version() {
+  # echo the default channel's address for exactly VERSION: GitHub serves a
+  # tag's assets at releases/download/v<version>, where releases/latest/download
+  # would serve whatever is newest. A default channel that is not GitHub's
+  # latest-release address is returned unchanged.
+  local ver="$1" base="${RT_DEFAULT_RELEASE_URL%/}"
+  case "$base" in
+    */releases/latest/download) printf '%s/releases/download/v%s' "${base%/releases/latest/download}" "$ver" ;;
+    *) printf '%s' "$base" ;;
+  esac
+}
+
+rt_complete_install() {
+  # Complete an install that is short of what its own version ships: designs
+  # missing from the template store, or the library's companions. v1.1.0's
+  # updater leaves exactly that (it copies four files), and it is what made
+  # 1.2.0 need a second `row-template update`. The manager and `config` call
+  # this on start, so the first run of the new code finishes the job instead.
+  #
+  #   1. from the host: rt_repair_template_store (a misplaced store). No network.
+  #   2. only if something is still missing: a verified download of the
+  #      INSTALLED version -- the same release, never a newer one. An explicit
+  #      RT_RELEASE_DIR / RT_RELEASE_URL is used as given; the default channel
+  #      is pinned to the installed tag. A payload of any other version is
+  #      refused: installing it would be an update, which is `update`'s job.
+  #
+  # Only the store and the companions are written. The canonical artifact, the
+  # live page, config.env, the selection and every backup are left untouched.
+  # Quiet when there is nothing to do. 0 = complete, 1 = still incomplete
+  # (reported), which callers treat as a warning, never a reason to stop.
+  local rc=0 ver work payload pver n
+  [ -f "$RT_DIST" ] && [ -w "$RT_ROOT" ] || return 0
+  rt_repair_template_store || rc=$?
+  [ "$rc" -eq 1 ] && return 1
+  if [ "$rc" -eq 0 ] && rt_installer_complete; then return 0; fi
+
+  ver="$(rt_trim "$(cat "$RT_VERSION_FILE" 2>/dev/null || true)")"
+  case "$ver" in
+    [0-9]*) case "$ver" in *[!A-Za-z0-9.+-]*) ver="" ;; esac ;;
+    *) ver="" ;;
+  esac
+  if [ -z "$ver" ]; then
+    rt_warn "this installation is incomplete and its version is unknown; run 'row-template update' to repair it."
+    return 1
+  fi
+  rt_info "Completing the Row-Template $ver installation (designs and installer files)..."
+  work="$(rt_mktemp_dir)" || return 1
+  RT_TMP_TO_CLEAN+=("$work")   # register in THIS shell (see rt_mktemp_dir)
+  if [ -n "${RT_RELEASE_DIR:-}" ] || [ -n "${RT_RELEASE_URL:-}" ]; then
+    payload="$(rt_fetch_release "$work")" || payload=""
+  else
+    payload="$(RT_RELEASE_URL="$(rt_release_url_for_version "$ver")" rt_fetch_release "$work")" || payload=""
+  fi
+  if [ -z "$payload" ]; then
+    rm -rf -- "$work"
+    rt_warn "could not download Row-Template $ver to complete the installation. It will be retried the next time the manager opens; 'row-template update' also completes it."
+    return 1
+  fi
+  pver="$(rt_trim "$(cat "$payload/VERSION" 2>/dev/null || true)")"
+  if [ "$pver" != "$ver" ]; then
+    rm -rf -- "$work"
+    rt_warn "the release source offers ${pver:-an unknown version}, not the installed $ver; nothing was changed. Run 'row-template update' to update."
+    return 1
+  fi
+  if ! rt_payload_companions_ok "$payload"; then
+    rm -rf -- "$work"
+    return 1
+  fi
+  rc=0; rt_repair_template_store "$payload" || rc=$?
+  rt_install_companions "$payload" \
+    || rt_warn "could not install the management library's companions; run 'row-template update' to retry."
+  rm -rf -- "$work"
+  # load what was just installed, so this run already sees a complete install
+  rt_panels_load >/dev/null 2>&1 || true
+  rt_transaction_load >/dev/null 2>&1 || true
+
+  if [ "$rc" -eq 0 ] && rt_installer_complete; then
+    n="$(rt_template_offered | grep -c . || true)"
+    rt_ok "Installation completed: $n design(s) available."
+    return 0
+  fi
+  rt_warn "the installation is still incomplete; run 'row-template verify' for details."
+  return 1
+}
+
 rt_restore_from_backup() {
   # install the artifact recorded in backup DIR as the canonical artifact and
   # restore its VERSION. Admin branding in config.env is deliberately left
@@ -2240,8 +2466,11 @@ rt_cmd_install() {
       || rt_warn "could not install the row-template CLI to $RT_BIN."
   fi
 
-  # template store: every design this release ships, verified before staging.
-  rt_stage_template_store "$payload" \
+  # template store: every design this release ships, verified before staging,
+  # and any store a previous path mistake left outside dist/templates moved in.
+  local store_rc=0
+  rt_repair_template_store "$payload" || store_rc=$?
+  [ "$store_rc" -ne 1 ] \
     || rt_die "the release template store failed verification; nothing was activated."
 
   # the fresh-install design chooser (interactive only; defaults to Row).
@@ -2346,6 +2575,9 @@ rt_cmd_config() {
   rt_require_root
   [ -f "$RT_DIST" ] || rt_die "Row-Template is not installed (run the installer first)."
   rt_detect_xui || true
+  # A branding write reconciles the selection against the template store, so an
+  # install left without one (v1.1.0's updater) is completed first.
+  rt_complete_install || true
   local saved="" distbak="" sumbak=""
   if [ -f "$RT_CONFIG" ]; then
     saved="$(mktemp)" || rt_die "cannot create a temp file."
@@ -2376,8 +2608,10 @@ rt_cmd_config() {
 }
 
 # --- high-level flow: verify -------------------------------------------------
-# Read-only health report. Emits ok/warn/FAIL lines and returns non-zero only
-# when a hard check fails. Never changes anything and never prints secrets.
+# Health report. Emits ok/warn/FAIL lines and returns non-zero only when a hard
+# check fails. Never prints secrets. Its only writes heal the template store
+# (see rt_repair_template_store and rt_complete_install), and only when it can
+# write to the install root; run without root it changes nothing.
 
 rt_cmd_verify() {
   local fails=0 warns=0 perm cur rc r rv sel_id store_n
@@ -2393,18 +2627,52 @@ rt_cmd_verify() {
     else rt_err "canonical artifact missing checksum or does not match it."; fails=$((fails + 1)); fi
   else rt_err "canonical artifact missing or unreadable: $RT_DIST"; fails=$((fails + 1)); fi
 
+  # Before the store is judged it is healed, when verify can write (as root):
+  # a store left outside dist/templates is moved home, and designs or
+  # installer files the installed version ships but the host lacks (as v1.1.0's
+  # updater leaves it) are completed from that same release. These are the only
+  # writes verify makes; run without root it changes nothing and reports.
+  local repaired=0 repair_rc=0 rel id corrupt="" missing="" n_avail=0 n_missing=0
+  if [ -f "$RT_DIST" ] && [ -d "$RT_ROOT" ] && [ ! -L "$RT_ROOT" ] && [ -w "$RT_ROOT" ]; then
+    repaired=1
+    rt_repair_template_store || repair_rc=$?
+    [ "$repair_rc" -ne 1 ] || fails=$((fails + 1))
+    if [ "$repair_rc" -eq 2 ] || ! rt_installer_complete; then
+      rt_complete_install || true
+    fi
+  fi
+  for rel in $RT_TEMPLATE_STORE_MISPLACED; do
+    [ -e "$RT_ROOT/$rel" ] || [ -L "$RT_ROOT/$rel" ] || continue
+    if [ "$repaired" -eq 0 ]; then
+      rt_warn "templates were found outside the store at $RT_ROOT/$rel; run 'row-template verify' as root to move them."
+    fi
+    warns=$((warns + 1))
+  done
+
   # The template store is the release's own copy of every selectable design.
   # Every artifact in it must match its sidecar, the stored selection must be
   # present, and the canonical artifact must be the selection's own bytes —
   # a config.env that names one design while another is live is the one state
-  # this system must never report as healthy.
+  # this system must never report as healthy. Each design is checked by name,
+  # so a missing or damaged one is reported as itself.
   sel_id="$(rt_template_effective)"
   store_n=0; [ -d "$RT_TEMPLATE_STORE" ] && store_n="$(rt_template_store_ids | grep -c . || true)"
   if [ "$store_n" -gt 0 ]; then
-    if rt_template_verify_store; then
-      rt_ok "Template store verified ($store_n design(s))."
+    for id in $RT_TEMPLATES_AVAILABLE; do
+      n_avail=$((n_avail + 1))
+      case "$(rt_template_store_status "$id")" in
+        corrupt) corrupt="$corrupt $id" ;;
+        missing) missing="$missing $id"; n_missing=$((n_missing + 1)) ;;
+      esac
+    done
+    if [ -n "$corrupt" ]; then
+      rt_err "a template in the store does not match its checksum:$corrupt."; fails=$((fails + 1))
     else
-      rt_err "a template in the store does not match its checksum."; fails=$((fails + 1))
+      rt_ok "Template store verified ($store_n design(s))."
+    fi
+    if [ -n "$missing" ]; then
+      rt_warn "template store is incomplete ($((n_avail - n_missing)) of $n_avail designs); missing:$missing. Run 'row-template update' to restore them."
+      warns=$((warns + 1))
     fi
     if rt_template_store_has "$sel_id"; then
       rt_ok "Template: $(rt_template_display_name "$sel_id")"
@@ -2582,7 +2850,12 @@ rt_cmd_update() {
   # artifact so an OLDER installed library updating against this payload
   # degrades safely to Row; only the freshly staged library understands the
   # store, so the selection is resolved from it, never from the top-level file.
-  rt_stage_template_store "$payload" || rt_die "the release template store failed verification."
+  # A store a path mistake left outside dist/templates is moved in as well, so
+  # an update always ends with the one store the library reads. Designs still
+  # missing afterwards (a payload that ships no store) fall back below.
+  local store_rc=0
+  rt_repair_template_store "$payload" || store_rc=$?
+  [ "$store_rc" -ne 1 ] || rt_die "the release template store failed verification."
   picked="$(rt_template_effective)"
   if rt_template_store_has "$picked"; then
     source="$RT_TEMPLATE_STORE/$picked/template.html"
@@ -2693,7 +2966,8 @@ Commands:
   config      Change the service name, support URL or logo, then regenerate
   update      Download, verify and activate a newer release (checksum enforced)
   rollback    Restore a previous version  [--auto | --to <backup-dir>]
-  verify      Check the install, panel wiring and live render (read-only)
+  verify      Check the install, panel wiring and live render (as root, also
+              restores missing or misplaced designs)
   version     Show installed, minimum-supported and detected 3x-ui versions
   uninstall   Remove Row-Template and revert the panel to its built-in page
   menu        Open the interactive manager explicitly
@@ -3071,12 +3345,19 @@ rt_reconfig_template() {
   local list=() id prev cur choice n=0 i
   cur="$(rt_template_effective)"
   printf '  %sCurrent template:%s %s\n' "$RT_C_DIM" "$RT_C_RST" "$(rt_template_display_name "$cur")"
+  # designs the store should hold but does not are restored before the list is
+  # drawn (the manager also does this when it opens; this retries it, e.g. once
+  # the network is back)
+  if [ -n "$(rt_template_store_missing)" ]; then
+    rt_complete_install || true
+  fi
   while IFS= read -r id; do
     list+=("$id")
   done < <(rt_template_offered)
   n="${#list[@]}"
   if [ "$n" -eq 0 ]; then
-    rt_ui_warn "No templates are installed. Re-run the installer to restore the template store."
+    rt_ui_warn "No templates are installed, and they could not be restored automatically (see above)."
+    rt_ui_info "Open this menu again once the release source is reachable, or run 'row-template update'."
     return 0
   fi
 
@@ -3147,6 +3428,9 @@ rt_manager_main() {
   rt_detect_xui >/dev/null 2>&1 || true
   rt_detect_xui_version >/dev/null 2>&1 || true
   rt_detect_xui_db >/dev/null 2>&1 || true
+  # The first run after v1.1.0's updater finishes that update here: every design
+  # and installer file of the installed version, before anything is offered.
+  rt_complete_install || true
   local choice
   while true; do
     rt_manager_dashboard

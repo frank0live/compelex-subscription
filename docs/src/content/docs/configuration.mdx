@@ -17,7 +17,7 @@ row-template
 | `row-template config` | Change the service name, support URL or logo, then regenerate | Yes — root |
 | `row-template update` | Download, verify and activate a newer release (checksum enforced) | Yes — root |
 | `row-template rollback` | Restore a previous version (`--auto` or `--to <backup-dir>`) | Yes — root |
-| `row-template verify` | Check the install, panel wiring and live render | **No** — read-only |
+| `row-template verify` | Check the install, panel wiring and live render | **No** — as root it only repairs the template store |
 | `row-template version` | Show installed, minimum-supported and detected 3X-UI versions | **No** — read-only |
 | `row-template uninstall` | Remove Row-Template and revert the panel to its built-in page | Yes — root |
 | `row-template menu` | Open the interactive manager explicitly | — |
@@ -44,8 +44,10 @@ detected on the server. Useful before reporting a problem.
 row-template verify
 ```
 
-Checks the installed artifact, the panel wiring and the live render. Read-only, so it is
-always safe to run.
+Checks the installed artifact, the panel wiring and the live render, and is always safe to
+run. As root it also repairs the template store — it moves designs left outside
+`dist/templates` back into place and downloads any the installed version is missing — and
+changes nothing else.
 
 ## Updating
 
@@ -59,6 +61,12 @@ is unreachable it reports that it could not check — your installation is never
 damaged.
 
 **Your branding configuration is preserved across updates.**
+
+**Updating from 1.1.0 takes one `row-template update`.** 1.1.0's own updater copies only part
+of the new release. The next time you open `row-template`, or run `row-template config` or
+`row-template verify` as root, it downloads the rest of that same release — every design,
+checksum-verified — before doing anything else. It never downloads a newer version, and it
+leaves your page, branding, selected design and backups as they are.
 
 ## Rolling back
 

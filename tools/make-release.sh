@@ -20,7 +20,7 @@
 #                                       # against, so it must stay Row
 #   templates/<id>/template.html        # every selectable design of this
 #   templates/<id>/template.html.sha256 # release, each with its checksum
-#   shells/<panel>/<id>/shell.html      # the assembled shell for each supported
+#   shells/<panel>/<id>/shell.html      # the assembled shell for each buildable
 #   shells/<panel>/<id>/shell.html.sha256  # panel, in that panel's own dialect
 #   VERSION  install.sh  lib/row-template.sh  bin/row-template
 #   lib/transaction.sh  panels/*.sh     # the library's companions: it sources
