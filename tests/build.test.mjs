@@ -986,6 +986,8 @@ const FROZEN_ARTIFACTS = [
   ['prismnova', 203226, 'c6eb485fdcf3fb66c5c705eb2f897b176c5fbc0c684b3ff624289714421708cd'],
   ['terminalnova', 203203, 'afd6ed22a69450915f87fb7dcdfa7b2f8ee47da65f3896ae57ad73d2e00b587a'],
   ['arcadenova', 203569, 'adb9b1088d8b3d492536cc883f53b806da54a5d2a2d749934fadf611964f450e'],
+  ['meter', 202571, '194ed2c361529fb0c399c36b724fe0b3053d6896e68d303b4a38429f4a872122'],
+  ['notebook', 203764, '5dd18cb6d7708e1b3ed50ab3186b84146c7a3b706567f2c6c45cfcb29034bda2'],
 ];
 
 for (const [id, bytes, sha] of FROZEN_ARTIFACTS) {
@@ -1002,14 +1004,88 @@ for (const [id, bytes, sha] of FROZEN_ARTIFACTS) {
   });
 }
 
+/* Meter and Notebook (1.3.0) are the two designs the project's author
+   contributed, ported onto the shared runtime. Each is held to exactly the
+   contract of the other fifteen: deterministic, whole, inside the refusal
+   point, every hook exactly once, and the runtime and locale island shared
+   byte for byte -- plus the reading order its design fixes, and no CSS
+   `order`, so the DOM order is the order a screen reader and a phone see. */
+for (const [id, sequence] of [
+  ['meter', ['brand-mark', 'state-pill', 'status-heading', 'traffic-trailing', 'traffic-value', 'bar-slot',
+    'expiry-value', 'copy-btn', 'qr-btn', 'connect', 'explorer', 'announce-slot', 'support-slot']],
+  ['notebook', ['brand-mark', 'state-pill', 'live-state', 'copy-btn', 'qr-btn', 'status-heading', 'traffic-value',
+    'bar-slot', 'expiry-value', 'connect', 'explorer', 'announce-slot', 'support-slot']],
+]) {
+  const art = build(true, id);
+
+  test(`the ${id} build is deterministic, whole and inside its budget`, () => {
+    const html = art.html;
+    const size = Buffer.byteLength(html, 'utf8');
+    assert.equal(build(true, id).html, html, 'same sources must produce the same bytes');
+    assert.ok(html.startsWith('<!doctype html>'));
+    assert.ok(html.trimEnd().endsWith('</html>'));
+    assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
+    assert.equal((html.match(/<style>/g) || []).length, 1);
+    assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
+    assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
+    assert.ok(size <= FAIL_BYTES, `${(size / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  });
+
+  test(`the ${id} layout satisfies the hook contract, shares the Row runtime, and reorders nothing in CSS`, () => {
+    assert.equal((art.html.match(new RegExp(`data-template="${id}"`, 'g')) || []).length, 1);
+    assert.equal(art.dataTemplate, id);
+    for (const hook of REQUIRED_HOOKS) {
+      assert.equal(art.html.split(`id="${hook}"`).length - 1, 1, `hook id="${hook}" must appear exactly once`);
+    }
+    const scriptBodies = (html) => [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    const islandOf = (html) =>
+      html.match(/<script type="application\/json" id="i18n-data">([\s\S]*?)<\/script>/)[1];
+    assert.deepEqual(scriptBodies(art.html), scriptBodies(withFont.html), 'boot and app scripts are shared byte for byte');
+    assert.equal(islandOf(art.html), islandOf(withFont.html), 'the locale island is shared byte for byte');
+
+    const style = art.html.slice(art.html.indexOf('<style>'), art.html.indexOf('</style>'));
+    assert.equal(/(^|[;{\s])order\s*:/.test(style), false, 'no CSS order: DOM order is the reading order');
+    assert.equal(/url\((?!"data:)/.test(style), false, 'no stylesheet reaches the network');
+    assert.equal(/@import/.test(style), false, 'no stylesheet imports another');
+
+    let previous = -1;
+    for (const hook of sequence) {
+      const at = art.html.indexOf(`id="${hook}"`);
+      assert.ok(at > previous, `#${hook} must follow the region before it in source order`);
+      previous = at;
+    }
+    const mainEnd = art.html.indexOf('</main>');
+    for (const hook of ['qr-dialog', 'config-dialog', 'toast']) {
+      assert.ok(art.html.indexOf(`id="${hook}"`) > mainEnd, `#${hook} must stay outside <main>`);
+    }
+  });
+
+  test(`the ${id} sources are LF, carry both themes, and keep every literal colour in tokens.css`, () => {
+    const dir = join(ROOT, 'src', 'templates', id);
+    for (const f of ['layout.html', 'tokens.css', 'base.css', 'layout.css', 'components.css', 'rtl.css']) {
+      assert.equal(readFileSync(join(dir, f)).includes(13), false, `${f} must be LF`);
+    }
+    const tokens = readFileSync(join(dir, 'tokens.css'), 'utf8');
+    assert.match(tokens, /\[data-theme="dark"\]/);
+    assert.match(tokens, /\[data-theme="light"\]/);
+    assert.match(tokens, /\/\* row:font-face \*\/[\s\S]*__FONT_BASE64__[\s\S]*\/\* row:font-face end \*\//);
+    assert.match(tokens, /\[lang="fa"\],\s*\[lang="ar"\]/);
+    for (const f of ['base.css', 'layout.css', 'components.css', 'rtl.css']) {
+      const css = readFileSync(join(dir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      assert.equal(/#[0-9a-fA-F]{3,8}\b(?![^(]*\))/.test(css.replace(/repeating-linear-gradient\([^;]*\)/g, '')), false,
+        `${f} must read colours from tokens.css`);
+    }
+  });
+}
+
 /* --- the frozen set and the template tier ---------------------------------
-   The frozen set is core-only. The FROZEN_ARTIFACTS table holds eleven of the
-   fifteen; the other four hold individual locks above. These assertions pin both
+   The frozen set is core-only. The FROZEN_ARTIFACTS table holds thirteen of the
+   seventeen; the other four hold individual locks above. These assertions pin both
    the membership and the size, so a future custom template can never enter the
    frozen set by accident. */
 const INDIVIDUALLY_LOCKED = ['row', 'editorial', 'canvas', 'pulsenova'];
 
-test('the frozen set is exactly the fifteen core templates, and a custom template can never enter it', () => {
+test('the frozen set is exactly the seventeen core templates, and a custom template can never enter it', () => {
   const tableIds = FROZEN_ARTIFACTS.map(([id]) => id);
   const frozen = [...tableIds, ...INDIVIDUALLY_LOCKED];
 
@@ -1026,8 +1102,8 @@ test('the frozen set is exactly the fifteen core templates, and a custom templat
     assert.equal(TEMPLATES[id].locked, true, `${id} is in the frozen set so it must be locked`);
   }
 
-  assert.equal(coreTemplateIds().length, 15, 'exactly fifteen core templates ship in this release');
-  assert.equal(lockedTemplateIds().length, 15, 'every core template is locked');
+  assert.equal(coreTemplateIds().length, 17, 'exactly seventeen core templates ship in this release');
+  assert.equal(lockedTemplateIds().length, 17, 'every core template is locked');
 
   /* Structural exclusion: the table is a literal array and the build reads only
      `styles` and `emitDataTemplate`, so no registry entry can add itself to the

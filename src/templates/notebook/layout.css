@@ -1,0 +1,80 @@
+/* The page skeleton. Placement only. */
+
+.page {
+  position: relative;
+  z-index: 1;
+  inline-size: 100%;
+  max-inline-size: var(--page-max);
+  margin-inline: auto;
+  padding: var(--sp-6) var(--sp-4) calc(var(--sp-7) * 2);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-block-end: var(--sp-5);
+}
+
+.topbar-controls {
+  display: flex;
+  gap: var(--sp-2);
+  flex: none;
+}
+
+#main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+
+/* Background doodles sit behind the page in the margins, never over text. */
+.doodles {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.doodle {
+  position: absolute;
+  inline-size: 48px;
+  block-size: 48px;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: var(--doodle-opacity);
+}
+
+.doodle-star {
+  inset-block-start: 72px;
+  inset-inline-start: 12px;
+  stroke: var(--yellow);
+}
+
+.doodle-spiral {
+  inset-block-end: 40px;
+  inset-inline-start: 16px;
+  stroke: var(--pink);
+}
+
+.doodle-squiggle {
+  inset-block-start: 38%;
+  inset-inline-end: -8px;
+  inline-size: 70px;
+  block-size: 40px;
+  stroke: var(--blue);
+}
+
+@media (max-width: 380px) {
+  .page { padding-inline: var(--sp-3); }
+  .actions { grid-template-columns: minmax(0, 1fr); }
+}

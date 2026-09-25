@@ -1,7 +1,7 @@
 # Custom Template Guidelines
 
 **Status:** binding contract for every future custom template.
-**Applies to:** any template added to this repository that is not one of the fifteen
+**Applies to:** any template added to this repository that is not one of the seventeen
 frozen core designs.
 **Companion documents:** `CUSTOM-TEMPLATES-PROPOSAL.md` (the design rationale and
 phased plan), `CONTRIBUTING.md` (the general contribution process),
@@ -85,14 +85,14 @@ behaviour and defaults a custom entry to unlocked"*.
 The gap between 15 and 200 is intentional: it leaves room for future core designs
 without a renumbering, and makes the two tiers distinguishable at a glance.
 
-**Checked by:** `tests/registry.test.mjs` — *"core templates keep order 1..15 and a
+**Checked by:** `tests/registry.test.mjs` — *"core templates keep order 1..17 and a
 custom template must use order >= 200"*, *"the selectable set is sorted by order…"*.
 
 ### 1.5 The frozen set
 
 The frozen set is **core-only**. `FROZEN_ARTIFACTS` in `tests/build.test.mjs` holds
-eleven of the fifteen; `row`, `editorial`, `canvas` and `pulsenova` hold individual
-lock tests. The union is exactly the fifteen core templates.
+thirteen of the seventeen; `row`, `editorial`, `canvas` and `pulsenova` hold individual
+lock tests. The union is exactly the seventeen core templates.
 
 > **A custom template MUST NOT appear in the frozen set.**
 
@@ -101,7 +101,7 @@ and the build reads only `styles` and `emitDataTemplate` off a registry entry, s
 entry can add itself to the frozen set. The test that pins this fails if a
 `tier: 'custom'` id ever appears there.
 
-**Checked by:** `tests/build.test.mjs` — *"the frozen set is exactly the fifteen core
+**Checked by:** `tests/build.test.mjs` — *"the frozen set is exactly the seventeen core
 templates, and a custom template can never enter it"*.
 
 ---
@@ -109,7 +109,7 @@ templates, and a custom template can never enter it"*.
 ## 2. Mandatory Runtime Contract
 
 Every custom template MUST satisfy the following. These are the same requirements
-the fifteen core templates satisfy; there is no reduced contract for custom work.
+the seventeen core templates satisfy; there is no reduced contract for custom work.
 
 | # | requirement | how it is checked |
 |---|---|---|
@@ -142,7 +142,7 @@ The artifact carries three `<script>` elements and no more:
 3. the application script.
 
 A fourth script means a template is carrying its own JavaScript. **That is not
-permitted.** The runtime is shared precisely so that fifteen — or fifty — templates
+permitted.** The runtime is shared precisely so that seventeen — or fifty — templates
 cannot each drift into their own dialect of the same behaviour.
 
 ### 2.8 Requesting a custom script
@@ -404,7 +404,7 @@ A custom template MUST NOT be accepted until all of the following pass.
 
 > **Adding a custom template MUST NOT change any core artifact by a single byte.**
 
-This is checked by comparing all fifteen core artifacts before and after. If one
+This is checked by comparing all seventeen core artifacts before and after. If one
 byte moves, the change is rejected and investigated — the custom template is
 additive by definition, and an additive change cannot alter a frozen artifact.
 
@@ -452,7 +452,7 @@ The first custom template MUST:
 4. **use `order >= 200`** — so it sorts after every core template;
 5. **declare `tier: 'custom'`** — and therefore be unlocked by default;
 6. **satisfy every requirement in this document** — sections 2 through 9;
-7. **leave all fifteen core artifacts byte-identical** — verified before and after.
+7. **leave all seventeen core artifacts byte-identical** — verified before and after.
 
 It SHOULD:
 
@@ -513,7 +513,7 @@ A custom template is accepted when every line below is true.
 - [ ] tolerates a missing logo
 
 **Regression**
-- [ ] all fifteen core artifacts byte-identical
+- [ ] all seventeen core artifacts byte-identical
 - [ ] build / registry / release / verify / fixtures all green
 
 ---

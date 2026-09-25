@@ -257,7 +257,7 @@ test('no fixture defers its expectation any longer', () => {
 
 /* --- nothing was rebuilt ------------------------------------------------- */
 
-test('the 15 artifacts are byte-identical to their committed locks', async () => {
+test('the 17 artifacts are byte-identical to their committed locks', async () => {
   const { build } = await import('../tools/build.mjs');
   const { templateIds } = await import('../tools/templates.mjs');
   const source = readFileSync(join(ROOT, 'tests', 'build.test.mjs'), 'utf8');
@@ -267,7 +267,7 @@ test('the 15 artifacts are byte-identical to their committed locks', async () =>
     const id = m[2] === 'Row' ? 'row' : m[2] === 'Pulse Nova' ? 'pulsenova' : m[2].toLowerCase();
     locked[id] = +m[1];
   }
-  assert.equal(Object.keys(locked).length, 15);
+  assert.equal(Object.keys(locked).length, 17);
   for (const id of templateIds()) {
     assert.equal(Buffer.byteLength(build(true, id).html, 'utf8'), locked[id], id + ' must not move');
   }

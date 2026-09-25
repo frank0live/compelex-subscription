@@ -12,9 +12,9 @@
     "width": 390,
     "height": 844
   },
-  "total": 30,
-  "totalBytes": 1089090,
-  "uniqueHashes": 30,
+  "total": 34,
+  "totalBytes": 1249830,
+  "uniqueHashes": 34,
   "entries": [
     {
       "id": "row",
@@ -285,6 +285,42 @@
       "height": 844,
       "bytes": 26344,
       "sha256": "aa03520c8e6fe569b914e314b6423f3a5260ae577e7487c37290693e6bdbceed"
+    },
+    {
+      "id": "meter",
+      "mode": "desktop",
+      "file": "previews/meter-desktop.webp",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 36592,
+      "sha256": "9ab246bb65df7a174868e580b87ce0ebd741bc495f5a2bcfce3dbe83ecdc4a79"
+    },
+    {
+      "id": "meter",
+      "mode": "mobile",
+      "file": "previews/meter-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "bytes": 24130,
+      "sha256": "3322efd50bca3cd85f1facacddf9fa43d1756cc1036b4c88d1461c60bfde9a9e"
+    },
+    {
+      "id": "notebook",
+      "mode": "desktop",
+      "file": "previews/notebook-desktop.webp",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 61470,
+      "sha256": "e3ecdae2e1cc14d98f8dc88715b9ef8bb8dc7af58ac774cb81ab5fd463e8a470"
+    },
+    {
+      "id": "notebook",
+      "mode": "mobile",
+      "file": "previews/notebook-mobile.webp",
+      "width": 390,
+      "height": 844,
+      "bytes": 38548,
+      "sha256": "a61ced85d05f64d22651e18448569fdf7f555703b079f7bf50ac4d95998025f8"
     }
   ]
 }
