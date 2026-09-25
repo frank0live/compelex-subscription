@@ -52,11 +52,40 @@ runtime change or a reverse proxy. That decision is deliberately deferred.
 
 ### Status
 
-| Panel | Status |
-|---|---|
-| 3X-UI | **Supported** |
-| PasarGuard | Research — not supported, no install instructions |
-| Rebecca | Research — not supported, no install instructions |
+What the installer can do on each panel today. The table is checked against the installer
+by the test suite (`tests/panel-support.test.mjs`), so it cannot claim more than the code
+does.
+
+| Panel | Detection | Install | Activation | Verification | Backup & rollback | Page shell | Status |
+|---|---|---|---|---|---|---|---|
+| 3X-UI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **Supported** |
+| PasarGuard | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | Research — not supported, no install instructions |
+| Rebecca | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | Research — not supported, no install instructions |
+
+On a server with PasarGuard or Rebecca and no 3X-UI, the installer stops with
+`no 3x-ui installation was detected on this host` and changes nothing.
+
+#### What exists for PasarGuard and Rebecca
+
+- **A page shell for every design**, in the panel's own template language (Jinja2 for
+  PasarGuard, pongo2 for Rebecca). Every release builds and ships them under `shells/`.
+  The installer does not place them.
+- **Data adapters** that map each panel's subscription data onto the fields the page
+  uses, tested against sample responses written from each panel's source code — not
+  captured from a running panel.
+- **Rendering tests** that fill each shell with that data. They use a small test renderer
+  that understands only the syntax the shells use; no shell has yet been rendered by a
+  real PasarGuard or Rebecca server.
+
+#### What is missing before either can be supported
+
+- An installer adapter: detecting the panel, its configuration and its service.
+- Placing the shell where the panel loads templates, switching the panel to it, and
+  verifying and rolling back that change.
+- Live status, which both panels serve on a path suffix (see above).
+- The `on_hold` subscription state. Both panels have it, and the page has no way to show
+  it yet, so the adapters refuse it.
+- A test on a real server of each panel.
 
 ## Next
 

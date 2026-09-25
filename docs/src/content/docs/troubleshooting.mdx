@@ -120,6 +120,38 @@ revert the change. **A lock update is a reviewed event, not a formality.**
 
 ## Update and rollback
 
+### `No templates are installed` (Reconfigure branding → Template)
+
+**What it means.** The manager found no designs in the template store, `dist/templates/`
+under the install root.
+
+**Causes.** An update from 1.1.0: 1.1.0's own updater copies only part of the new release.
+Since 1.2.1 the manager downloads the missing designs itself when it opens, so this appears
+only when that download failed; the message above it says why.
+
+**Fix.** Make sure the server can reach the release source, then open the menu again, or run
+`row-template update`.
+
+---
+
+### `template store is incomplete (<n> of <total> designs); missing: …`
+
+**What it means.** `row-template verify` found designs missing from the store. Every
+installed design still works; the missing ones are not offered in the manager.
+
+**Fix.** Run `row-template verify` as root with the release source reachable, or run
+`row-template update`.
+
+---
+
+### `Template store: moved <n> design(s) from …/templates to …/dist/templates`
+
+**What it means.** Designs were found in a `templates/` folder at the install root — where a
+copied or extracted release leaves them — instead of in `dist/templates/`. Each one passed
+its checksum and was moved into place. There is nothing to do.
+
+---
+
 ### `refusing to roll back from a path outside the backups tree`
 
 **What it means.** The rollback was asked to restore from a directory that is not a
