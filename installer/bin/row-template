@@ -9,8 +9,17 @@
 
 set -Eeuo pipefail
 
-# The install root is fixed at install time; RT_ROOT may be overridden in the
-# environment for testing. The library reads the same variable.
+# The install root is decided at install time by the panel: 3X-UI installs live
+# at /etc/3x-ui/sub_templates/row-template (every release), PasarGuard and
+# Rebecca installs at /etc/row-template (1.3.0+). The launcher uses whichever
+# one holds a management library. RT_ROOT may be overridden in the environment
+# for testing; the library reads the same variable.
+if [ -z "${RT_ROOT:-}" ]; then
+  for rt_candidate in /etc/3x-ui/sub_templates/row-template /etc/row-template; do
+    if [ -r "$rt_candidate/lib/row-template.sh" ]; then RT_ROOT="$rt_candidate"; break; fi
+  done
+  unset rt_candidate
+fi
 RT_ROOT="${RT_ROOT:-/etc/3x-ui/sub_templates/row-template}"
 RT_LIB="${RT_LIB_OVERRIDE:-$RT_ROOT/lib/row-template.sh}"
 

@@ -65,6 +65,17 @@ test('json escape neutralises a </script> breakout without touching data', () =>
   assert.equal(sh('rt_json_escape "a & b > c"').out, 'a & b > c');
 });
 
+test('json escape leaves no brace, so branding can never form a template delimiter', () => {
+  /* The page is parsed as a template on every panel: Go on 3X-UI, Jinja2 on
+     PasarGuard (unsandboxed: a delimiter there is code execution), pongo2 on
+     Rebecca. Every { and } becomes a JavaScript escape of itself. */
+  for (const name of ['{{ config }}', '{% endautoescape %}{{ 7*7 }}', '{# c #}', '{{ .subTitle }}', '}}{{']) {
+    const out = sh(`rt_json_escape ${JSON.stringify(name)}`).out;
+    assert.equal(/[{}]/.test(out), false, `${name} -> ${out}`);
+    assert.equal(JSON.parse(`"${out}"`), name, 'and JavaScript reads back exactly the original text');
+  }
+});
+
 test('support URL validation accepts only frontend-renderable schemes', () => {
   for (const u of ['https://t.me/x', 'http://a.b', 'tg://resolve?domain=x', 'mailto:a@b.c']) {
     assert.ok(ok(`rt_validate_support_url ${JSON.stringify(u)}`), u);

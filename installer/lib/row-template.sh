@@ -24,11 +24,26 @@
 
 RT_NAME="row-template"
 
-# The Row-Template install root. Deliberately under /etc/3x-ui (created and
-# owned by us) and NOT under the panel's config root, which may be /etc/x-ui.
-# subThemeDir is an absolute path, so the two are independent. Overridable for
-# tests via RT_ROOT in the environment.
-: "${RT_ROOT:=/etc/3x-ui/sub_templates/row-template}"
+# The Row-Template install root, per panel:
+#
+#   3X-UI              /etc/3x-ui/sub_templates/row-template (every release)
+#   PasarGuard/Rebecca /etc/row-template                      (1.3.0+)
+#
+# 3X-UI's root is deliberately under /etc/3x-ui (created and owned by us) and
+# NOT under the panel's config root, which may be /etc/x-ui; subThemeDir is an
+# absolute path, so the two are independent. It never moves: every 3X-UI host
+# since 1.0.0 has its install, its subThemeDir and its CLI pointed there. The
+# other panels get a neutral root rather than a directory named after a panel
+# the host does not run; their page is placed into the panel's own template
+# directory by that panel's adapter. The installer picks the root once it knows
+# the panel (rt_root_set); the CLI finds whichever one is installed.
+#
+# RT_ROOT in the environment overrides both (tests, unusual layouts), and an
+# explicit RT_ROOT is never moved.
+RT_ROOT_3XUI="/etc/3x-ui/sub_templates/row-template"
+RT_ROOT_SHARED="/etc/row-template"
+if [ -n "${RT_ROOT:-}" ]; then RT_ROOT_EXPLICIT=1; else RT_ROOT_EXPLICIT=""; fi
+: "${RT_ROOT:=$RT_ROOT_3XUI}"
 : "${RT_BIN:=/usr/local/bin/row-template}"
 RT_MIN_XUI="3.6.0"
 
@@ -53,18 +68,30 @@ RT_GITHUB="https://github.com/frank0live/Row-Template"
 # override this (tests, local staging) and take precedence when set.
 : "${RT_DEFAULT_RELEASE_URL:=$RT_GITHUB/releases/latest/download}"
 
-# Derived layout.
-RT_LIVE="$RT_ROOT/sub.html"                 # what x-ui serves (generated)
-RT_DIST="$RT_ROOT/dist/template.html"       # canonical pristine artifact
-RT_DIST_SUM="$RT_ROOT/dist/template.html.sha256"
-RT_TEMPLATE_STORE="$RT_ROOT/dist/templates" # one verified artifact per selectable design
-RT_CONFIG="$RT_ROOT/config.env"             # admin branding config (data)
-RT_VERSION_FILE="$RT_ROOT/VERSION"
-RT_LIB_DIR="$RT_ROOT/lib"
-RT_BACKUPS="$RT_ROOT/backups"
-RT_BACKUPS_V2="$RT_ROOT/backups.v2"           # format-2 snapshots (P2 only)
-RT_PANEL_STAGE="$RT_ROOT/.panel-stage"        # where an adapter stages panel state (P2)
-RT_PANELS_DIR="$RT_ROOT/panels"               # the panel interface layer, beside lib/
+# Derived layout. Recomputed by rt_root_set whenever the root changes.
+rt_layout_derive() {
+  RT_LIVE="$RT_ROOT/sub.html"                 # the generated page (3X-UI serves it from here)
+  RT_DIST="$RT_ROOT/dist/template.html"       # canonical pristine artifact
+  RT_DIST_SUM="$RT_ROOT/dist/template.html.sha256"
+  RT_TEMPLATE_STORE="$RT_ROOT/dist/templates" # one verified artifact per selectable design
+  RT_CONFIG="$RT_ROOT/config.env"             # admin branding config (data)
+  RT_VERSION_FILE="$RT_ROOT/VERSION"
+  RT_LIB_DIR="$RT_ROOT/lib"
+  RT_BACKUPS="$RT_ROOT/backups"
+  RT_BACKUPS_V2="$RT_ROOT/backups.v2"         # format-2 snapshots
+  RT_PANEL_STAGE="$RT_ROOT/.panel-stage"      # where an adapter stages panel state (P2)
+  RT_PANELS_DIR="$RT_ROOT/panels"             # the panel interface layer, beside lib/
+  RT_PANEL_FILE="$RT_ROOT/PANEL"              # which panel this install serves (1.3.0+)
+  RT_PANEL_ACTIVATION="$RT_ROOT/panel-activation" # the snapshot taken before first activation
+}
+rt_layout_derive
+
+rt_root_set() {
+  # Move this process to install root DIR and re-derive every path from it.
+  # Nothing on disk is touched; this only decides where later steps look.
+  RT_ROOT="$1"
+  rt_layout_derive
+}
 
 # The management library's companions: the files it sources at load time
 # (rt_panels_load, rt_transaction_load), as paths relative to a release payload
@@ -73,7 +100,7 @@ RT_PANELS_DIR="$RT_ROOT/panels"               # the panel interface layer, besid
 # it back from the payload's own library (rt_payload_companions). Both read the
 # line as text, which is why it is never expanded in this file.
 # shellcheck disable=SC2034
-RT_INSTALLER_COMPANIONS="lib/transaction.sh panels/3xui.sh panels/index.sh panels/interface.sh"
+RT_INSTALLER_COMPANIONS="lib/transaction.sh panels/3xui.sh panels/index.sh panels/interface.sh panels/pasarguard.sh panels/rebecca.sh"
 
 # Limits.
 RT_LOGO_MAX_BYTES=$((256 * 1024))           # raw image cap before base64
@@ -143,8 +170,59 @@ rt_json_escape() {
   # backslash, double-quote and '<' (so a literal </script> can never form in
   # the injected branding block). Control chars must be rejected by the caller.
   # LC_ALL=C keeps sed byte-oriented; UTF-8 trail bytes (>=0x80) never collide
-  # with the ASCII bytes \ " < being rewritten.
-  printf '%s' "$1" | LC_ALL=C sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/</\\u003c/g'
+  # with the ASCII bytes \ " < { } being rewritten.
+  #
+  # '{' and '}' are escaped too ({, } -- the same string to
+  # JavaScript). The page is itself a TEMPLATE on every panel: Go's
+  # html/template on 3X-UI, Jinja2 on PasarGuard, pongo2 on Rebecca, and all of
+  # them parse the branding block along with the rest of the file. A service
+  # name such as "{{ config }}" or "{% endautoescape %}" must never become a
+  # template delimiter -- on PasarGuard's unsandboxed Jinja2 that would be code
+  # execution on the panel -- and with no brace left, none can form.
+  printf '%s' "$1" | LC_ALL=C sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/</\\u003c/g' \
+    -e 's/{/\\u007b/g' -e 's/}/\\u007d/g'
+}
+
+rt_dotenv_get() {
+  # rt_dotenv_get FILE KEY [SKIP_OPEN SKIP_CLOSE]
+  #
+  # Echo KEY's value from a dotenv FILE the way dotenv readers take it
+  # (python-dotenv, Docker Compose): the LAST assignment wins; `export` and
+  # spaces around `=` are allowed; a quoted value ends at its closing quote;
+  # an unquoted one ends at ` #`. Lines between a line starting with
+  # SKIP_OPEN and a line equal to SKIP_CLOSE are ignored, when given.
+  #
+  # Read as DATA: nothing is sourced or evaluated, and nothing is printed but
+  # the one value. Exit 0 with the value (possibly empty) when KEY is assigned,
+  # 3 when it is not, 1 when FILE cannot be read.
+  local file="$1" key="$2"
+  [ -f "$file" ] && [ -r "$file" ] || return 1
+  RT_K="$key" RT_BO="${3:-}" RT_BC="${4:-}" LC_ALL=C awk '
+    BEGIN { want = ENVIRON["RT_K"]; bo = ENVIRON["RT_BO"]; bc = ENVIRON["RT_BC"]; inb = 0; found = 0 }
+    {
+      line = $0; sub(/\r$/, "", line)
+      if (bo != "" && index(line, bo) == 1) { inb = 1; next }
+      if (bc != "" && line == bc) { inb = 0; next }
+      if (inb) next
+      s = line; sub(/^[ \t]+/, "", s)
+      if (s == "" || substr(s, 1, 1) == "#") next
+      if (substr(s, 1, 7) == "export ") { s = substr(s, 8); sub(/^[ \t]+/, "", s) }
+      eq = index(s, "="); if (eq == 0) next
+      k = substr(s, 1, eq - 1); sub(/[ \t]+$/, "", k)
+      if (k != want) next
+      v = substr(s, eq + 1); sub(/^[ \t]+/, "", v)
+      q = substr(v, 1, 1)
+      if (q == "\"" || q == "\047") {
+        rest = substr(v, 2); e = index(rest, q)
+        v = (e > 0) ? substr(rest, 1, e - 1) : rest
+      } else {
+        c = index(v, " #"); if (c > 0) v = substr(v, 1, c - 1)
+        sub(/[ \t]+$/, "", v)
+      }
+      val = v; found = 1
+    }
+    END { if (found) { printf "%s", val; exit 0 } exit 3 }
+  ' "$file"
 }
 
 # --- input validation --------------------------------------------------------
@@ -431,23 +509,35 @@ rt_stage_template_store() {
   # anything is staged. A payload without a templates/ directory (an older
   # release) simply carries no store; that is the caller's signal to fall back
   # to the top-level artifact.
-  local payload="$1" dir id want
-  [ -d "$payload/templates" ] || return 0
-  for dir in "$payload"/templates/*/; do
+  #
+  # The designs come from the payload subtree of the panel this install serves
+  # (rt_payload_store): templates/<id>/template.html for 3X-UI, and
+  # shells/<panel>/<id>/shell.html for PasarGuard and Rebecca. Either way they
+  # land in the store under the same name, so everything after staging is
+  # panel-agnostic. Every artifact must also fit the panel
+  # (rt_artifact_fits_panel) -- a store must never hold a page the panel
+  # cannot render safely.
+  local payload="$1" dir id want spec sub name sidecar
+  spec="$(rt_payload_store)"; sub="${spec%%|*}"; name="${spec#*|}"
+  [ -d "$payload/$sub" ] || return 0
+  for dir in "$payload/$sub"/*/; do
     [ -d "$dir" ] || continue
     id="$(basename "$dir")"
     case "$id" in
       *[!a-z0-9]*|"") rt_warn "payload template directory is not a plain id: $id (skipped)"; continue ;;
     esac
-    [ -f "$dir/template.html" ] || { rt_warn "payload template $id has no template.html (skipped)"; continue; }
-    [ -f "$dir/template.html.sha256" ] || { rt_err "payload template $id has no checksum sidecar"; return 1; }
-    want="$(LC_ALL=C awk '{print $1; exit}' "$dir/template.html.sha256")"
-    rt_verify_sha256 "$dir/template.html" "$want" || { rt_err "payload template $id failed its checksum"; return 1; }
-    rt_validate_template "$dir/template.html" || { rt_err "payload template $id failed structural validation"; return 1; }
+    [ -f "$dir/$name" ] || { rt_warn "payload template $id has no $name (skipped)"; continue; }
+    sidecar="$dir/$name.sha256"
+    [ -f "$sidecar" ] || { rt_err "payload template $id has no checksum sidecar"; return 1; }
+    want="$(LC_ALL=C awk '{print $1; exit}' "$sidecar")"
+    rt_verify_sha256 "$dir/$name" "$want" || { rt_err "payload template $id failed its checksum"; return 1; }
+    rt_validate_template "$dir/$name" || { rt_err "payload template $id failed structural validation"; return 1; }
+    rt_artifact_fits_panel "$dir/$name" \
+      || { rt_err "payload template $id is not a $(rt_panel_label "$(rt_panel_current)") page"; return 1; }
     rt_assert_not_symlink "$RT_TEMPLATE_STORE/$id" || return 1
     mkdir -p "$RT_TEMPLATE_STORE/$id" || return 1
-    rt_atomic_install "$dir/template.html" "$RT_TEMPLATE_STORE/$id/template.html" 644 || return 1
-    rt_atomic_install "$dir/template.html.sha256" "$RT_TEMPLATE_STORE/$id/template.html.sha256" 644 || return 1
+    rt_atomic_install "$dir/$name" "$RT_TEMPLATE_STORE/$id/template.html" 644 || return 1
+    rt_atomic_install "$sidecar" "$RT_TEMPLATE_STORE/$id/template.html.sha256" 644 || return 1
   done
   return 0
 }
@@ -568,7 +658,8 @@ rt_repair_template_store() {
       [ -e "$src/$id" ] || [ -L "$src/$id" ] || continue
       [ "$(rt_template_store_status "$id")" = "ok" ] && continue
       if ! rt_template_entry_ok "$src/$id" \
-         || ! rt_validate_template "$src/$id/template.html" >/dev/null 2>&1; then
+         || ! rt_validate_template "$src/$id/template.html" >/dev/null 2>&1 \
+         || ! rt_artifact_fits_panel "$src/$id/template.html"; then
         rt_warn "the copy of design '$id' in $src fails its checksum or structural check; it was not moved."
         warned=1
         continue
@@ -966,6 +1057,9 @@ rt_backup_create() {
   local tpl_id
   tpl_id="$(rt_template_id_for_artifact "$RT_DIST")"
   [ -n "$tpl_id" ] && printf 'template=%s\n' "$tpl_id" >> "$dir/meta"
+  # the panel the artifact was made for (1.3.0+); a backup without it is 3X-UI.
+  # Unlike template=, this one IS read: a restore refuses another panel's backup.
+  printf 'panel=%s\n' "$(rt_panel_current)" >> "$dir/meta"
   chmod 700 "$dir" 2>/dev/null || true
   [ -f "$dir/config.env" ] && chmod 640 "$dir/config.env" 2>/dev/null || true
   printf '%s' "$dir"
@@ -1364,6 +1458,9 @@ rt_backup_snapshot_check() {
     rt_backup_panel_state "$dir" "$p" >/dev/null || return 1
     rt_backup_panel_meta_check "$dir" "$p" || return 1
     rt_backup_panel_files "$dir" "$p" >/dev/null || return 1
+    if [ -e "$dir/panels/$p/aux" ] || [ -L "$dir/panels/$p/aux" ]; then
+      rt_backup_panel_aux_check "$dir/panels/$p/aux" || return 1
+    fi
   done
   return 0
 }
@@ -1507,6 +1604,72 @@ rt_backup_panel_write() {
   return 0
 }
 
+# --- the aux record (1.3.0) ---------------------------------------------------
+# A panel may need more than one setting recorded to be restored exactly --
+# Rebecca selects its page by TWO columns, and one of them distinguishes NULL
+# from ''. `selection` stays the panel's primary selection, unchanged; `aux`
+# is an OPTIONAL file beside it holding further values:
+#
+#     <key>=<base64 of the value>        one per line, LC_ALL=C sorted
+#
+# Keys are a closed grammar ([a-z_], 1-32 chars) and values are base64, so no
+# value can break a line or be read as anything but data. A missing key reads
+# as the empty string. A snapshot without `aux` is exactly a pre-1.3.0 one, and
+# every reader accepts it; a present `aux` must be well formed or the snapshot
+# is refused (rt_backup_snapshot_check).
+
+rt_backup_panel_aux_key_ok() {
+  case "${1:-}" in ''|*[!a-z_]*) return 1 ;; esac
+  [ "${#1}" -le 32 ]
+}
+
+rt_backup_panel_aux_check() {
+  # 0 when FILE is a well-formed aux record: key=base64 lines, unique keys.
+  local f="$1" line key seen=""
+  [ -L "$f" ] && return 1
+  [ -f "$f" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    key="${line%%=*}"
+    [ "$key" != "$line" ] || return 1
+    rt_backup_panel_aux_key_ok "$key" || return 1
+    case "${line#*=}" in *[!A-Za-z0-9+/=]*) return 1 ;; esac
+    case ",$seen," in *",$key,"*) return 1 ;; esac
+    seen="${seen:+$seen,}$key"
+  done < "$f"
+  return 0
+}
+
+rt_backup_panel_aux_set() {
+  # rt_backup_panel_aux_set STAGE PANEL KEY VALUE -- record VALUE under KEY for
+  # a panel already staged by rt_backup_panel_write. Replaces an earlier value.
+  local stage="${1:-}" panel="${2:-}" key="${3:-}" value="${4:-}" d f tmp
+  rt_panel_id_ok "$panel" || { rt_err "aux: unknown panel id: $panel"; return 1; }
+  rt_backup_panel_aux_key_ok "$key" || { rt_err "aux: not a legal key: $key"; return 1; }
+  d="$stage/$panel"
+  [ -d "$d" ] && [ ! -L "$d" ] || { rt_err "aux: panel $panel is not staged"; return 1; }
+  f="$d/aux"
+  tmp="$(mktemp "$d/.aux.XXXXXX")" || return 1
+  {
+    if [ -f "$f" ]; then LC_ALL=C grep -v "^${key}=" "$f" || true; fi
+    printf '%s=%s\n' "$key" "$(printf '%s' "$value" | rt_b64_encode)"
+  } | LC_ALL=C sort > "$tmp" || { rm -f "$tmp"; return 1; }
+  mv -f "$tmp" "$f" || { rm -f "$tmp"; return 1; }
+}
+
+rt_backup_panel_aux() {
+  # rt_backup_panel_aux SNAPSHOT PANEL KEY -- echo the recorded value (empty
+  # when the key or the whole record is absent). 1 when the record is malformed.
+  local snap="${1:-}" panel="${2:-}" key="${3:-}" f line
+  rt_panel_id_ok "$panel" || return 1
+  rt_backup_panel_aux_key_ok "$key" || return 1
+  f="$snap/panels/$panel/aux"
+  [ -e "$f" ] || [ -L "$f" ] || return 0
+  rt_backup_panel_aux_check "$f" || return 1
+  line="$(LC_ALL=C grep "^${key}=" "$f" || true)"
+  [ -n "$line" ] || return 0
+  printf '%s' "${line#*=}" | rt_b64_decode
+}
+
 rt_backup_manifest_write() {
   # Write SNAPDIR/manifest: one "<sha256>  <relative-path>" line per captured
   # file, LC_ALL=C sorted, never including the manifest itself.
@@ -1594,6 +1757,7 @@ rt_backup_create_v2() {
     || { rt_safe_rmdir "$tmp"; return 1; }
   tpl_id="$(rt_template_id_for_artifact "$RT_DIST")"
   [ -n "$tpl_id" ] && printf 'template=%s\n' "$tpl_id" >> "$tmp/meta"
+  printf 'panel=%s\n' "$(rt_panel_current)" >> "$tmp/meta"
   # NOTE: no `format=` key is written into meta, and no `panels=` key either.
   # The format lives in its own canonical file; the panel list is the
   # filesystem, because a key can claim a panel whose state is not on disk.
@@ -1606,7 +1770,7 @@ rt_backup_create_v2() {
     [ -d "$src" ] || { rt_err "no staged state for panel: $panel"; rt_safe_rmdir "$tmp"; return 1; }
     d="$tmp/panels/$panel"
     mkdir -p "$d" || { rt_safe_rmdir "$tmp"; return 1; }
-    for f in selection.state selection meta files; do
+    for f in selection.state selection meta files aux; do
       [ -e "$src/$f" ] || [ -L "$src/$f" ] || {
         # `files` is REQUIRED for a touched panel; the other three are
         # conditional on the state word. A staged panel without a files list
@@ -1960,6 +2124,8 @@ rt_set_dist() {
   # SRC must already be a structurally valid Row-Template artifact.
   local src="$1"
   rt_validate_template "$src" || { rt_err "refusing to install an invalid artifact"; return 1; }
+  rt_artifact_fits_panel "$src" \
+    || { rt_err "refusing to install an artifact that is not a $(rt_panel_label "$(rt_panel_current)") page"; return 1; }
   rt_atomic_install "$src" "$RT_DIST" 644 || return 1
   rt_sha256 "$RT_DIST" > "$RT_DIST_SUM" || return 1
   chmod 644 "$RT_DIST_SUM" 2>/dev/null || true
@@ -1969,12 +2135,27 @@ rt_activate() {
   # regenerate sub.html from the current artifact + config, validate it, then
   # swap it into the live path atomically. The live file is never truncated: on
   # any failure the previous sub.html stays exactly as it was.
-  local staged dir
+  #
+  # On PasarGuard and Rebecca the panel reads a COPY of the page, placed in its
+  # own template directory; when one is placed it is replaced here too, so the
+  # panel never serves a page older than the one just generated. The panel's
+  # selection is not touched: that is activation's job (rt_panel_activate).
+  local staged dir panel rc=0
   dir="$(dirname "$RT_LIVE")"
   staged="$(mktemp "$dir/.live.XXXXXX")" || return 1
   if ! rt_generate "$RT_DIST" "$staged"; then rm -f "$staged"; return 1; fi
   rt_atomic_install "$staged" "$RT_LIVE" 644 || { rm -f "$staged"; return 1; }
   rm -f "$staged"
+  panel="$(rt_panel_current)"
+  if [ "$panel" != "3xui" ]; then
+    rt_installer_complete || { rt_err "the installer's panel components are missing; run 'row-template update'."; return 1; }
+    rt_panel_refresh_page "$panel" "$RT_LIVE" || rc=$?
+    case "$rc" in
+      0|3) : ;;
+      *) rt_err "could not update the page in $(rt_panel_label "$panel")'s template directory."; return 1 ;;
+    esac
+  fi
+  return 0
 }
 
 rt_monogram_preview() {
@@ -2099,7 +2280,19 @@ rt_cleanup() {
 rt_render_report() {
   # informational: print what the panel actually serves. Never fails the caller;
   # strict PASS/FAIL semantics live in rt_cmd_verify.
-  local r rv
+  local r rv panel rc=0
+  panel="$(rt_panel_current)"
+  if [ "$panel" != "3xui" ] && [ -n "${RT_PANELS_LOADED:-}" ] && [ -z "${RT_SMOKE_URL:-}" ]; then
+    # Without a subscription URL (a secret this tool never looks up), the
+    # strongest evidence is the running panel's own view of its settings.
+    rt_panel_verify "$panel" live >/dev/null 2>&1 || rc=$?
+    case "$rc" in
+      0) rt_ok "Live check: the running $(rt_panel_label "$panel") uses the Row-Template page." ;;
+      2) rt_info "Live check skipped (set RT_SMOKE_URL to a subscription URL to check the served page)." ;;
+      *) rt_warn "Live check: the running $(rt_panel_label "$panel") does not use the Row-Template page yet; run 'row-template verify'." ;;
+    esac
+    return 0
+  fi
   r="$(rt_render_smoke)"
   case "$r" in
     pass)     rt_ok   "Live check: a browser request renders Row-Template." ;;
@@ -2117,10 +2310,21 @@ rt_render_report() {
 }
 
 rt_print_activation_note() {
-  # $1 = auto | manual
+  # $1 = auto | manual | skipped | failed
+  local panel; panel="$(rt_panel_current)"
   rt_section "Row-Template installed successfully."
+  rt_info "Panel:              $(rt_panel_label "$panel")"
   rt_info "Template directory: $RT_ROOT"
-  rt_info "Served file:        $RT_LIVE"
+  rt_info "Generated page:     $RT_LIVE"
+  if [ "$panel" != "3xui" ]; then
+    case "$1" in
+      auto)   rt_ok "$(rt_panel_label "$panel") now serves the Row-Template page." ;;
+      manual) rt_section "One manual step remains"; rt_panel_manual_steps ;;
+      failed) rt_warn "Activation did not complete and was rolled back; run 'row-template' and choose Activate to retry." ;;
+      *)      rt_info "Not activated yet: run 'row-template' and choose Activate when you are ready." ;;
+    esac
+    return 0
+  fi
   if [ "$1" = "auto" ]; then
     rt_ok "Panel configured automatically: subThemeDir = $RT_ROOT"
   else
@@ -2132,13 +2336,17 @@ rt_print_activation_note() {
 }
 
 rt_cmd_version() {
-  local rtv xuiv
+  local rtv xuiv panel
   rtv="$(cat "$RT_VERSION_FILE" 2>/dev/null || true)"; [ -n "$rtv" ] || rtv="unknown"
-  rt_detect_xui >/dev/null 2>&1 || true
-  xuiv="$(rt_detect_xui_version 2>/dev/null || true)"; [ -n "$xuiv" ] || xuiv="unknown"
+  panel="$(rt_installed_panel)"
   printf 'Row-Template %s\n' "$rtv"
-  printf 'Supported 3x-ui minimum: %s\n' "$RT_MIN_XUI"
-  printf 'Detected 3x-ui: %s\n' "$xuiv"
+  [ -n "$panel" ] && printf 'Panel: %s\n' "$(rt_panel_label "$panel")"
+  if [ -z "$panel" ] || [ "$panel" = "3xui" ]; then
+    rt_detect_xui >/dev/null 2>&1 || true
+    xuiv="$(rt_detect_xui_version 2>/dev/null || true)"; [ -n "$xuiv" ] || xuiv="unknown"
+    printf 'Supported 3x-ui minimum: %s\n' "$RT_MIN_XUI"
+    printf 'Detected 3x-ui: %s\n' "$xuiv"
+  fi
 }
 
 # --- release acquisition (download -> verify -> extract) ---------------------
@@ -2363,8 +2571,15 @@ rt_restore_from_backup() {
   # predates the current release's store. If the checksum match fails (the backup
   # artifact is not byte-identical to any installed template), fall back to the
   # template recorded in the backup's meta, then to Row as a last resort.
-  local dir="$1" tpl_id
+  local dir="$1" tpl_id bpanel
   rt_backup_validate "$dir" || { rt_err "backup failed validation: $dir"; return 1; }
+  # A backup is only ever restored onto the panel it was made for. Every backup
+  # before 1.3.0 is a 3X-UI one, which is what an absent panel= means.
+  bpanel="$(rt_backup_meta panel "$dir")"; [ -n "$bpanel" ] || bpanel="3xui"
+  if [ "$bpanel" != "$(rt_panel_current)" ]; then
+    rt_err "backup $(basename "$dir") was made for $(rt_panel_label "$bpanel"), not $(rt_panel_label "$(rt_panel_current)"); refusing to restore it."
+    return 1
+  fi
   tpl_id="$(rt_template_id_for_artifact "$dir/template.html")"
   if [ -z "$tpl_id" ]; then
     tpl_id="$(rt_backup_meta template "$dir")"
@@ -2401,6 +2616,298 @@ rt_subtheme_clear_sqlite() {
   [ -z "$cur" ]
 }
 
+# --- panels: which panel an install serves (1.3.0) ---------------------------
+# Row-Template installs onto exactly one panel per host. The panel decides
+# three things and nothing else:
+#
+#   the ARTIFACT   a Go template for 3X-UI, a Jinja2 page for PasarGuard, a
+#                  pongo2 page for Rebecca (the release ships all three)
+#   the ROOT       see RT_ROOT above
+#   ACTIVATION     3X-UI: subThemeDir (unchanged since 1.0.0). PasarGuard and
+#                  Rebecca: their adapter, driven by the transaction engine.
+#
+# Branding, the template store, backups, rollback and the manager are the same
+# code for all three. The panel an install serves is recorded in RT_PANEL_FILE;
+# an install without the record predates 1.3.0, and every such install is 3X-UI.
+
+RT_ACTIVE_PANEL=""
+
+rt_panel_label() {
+  case "${1:-}" in
+    3xui)       printf '3X-UI' ;;
+    pasarguard) printf 'PasarGuard' ;;
+    rebecca)    printf 'Rebecca' ;;
+    *)          printf '%s' "${1:-unknown}" ;;
+  esac
+}
+
+rt_installed_panel() {
+  # echo the panel of the install at RT_ROOT, or nothing when none is there.
+  local p
+  if [ -f "$RT_PANEL_FILE" ] && [ ! -L "$RT_PANEL_FILE" ]; then
+    p="$(head -n1 "$RT_PANEL_FILE" 2>/dev/null | LC_ALL=C tr -cd 'a-z0-9')"
+    if rt_panel_id_ok "$p"; then printf '%s' "$p"; return 0; fi
+    rt_warn "the panel record $RT_PANEL_FILE is not a panel this release knows; treating the install as 3X-UI."
+  fi
+  if [ -f "$RT_VERSION_FILE" ] || [ -f "$RT_DIST" ]; then printf '3xui'; fi
+  return 0
+}
+
+rt_panel_current() {
+  # echo the panel the current command acts on: the one being installed, else
+  # the installed one, else 3X-UI (the only panel before 1.3.0).
+  local p="${RT_ACTIVE_PANEL:-}"
+  [ -n "$p" ] || p="$(rt_installed_panel)"
+  [ -n "$p" ] || p="3xui"
+  printf '%s' "$p"
+}
+
+rt_panel_record() {
+  # persist PANEL as the panel this install serves, atomically.
+  local tmp
+  rt_panel_id_ok "$1" || return 1
+  rt_assert_not_symlink "$RT_PANEL_FILE" || return 1
+  tmp="$(mktemp "$RT_ROOT/.panel.XXXXXX")" || return 1
+  printf '%s\n' "$1" > "$tmp" && chmod 644 "$tmp" && mv -f "$tmp" "$RT_PANEL_FILE" || { rm -f "$tmp"; return 1; }
+}
+
+rt_panel_on_host() {
+  # 0 when PANEL is on this host. 3X-UI keeps the rule it has had since 1.0.0
+  # (its binary or its unit); PasarGuard and Rebecca need their adapter's two
+  # corroborating signals. Read-only.
+  local rc=0
+  case "$1" in
+    3xui) rt_detect_xui >/dev/null 2>&1 ;;
+    pasarguard|rebecca)
+      [ -n "${RT_PANELS_LOADED:-}" ] || return 1
+      rt_panel_detect "$1" >/dev/null 2>&1 || rc=$?
+      [ "$rc" -eq 0 ] ;;
+    *) return 1 ;;
+  esac
+}
+
+rt_panels_on_host() {
+  # echo every panel on this host, one per line, in RT_PANEL_IDS order.
+  local p
+  for p in $RT_PANEL_IDS; do
+    if rt_panel_on_host "$p"; then printf '%s\n' "$p"; fi
+  done
+  return 0
+}
+
+rt_existing_root() {
+  # echo the root of an existing install on this host (RT_ROOT when it was set
+  # explicitly), or nothing. Two installs at once are refused: which one the
+  # CLI manages would be a guess.
+  local found="" r
+  if [ -n "$RT_ROOT_EXPLICIT" ]; then
+    [ -f "$RT_ROOT/VERSION" ] && printf '%s' "$RT_ROOT"
+    return 0
+  fi
+  for r in "$RT_ROOT_3XUI" "$RT_ROOT_SHARED"; do
+    [ -f "$r/VERSION" ] || continue
+    if [ -n "$found" ]; then
+      rt_err "Row-Template is installed twice ($found and $r); remove one with 'row-template uninstall' before continuing."
+      return 1
+    fi
+    found="$r"
+  done
+  printf '%s' "$found"
+}
+
+rt_panel_choose() {
+  # Decide the panel to install for: set RT_ACTIVE_PANEL and move RT_ROOT to
+  # that panel's root, IN THIS SHELL (never call it inside $( ): the root
+  # change would be lost with the subshell). In order:
+  #   1. an existing install: its panel, at its root (a repair or re-run);
+  #   2. RT_PANEL from the environment, which must name a panel on this host;
+  #   3. the one panel on this host; with several, the operator chooses
+  #      (interactively) or must set RT_PANEL.
+  # Non-zero, with the reason printed, when no panel can be chosen.
+  local root panel found p n=0 i=0 choice
+  local -a list=()
+  root="$(rt_existing_root)" || return 1
+  if [ -n "$root" ]; then
+    [ -n "$RT_ROOT_EXPLICIT" ] || rt_root_set "$root"
+    panel="$(rt_installed_panel)"
+    if [ -n "${RT_PANEL:-}" ] && [ "${RT_PANEL}" != "$panel" ]; then
+      rt_err "Row-Template is installed for $(rt_panel_label "$panel") at $RT_ROOT; uninstall it before installing for $(rt_panel_label "$RT_PANEL")."
+      return 1
+    fi
+    RT_ACTIVE_PANEL="$panel"
+    return 0
+  fi
+
+  if [ -n "${RT_PANEL:-}" ]; then
+    rt_panel_id_ok "$RT_PANEL" || { rt_err "RT_PANEL='$RT_PANEL' is not a panel Row-Template supports (3xui, pasarguard, rebecca)."; return 1; }
+    if ! rt_panel_on_host "$RT_PANEL"; then
+      if [ "$RT_PANEL" = "3xui" ]; then rt_err "no 3x-ui installation was detected on this host."
+      else rt_err "RT_PANEL=$RT_PANEL, but $(rt_panel_label "$RT_PANEL") was not detected on this host."; fi
+      return 1
+    fi
+    panel="$RT_PANEL"
+  else
+    found="$(rt_panels_on_host)"
+    n="$(printf '%s' "$found" | grep -c . || true)"
+    if [ "$n" -eq 0 ]; then
+      rt_panel_report_partial
+      rt_err "no supported panel was detected on this host: no 3x-ui installation, and no PasarGuard or Rebecca installation."
+      return 1
+    elif [ "$n" -eq 1 ]; then
+      panel="$found"
+    elif rt_ui_is_interactive; then
+      { rt_ui_section "More than one panel is installed on this host"; } >&2
+      while IFS= read -r p; do list+=("$p"); done <<< "$found"
+      for p in "${list[@]}"; do
+        i=$((i + 1)); printf '  %s%d%s  %s\n' "$RT_C_BLD" "$i" "$RT_C_RST" "$(rt_panel_label "$p")" >&2
+      done
+      choice="$(rt_ui_menu_select "$n")"
+      [ "$choice" -ge 1 ] 2>/dev/null || { rt_err "no panel was chosen; nothing was changed."; return 1; }
+      panel="${list[$((choice - 1))]}"
+    else
+      rt_err "more than one panel is installed here ($(printf '%s' "$found" | tr '\n' ' ')); choose one with RT_PANEL=3xui|pasarguard|rebecca."
+      return 1
+    fi
+  fi
+  if [ -z "$RT_ROOT_EXPLICIT" ] && [ "$panel" != "3xui" ]; then rt_root_set "$RT_ROOT_SHARED"; fi
+  RT_ACTIVE_PANEL="$panel"
+  return 0
+}
+
+rt_panel_report_partial() {
+  # Say so when a panel is half-there (one detection signal): refusing to act
+  # on it is right, but the operator deserves to know why.
+  local p rc
+  [ -n "${RT_PANELS_LOADED:-}" ] || return 0
+  for p in pasarguard rebecca; do
+    rc=0; rt_panel_detect "$p" >/dev/null 2>&1 || rc=$?
+    if [ "$rc" -eq "$RT_PANEL_FAIL" ]; then
+      rt_warn "$(rt_panel_label "$p") looks partly installed (only one of its files was found); it is not treated as present."
+    fi
+  done
+  return 0
+}
+
+rt_payload_store() {
+  # echo "<dir>|<file>": where the release payload keeps this panel's designs.
+  case "$(rt_panel_current)" in
+    3xui) printf 'templates|template.html' ;;
+    *)    printf 'shells/%s|shell.html' "$(rt_panel_current)" ;;
+  esac
+}
+
+rt_artifact_fits_panel() {
+  # 0 when FILE is an artifact for the panel this install serves. The store,
+  # a backup or a payload can each hand the wrong one over, and each would
+  # break the page in its own way: a Go template on PasarGuard renders its
+  # actions as text; a Jinja2 page on 3X-UI fails to parse. A shell from
+  # before 1.3.0 is refused on PasarGuard and Rebecca: it has no context
+  # prelude (the page would render empty) and no autoescape block.
+  local f="$1"
+  case "$(rt_panel_current)" in
+    3xui)
+      if LC_ALL=C grep -Eq '\{%-? *(autoescape|if|for|set|comment) ' "$f" 2>/dev/null; then return 1; fi
+      return 0 ;;
+    pasarguard) declare -F rt_panel_pasarguard_shell_ok >/dev/null && rt_panel_pasarguard_shell_ok "$f" ;;
+    rebecca)    declare -F rt_panel_rebecca_shell_ok >/dev/null && rt_panel_rebecca_shell_ok "$f" ;;
+    *) return 1 ;;
+  esac
+}
+
+rt_panel_activation_record() {
+  # remember SNAPSHOT as the state before Row-Template took over the panel, for
+  # uninstall to go back to -- unless the panel was ALREADY showing
+  # Row-Template when it was taken (a re-apply), in which case the earlier
+  # record is the true "before" and is kept.
+  local snap="$1" panel="$2" st v
+  [ -n "$snap" ] || return 0
+  st="$(rt_backup_panel_state "$snap" "$panel" 2>/dev/null || true)"
+  v="$(rt_backup_panel_selection "$snap" "$panel" 2>/dev/null || true)"
+  if [ "$st" = "present" ] && [ "$v" = "row-template/index.html" ] && [ -f "$RT_PANEL_ACTIVATION" ]; then
+    return 0
+  fi
+  printf '%s\n' "$(basename "$snap")" > "$RT_PANEL_ACTIVATION" 2>/dev/null || true
+  chmod 600 "$RT_PANEL_ACTIVATION" 2>/dev/null || true
+}
+
+rt_panel_activate() {
+  # Make PasarGuard or Rebecca serve the generated page. Echo the outcome:
+  #   auto    placed and selected, through the transaction engine (snapshot,
+  #           verify, and an automatic restore if anything fails)
+  #   manual  the page is placed, but the selection cannot be written here
+  #           (Rebecca on MySQL/MariaDB, or without sqlite3): the operator
+  #           selects it in the panel (rt_print_panel_manual)
+  # Non-zero when activation failed; the panel is then as it was.
+  local panel rc=0
+  panel="$(rt_panel_current)"
+  rt_installer_complete || { rt_err "the installer's panel components are missing; run 'row-template update'."; return 1; }
+  if [ "$(rt_panel_status "$panel")" = "manual" ]; then
+    rt_panel_refresh_page "$panel" "$RT_LIVE" place >/dev/null || rc=$?
+    [ "$rc" -eq 0 ] || { rt_err "could not place the page for $(rt_panel_label "$panel")."; return 1; }
+    printf 'manual'
+    return 0
+  fi
+  local errf
+  errf="$(mktemp)" || return 1
+  if RT_TXN_QUIET=1 rt_transaction_run "$panel" "$RT_LIVE" >&2 2>"$errf"; then
+    cat "$errf" >&2; rm -f "$errf"
+    rt_panel_activation_record "$RT_TXN_SNAPSHOT" "$panel"
+    printf 'auto'
+    return 0
+  fi
+  # The engine claims ROLLED_BACK only when its post-restore static check
+  # passes, and that check asks the INSTALL question ("does the panel serve
+  # Row-Template?"), whose honest answer after a rollback is no -- so a clean
+  # restore is reported as a failed one. Whether the restore was exact is
+  # decided here instead, by capturing the panel's state again and comparing it
+  # with the snapshot the transaction took before it changed anything.
+  if [ "${RT_TXN_MUTATED:-0}" = "1" ] && rt_panel_restore_confirmed "$panel" "${RT_TXN_SNAPSHOT:-}"; then
+    LC_ALL=C awk '{ print } /transaction: (template placement failed|static verification did not pass|live verification failed)/ { exit }' "$errf" >&2
+    rt_warn "$(rt_panel_label "$panel") was restored exactly to its state before the attempt."
+  else
+    cat "$errf" >&2
+  fi
+  rm -f "$errf"
+  return 1
+}
+
+rt_panel_restore_confirmed() {
+  # 0 when PANEL's state now equals what SNAPSHOT recorded before the change:
+  # the same record, captured again by the adapter, byte for byte. Anything that
+  # cannot be captured or compared is "not confirmed".
+  local panel="$1" snap="$2" f a b
+  [ -n "$snap" ] && [ -d "$snap/panels/$panel" ] || return 1
+  rt_transaction_stage_reset >/dev/null 2>&1 || return 1
+  rt_panel_backup_state "$panel" >/dev/null 2>&1 || return 1
+  for f in selection.state selection meta files aux; do
+    a="$snap/panels/$panel/$f"; b="$RT_PANEL_STAGE/$panel/$f"
+    if [ -e "$a" ] || [ -e "$b" ]; then
+      cmp -s "$a" "$b" || return 1
+    fi
+  done
+  rt_transaction_stage_reset >/dev/null 2>&1 || true
+  return 0
+}
+
+rt_panel_manual_steps() {
+  # print what the operator must set in the panel when activation is manual.
+  case "$(rt_panel_current)" in
+    rebecca)
+      rt_info "In the Rebecca dashboard: Settings -> Subscription -> Templates"
+      rt_info "  Subscription page template:   row-template/index.html"
+      rt_info "  Custom templates directory:   ${RT_RB_DATA_DIR:-/var/lib/rebecca}/templates"
+      rt_info "If a custom templates directory is already set, keep it and copy"
+      rt_info "  ${RT_RB_DATA_DIR:-/var/lib/rebecca}/templates/row-template/ into it instead."
+      rt_info "(Automatic activation needs the sqlite3 command and Rebecca's SQLite database.)" ;;
+    pasarguard)
+      rt_info "In ${RT_PG_APP_DIR:-/opt/pasarguard}/.env set, then run 'pasarguard restart':"
+      rt_info "  SUBSCRIPTION_PAGE_TEMPLATE = \"row-template/index.html\"" ;;
+    *)
+      rt_info "In the panel: Settings -> Subscription -> Sub Theme Directory"
+      rt_info "Set it to exactly: $RT_ROOT" ;;
+  esac
+}
+
 # --- high-level flow: install ------------------------------------------------
 # Called by installer/install.sh with a verified, extracted payload directory.
 # Runs the whole transaction: preflight -> stage -> validate -> backup ->
@@ -2408,7 +2915,7 @@ rt_subtheme_clear_sqlite() {
 # panel: the live template is only ever swapped atomically after validation.
 
 rt_cmd_install() {
-  local payload="$1" w picked_explicit="" picked source
+  local payload="$1" w picked_explicit="" picked panel
   rt_require_root
   [ -n "$payload" ] && [ -d "$payload" ] || rt_die "internal: install payload directory missing."
   [ -f "$payload/template.html" ] || rt_die "install payload has no template.html."
@@ -2421,11 +2928,20 @@ rt_cmd_install() {
   rt_validate_template "$payload/template.html" || rt_die "install artifact failed structural validation."
   rt_payload_companions_ok "$payload" || rt_die "the release payload is incomplete; nothing was changed."
 
-  # environment discovery + hard version gate (fail closed)
-  rt_detect_xui || rt_die "no 3x-ui installation was detected on this host."
-  rt_detect_xui_version >/dev/null 2>&1 || true
-  rt_check_min_version
-  rt_detect_xui_db || true
+  # Which panel: an existing install's, the operator's RT_PANEL, or the one on
+  # this host. This also decides the install root (rt_panel_choose).
+  rt_panel_choose || rt_die "nothing was changed."
+  panel="$RT_ACTIVE_PANEL"
+
+  # environment discovery + hard version gate (fail closed). 3X-UI only: the
+  # other panels are identified by their adapter, and their activation does not
+  # depend on a panel version.
+  if [ "$panel" = "3xui" ]; then
+    rt_detect_xui || rt_die "no 3x-ui installation was detected on this host."
+    rt_detect_xui_version >/dev/null 2>&1 || true
+    rt_check_min_version
+    rt_detect_xui_db || true
+  fi
 
   rt_assert_not_symlink "$RT_ROOT" || rt_die "install root is a symlink; refusing to proceed."
 
@@ -2446,7 +2962,7 @@ rt_cmd_install() {
         repair)      rt_info "Repairing in place (configuration preserved)." ;;
       esac
     else
-      rt_install_welcome "${RT_XUI_VERSION:-}" || { rt_info "Installation cancelled."; return 0; }
+      rt_install_welcome "$panel" "${RT_XUI_VERSION:-}" || { rt_info "Installation cancelled."; return 0; }
     fi
   elif [ "$existing" -eq 1 ]; then
     if [ ! -t 0 ] && [ -z "${RT_ASSUME_YES:-}" ]; then
@@ -2460,9 +2976,14 @@ rt_cmd_install() {
     rt_backup_create >/dev/null || rt_warn "could not create a pre-install backup."
   fi
 
-  # stage the canonical artifact + supporting files (all atomic, symlink-guarded)
-  rt_set_dist "$payload/template.html" || rt_die "could not install the canonical artifact."
+  # stage the canonical artifact + supporting files (all atomic, symlink-guarded).
+  # The payload's top-level template.html is the 3X-UI Row artifact; on the
+  # other panels the canonical artifact comes from their own store, below.
+  if [ "$panel" = "3xui" ]; then
+    rt_set_dist "$payload/template.html" || rt_die "could not install the canonical artifact."
+  fi
   rt_atomic_install "$payload/VERSION" "$RT_VERSION_FILE" 644 || rt_die "could not install VERSION."
+  rt_panel_record "$panel" || rt_die "could not record the panel this install serves."
   if [ -f "$payload/lib/row-template.sh" ]; then
     rt_atomic_install "$payload/lib/row-template.sh" "$RT_LIB_DIR/row-template.sh" 644 \
       || rt_warn "could not install the management library; the CLI may be unavailable."
@@ -2474,12 +2995,15 @@ rt_cmd_install() {
       || rt_warn "could not install the row-template CLI to $RT_BIN."
   fi
 
-  # template store: every design this release ships, verified before staging,
-  # and any store a previous path mistake left outside dist/templates moved in.
+  # template store: every design this release ships for this panel, verified
+  # before staging, and any store a previous path mistake left outside
+  # dist/templates moved in.
   local store_rc=0
   rt_repair_template_store "$payload" || store_rc=$?
   [ "$store_rc" -ne 1 ] \
     || rt_die "the release template store failed verification; nothing was activated."
+  rt_template_store_has row \
+    || rt_die "this release carries no $(rt_panel_label "$panel") pages; nothing was activated."
 
   # the fresh-install design chooser (interactive only; defaults to Row).
   if [ "$interactive" -eq 1 ] && [ "$existing" -eq 0 ]; then
@@ -2530,10 +3054,12 @@ rt_cmd_install() {
   # generate + validate + atomically swap the live template.
   rt_activate || rt_die "the template failed to generate/validate; the panel was not changed."
 
-  # point the panel at Row-Template. NON-INTERACTIVE: auto-configure exactly as
-  # before. INTERACTIVE: show the current subThemeDir and ASK before changing it.
+  # point the panel at Row-Template. NON-INTERACTIVE: activate exactly as
+  # before. INTERACTIVE: show what will change and ASK first.
   local sub_outcome
-  if [ "$interactive" -eq 1 ]; then
+  if [ "$panel" != "3xui" ]; then
+    sub_outcome="$(rt_install_activate_panel "$interactive")"
+  elif [ "$interactive" -eq 1 ]; then
     rt_ui_section "Activate Row-Template as the subscription theme"
     local sub_rc=0 sub_cur
     sub_cur="$(rt_subtheme_get_sqlite 2>/dev/null)" || sub_rc=$?
@@ -2569,6 +3095,40 @@ rt_cmd_install() {
     rt_print_activation_note "$sub_outcome"
   fi
   rt_render_report
+}
+
+rt_install_activate_panel() {
+  # INTERACTIVE ($1=1): show what activation changes, ask, then activate.
+  # Echo auto | manual | skipped | failed on stdout; everything else to stderr.
+  local interactive="$1" panel outcome
+  panel="$(rt_panel_current)"
+  if [ "$interactive" -eq 1 ]; then
+    {
+      rt_ui_section "Activate Row-Template on $(rt_panel_label "$panel")"
+      case "$panel" in
+        pasarguard)
+          rt_ui_info "This places the page in PasarGuard's templates directory, adds a"
+          rt_ui_info "Row-Template block to ${RT_PG_APP_DIR:-/opt/pasarguard}/.env selecting it, and"
+          rt_ui_info "restarts PasarGuard once. Your users, nodes and settings are not touched."
+          rt_ui_info "Uninstalling removes the block again." ;;
+        rebecca)
+          rt_ui_info "This places the page in Rebecca's templates directory and selects it"
+          rt_ui_info "in Rebecca's subscription settings. No restart is needed. Your users,"
+          rt_ui_info "nodes and other settings are not touched." ;;
+      esac
+    } >&2
+    if ! rt_ui_confirm "Make Row-Template the active $(rt_panel_label "$panel") subscription page now?" yes; then
+      printf 'skipped'
+      return 0
+    fi
+  fi
+  if outcome="$(rt_panel_activate)"; then
+    printf '%s' "$outcome"
+  else
+    rt_warn "activation on $(rt_panel_label "$panel") did not complete; the panel was restored to how it was."
+    printf 'failed'
+  fi
+  return 0
 }
 
 # --- high-level flow: config -------------------------------------------------
@@ -2723,20 +3283,27 @@ rt_cmd_verify() {
   [ -x "$RT_BIN" ] && rt_ok "CLI present: $RT_BIN" \
     || { rt_warn "CLI not found or not executable at $RT_BIN."; warns=$((warns + 1)); }
 
-  if rt_detect_xui; then
-    if rt_detect_xui_version >/dev/null 2>&1; then
-      if rt_semver_ge "$RT_XUI_VERSION" "$RT_MIN_XUI"; then rt_ok "3x-ui $RT_XUI_VERSION meets the minimum $RT_MIN_XUI."
-      else rt_err "3x-ui $RT_XUI_VERSION is below the minimum $RT_MIN_XUI."; fails=$((fails + 1)); fi
-    else rt_warn "could not determine the 3x-ui version."; warns=$((warns + 1)); fi
-  else rt_warn "3x-ui installation was not detected."; warns=$((warns + 1)); fi
+  local vpanel
+  vpanel="$(rt_panel_current)"
+  if [ "$vpanel" = "3xui" ]; then
+    if rt_detect_xui; then
+      if rt_detect_xui_version >/dev/null 2>&1; then
+        if rt_semver_ge "$RT_XUI_VERSION" "$RT_MIN_XUI"; then rt_ok "3x-ui $RT_XUI_VERSION meets the minimum $RT_MIN_XUI."
+        else rt_err "3x-ui $RT_XUI_VERSION is below the minimum $RT_MIN_XUI."; fails=$((fails + 1)); fi
+      else rt_warn "could not determine the 3x-ui version."; warns=$((warns + 1)); fi
+    else rt_warn "3x-ui installation was not detected."; warns=$((warns + 1)); fi
 
-  rt_detect_xui_db || true
-  rc=0; cur="$(rt_subtheme_get_sqlite)" || rc=$?
-  if [ "$rc" -eq 0 ]; then
-    if [ "$cur" = "$RT_ROOT" ]; then rt_ok "Panel subThemeDir points at Row-Template."
-    elif [ -z "$cur" ]; then rt_warn "panel subThemeDir is empty; set it to $RT_ROOT."; warns=$((warns + 1))
-    else rt_warn "panel subThemeDir does not point at Row-Template."; warns=$((warns + 1)); fi
-  else rt_info "subThemeDir not checked (sqlite3/DB unavailable)."; fi
+    rt_detect_xui_db || true
+    rc=0; cur="$(rt_subtheme_get_sqlite)" || rc=$?
+    if [ "$rc" -eq 0 ]; then
+      if [ "$cur" = "$RT_ROOT" ]; then rt_ok "Panel subThemeDir points at Row-Template."
+      elif [ -z "$cur" ]; then rt_warn "panel subThemeDir is empty; set it to $RT_ROOT."; warns=$((warns + 1))
+      else rt_warn "panel subThemeDir does not point at Row-Template."; warns=$((warns + 1)); fi
+    else rt_info "subThemeDir not checked (sqlite3/DB unavailable)."; fi
+  else
+    rt_verify_panel "$vpanel" || fails=$((fails + 1))
+    warns=$((warns + RT_VERIFY_PANEL_WARNS))
+  fi
 
   # Capture first rather than piping into `grep -q .`: under pipefail a match
   # would SIGPIPE `find` (rc 141) and the leftover-staging warning would be lost.
@@ -2746,7 +3313,11 @@ rt_cmd_verify() {
     rt_warn "leftover staging files found under the install root (possible interrupted update)."; warns=$((warns + 1))
   fi
 
-  r="$(rt_render_smoke)"
+  if [ "$vpanel" != "3xui" ] && [ -z "${RT_SMOKE_URL:-}" ]; then
+    r="skip"
+  else
+    r="$(rt_render_smoke)"
+  fi
   case "$r" in
     pass)     rt_ok   "Live render check: a browser receives Row-Template." ;;
     fallback) rt_warn "live render check: the panel served its built-in page."; warns=$((warns + 1)) ;;
@@ -2767,6 +3338,47 @@ rt_cmd_verify() {
   if [ "$fails" -gt 0 ]; then rt_err "verification FAILED ($fails hard issue(s), $warns warning(s))."; exit 1
   elif [ "$warns" -gt 0 ]; then rt_warn "verification passed with $warns warning(s)."; return 0
   else rt_ok "verification passed with no warnings."; return 0; fi
+}
+
+RT_VERIFY_PANEL_WARNS=0
+rt_verify_panel() {
+  # verify's checks for PasarGuard and Rebecca. Sets RT_VERIFY_PANEL_WARNS;
+  # returns non-zero on a hard failure. Prints only facts, never a secret.
+  local panel="$1" st rc=0
+  RT_VERIFY_PANEL_WARNS=0
+  if ! rt_installer_complete; then
+    rt_err "the panel components are missing; run 'row-template update'."
+    return 1
+  fi
+  if rt_panel_on_host "$panel"; then rt_ok "$(rt_panel_label "$panel") detected."
+  else rt_warn "$(rt_panel_label "$panel") was not detected on this host."; RT_VERIFY_PANEL_WARNS=$((RT_VERIFY_PANEL_WARNS + 1)); fi
+  st="$(rt_panel_status "$panel")"
+  case "$st" in
+    active)
+      rt_panel_verify "$panel" static || rc=$?
+      if [ "$rc" -eq 0 ]; then
+        rt_ok "$(rt_panel_label "$panel") selects the Row-Template page, and the placed page is current."
+      else
+        rt_err "$(rt_panel_label "$panel")'s Row-Template page is out of step (see above); re-apply it from the manager (Activate)."
+        return 1
+      fi
+      rc=0; rt_panel_verify "$panel" live || rc=$?
+      case "$rc" in
+        0) rt_ok "Live check: the running $(rt_panel_label "$panel") uses the Row-Template page." ;;
+        2) rt_info "Live check skipped (not available for this panel layout)." ;;
+        *) rt_warn "the running $(rt_panel_label "$panel") does not use the Row-Template page yet; restart the panel."
+           RT_VERIFY_PANEL_WARNS=$((RT_VERIFY_PANEL_WARNS + 1)) ;;
+      esac ;;
+    inactive)
+      rt_warn "$(rt_panel_label "$panel") does not select the Row-Template page; activate it from the manager."
+      RT_VERIFY_PANEL_WARNS=$((RT_VERIFY_PANEL_WARNS + 1)) ;;
+    manual)
+      rt_info "Panel selection not checked (activation is manual here: $(rt_panel_label "$panel")'s database cannot be read)." ;;
+    *)
+      rt_warn "the $(rt_panel_label "$panel") configuration could not be read."
+      RT_VERIFY_PANEL_WARNS=$((RT_VERIFY_PANEL_WARNS + 1)) ;;
+  esac
+  return 0
 }
 
 # --- high-level flow: uninstall ----------------------------------------------
@@ -2794,6 +3406,31 @@ rt_uninstall_files() {
   return 0
 }
 
+rt_uninstall_panel() {
+  # Put PasarGuard or Rebecca back to the page it had before Row-Template, and
+  # remove the page Row-Template placed. Returns non-zero only when the revert
+  # FAILED; "nothing to revert" and "must be reverted by hand" are reported and
+  # let the uninstall continue.
+  local panel="$1" rc=0
+  if ! rt_installer_complete; then
+    rt_err "the panel components are missing, so $(rt_panel_label "$panel") cannot be reverted automatically; run 'row-template update' first."
+    return 1
+  fi
+  rt_panel_uninstall_template "$panel" || rc=$?
+  case "$rc" in
+    0) rt_ok "$(rt_panel_label "$panel") is back on the subscription page it had before Row-Template." ;;
+    3) rt_info "$(rt_panel_label "$panel") was not using Row-Template; its selection was left as it is." ;;
+    2)
+      rt_warn "$(rt_panel_label "$panel")'s selection cannot be changed automatically here."
+      case "$panel" in
+        rebecca) rt_info "In the Rebecca dashboard set Subscription page template back to subscription/index.html (or your own page)." ;;
+        *) rt_info "Select your previous subscription page in the panel." ;;
+      esac ;;
+    *) rt_err "could not revert $(rt_panel_label "$panel")."; return 1 ;;
+  esac
+  return 0
+}
+
 rt_cmd_uninstall() {
   rt_require_root
   [ -f "$RT_VERSION_FILE" ] || rt_die "Row-Template does not appear to be installed at $RT_ROOT."
@@ -2808,6 +3445,19 @@ rt_cmd_uninstall() {
   fi
   rt_detect_xui || true
   rt_detect_xui_db || true
+
+  local upanel
+  upanel="$(rt_panel_current)"
+  if [ "$upanel" != "3xui" ]; then
+    rt_uninstall_panel "$upanel" || rt_die "uninstall stopped before removing anything; the panel and Row-Template are unchanged."
+    if rt_uninstall_files; then
+      rt_ok "Removed Row-Template files from $RT_ROOT."
+      rt_info "$(rt_panel_label "$upanel")'s users, nodes, settings and database were left untouched."
+    else
+      rt_die "uninstall could not complete safely; see the message above. No forced deletion was performed."
+    fi
+    return 0
+  fi
 
   # revert the panel to a safe state: clear subThemeDir only if it points at us.
   local cur rc=0; cur="$(rt_subtheme_get_sqlite)" || rc=$?
@@ -2872,8 +3522,10 @@ rt_cmd_update() {
     picked="row"
     if rt_template_store_has "row"; then
       source="$RT_TEMPLATE_STORE/row/template.html"
-    else
+    elif [ "$(rt_panel_current)" = "3xui" ]; then
       source="$payload/template.html"
+    else
+      rt_die "this release carries no $(rt_panel_label "$(rt_panel_current)") pages; nothing was changed."
     fi
   fi
   rt_validate_template "$source" || rt_die "the selected template failed structural validation."
@@ -2963,7 +3615,7 @@ rt_cmd_rollback() {
 
 rt_print_help() {
   cat <<'EOF'
-Row-Template — custom subscription page manager for 3x-ui
+Row-Template — custom subscription page manager for 3X-UI, PasarGuard and Rebecca
 by frank0live — https://github.com/frank0live/Row-Template
 
 Usage:
@@ -2976,7 +3628,7 @@ Commands:
   rollback    Restore a previous version  [--auto | --to <backup-dir>]
   verify      Check the install, panel wiring and live render (as root, also
               restores missing or misplaced designs)
-  version     Show installed, minimum-supported and detected 3x-ui versions
+  version     Show the installed version and panel (and, on 3X-UI, its version)
   uninstall   Remove Row-Template and revert the panel to its built-in page
   menu        Open the interactive manager explicitly
   help        Show this help
@@ -3071,6 +3723,17 @@ rt_status_theme() {
   if [ ! -f "$RT_DIST" ] || ! rt_validate_template "$RT_LIVE" >/dev/null 2>&1; then
     printf 'damaged'; return 0
   fi
+  local panel
+  panel="$(rt_panel_current)"
+  if [ "$panel" != "3xui" ]; then
+    [ -n "${RT_PANELS_LOADED:-}" ] || { printf 'unknown'; return 0; }
+    case "$(rt_panel_status "$panel")" in
+      active)   printf 'active' ;;
+      inactive) printf 'inactive' ;;
+      *)        printf 'unknown' ;;
+    esac
+    return 0
+  fi
   local rc=0 cur
   cur="$(rt_subtheme_get_sqlite 2>/dev/null)" || rc=$?
   if [ "$rc" -ne 0 ]; then printf 'unknown'; return 0; fi
@@ -3089,6 +3752,18 @@ rt_status_label() {
 }
 rt_status_service_label() {
   # human label for the panel service, from discovery already run by the caller.
+  local panel
+  panel="$(rt_panel_current)"
+  if [ "$panel" != "3xui" ]; then
+    if declare -F "rt_panel_${panel}_running" >/dev/null && "rt_panel_${panel}_running" 2>/dev/null; then
+      printf '%s (running)' "$(rt_panel_label "$panel")"
+    elif rt_panel_on_host "$panel"; then
+      printf '%s (stopped)' "$(rt_panel_label "$panel")"
+    else
+      printf 'not detected'
+    fi
+    return 0
+  fi
   if [ -n "${RT_XUI_UNIT:-}" ]; then
     if rt_service_active 2>/dev/null; then printf 'x-ui (running)'; else printf 'x-ui (stopped)'; fi
   else
@@ -3100,7 +3775,12 @@ rt_status_theme_label() {
   case "$1" in
     active)   printf 'Row-Template (active)' ;;
     inactive) printf 'Row-Template (installed, not the active theme)' ;;
-    unknown)  printf 'Row-Template (installed; activation not verifiable without sqlite3)' ;;
+    unknown)
+      if [ "$(rt_panel_current)" = "3xui" ]; then
+        printf 'Row-Template (installed; activation not verifiable without sqlite3)'
+      else
+        printf 'Row-Template (installed; activation not verifiable here)'
+      fi ;;
     damaged)  printf 'Row-Template (files incomplete — run Verify/Repair)' ;;
     *)        printf 'Row-Template (not installed)' ;;
   esac
@@ -3120,7 +3800,11 @@ rt_manager_dashboard() {
   st="$(rt_status_theme)"
   rt_ui_header
   rt_ui_kv "Version"   "$rtv"
-  rt_ui_kv "3X-UI"     "$xuiv"
+  if [ "$(rt_panel_current)" = "3xui" ]; then
+    rt_ui_kv "3X-UI"     "$xuiv"
+  else
+    rt_ui_kv "Panel"     "$(rt_panel_label "$(rt_panel_current)")"
+  fi
   rt_ui_kv "Status"    "$(rt_status_label "$st")"
   rt_ui_kv "Template"  "$(rt_template_display_name "$(rt_template_effective)")"
   rt_ui_kv "Theme"     "$(rt_status_theme_label "$st")"
@@ -3167,6 +3851,10 @@ rt_manager_activate() {
   # Detect the current subThemeDir, show it, and offer to point it at us. No
   # write happens unless the operator confirms; the panel state is preserved.
   rt_ui_section "Activate / Re-apply theme"
+  if [ "$(rt_panel_current)" != "3xui" ]; then
+    rt_manager_activate_panel
+    return 0
+  fi
   rt_detect_xui >/dev/null 2>&1 || true
   rt_detect_xui_db >/dev/null 2>&1 || true
   local rc=0 cur
@@ -3201,6 +3889,35 @@ rt_manager_activate() {
     rt_ui_kv "Enter exactly" "$RT_ROOT"
   fi
 }
+rt_manager_activate_panel() {
+  # Activate / re-apply on PasarGuard or Rebecca. The page is regenerated first,
+  # so what is activated is exactly what verify will check.
+  local panel st outcome
+  panel="$(rt_panel_current)"
+  st="$(rt_panel_status "$panel")"
+  case "$st" in
+    active)
+      rt_ui_success "Row-Template is already the active $(rt_panel_label "$panel") subscription page."
+      rt_ui_confirm "Re-apply and verify anyway?" no || return 0 ;;
+    manual)
+      rt_ui_warn "Automatic activation is unavailable here; the page will be placed for you to select." ;;
+    *)
+      rt_ui_confirm "Make Row-Template the active $(rt_panel_label "$panel") subscription page now?" yes \
+        || { rt_ui_info "Left unchanged."; return 0; } ;;
+  esac
+  rt_activate || { rt_ui_error "the page could not be generated; nothing was changed."; return 0; }
+  if outcome="$(rt_panel_activate)"; then
+    if [ "$outcome" = "manual" ]; then
+      rt_panel_manual_steps
+    else
+      rt_ui_success "Row-Template is active on $(rt_panel_label "$panel")."
+      rt_render_report
+    fi
+  else
+    rt_ui_warn "Activation did not complete; $(rt_panel_label "$panel") was restored to how it was."
+  fi
+}
+
 rt_manager_info() {
   # Non-sensitive install facts only. Never prints subscription URLs, subId,
   # UUIDs, panel credentials, DB secrets, tokens or the operator's support URL.
@@ -3217,7 +3934,11 @@ rt_manager_info() {
   rt_ui_kv "Version"      "$rtv"
   rt_ui_kv "Developer"    "$RT_DEVELOPER"
   rt_ui_kv "GitHub"       "$RT_GITHUB"
-  rt_ui_kv "3X-UI"        "$xuiv"
+  if [ "$(rt_panel_current)" = "3xui" ]; then
+    rt_ui_kv "3X-UI"        "$xuiv"
+  else
+    rt_ui_kv "Panel"        "$(rt_panel_label "$(rt_panel_current)")"
+  fi
   rt_ui_kv "Install dir"  "$RT_ROOT"
   rt_ui_kv "Template"     "$(rt_template_display_name "$(rt_template_effective)")"
   rt_ui_kv "Theme status" "$(rt_status_label "$st")"
@@ -3463,12 +4184,20 @@ rt_manager_main() {
 # or alter a scripted install.
 
 rt_install_welcome() {
-  # $1 = detected 3x-ui version (may be empty). Returns 0 to proceed, 1 to abort.
+  # $1 = panel id, $2 = detected 3x-ui version (may be empty). Returns 0 to
+  # proceed, 1 to abort.
+  local panel="${1:-3xui}"
   rt_ui_header
   rt_ui_info "Welcome to the Row-Template installer."
-  rt_ui_kv "Detected 3X-UI" "${1:-unknown}"
-  rt_ui_info "Your panel data is safe: inbounds, clients, users and the panel"
-  rt_ui_info "database are NOT modified. Only a subscription theme is added."
+  if [ "$panel" = "3xui" ]; then
+    rt_ui_kv "Detected panel" "3X-UI ${2:-(version unknown)}"
+    rt_ui_info "Your panel data is safe: inbounds, clients, users and the panel"
+    rt_ui_info "database are NOT modified. Only a subscription theme is added."
+  else
+    rt_ui_kv "Detected panel" "$(rt_panel_label "$panel")"
+    rt_ui_info "Your panel data is safe: users, nodes, hosts and settings are NOT"
+    rt_ui_info "modified. Only a subscription page is added, and selected."
+  fi
   rt_ui_kv "GitHub" "$RT_GITHUB"
   printf '\n'
   rt_ui_confirm "Continue installation?" yes
@@ -3550,15 +4279,21 @@ rt_install_success_screen() {
   name="$(rt_config_get_text SERVICE_NAME_B64 2>/dev/null || true)"; [ -n "$name" ] || name="(white-label)"
   rtv="$(rt_trim "$(cat "$RT_VERSION_FILE" 2>/dev/null || true)")"; [ -n "$rtv" ] || rtv="unknown"
   tpl="$(rt_template_display_name "$(rt_template_effective)")"
+  # On 3X-UI a declined activation is the manual step it has always been; on
+  # the other panels the manager's Activate does it later.
+  if [ "$outcome" = "skipped" ] && [ "$(rt_panel_current)" = "3xui" ]; then outcome="manual"; fi
   case "$outcome" in
-    auto) theme="Active" ;;
-    *)    theme="Manual activation required" ;;
+    auto)    theme="Active" ;;
+    skipped) theme="Not activated (run row-template -> Activate)" ;;
+    failed)  theme="Activation failed and was rolled back" ;;
+    *)       theme="Manual activation required" ;;
   esac
   printf '\n'
   rt_ui_rule
   printf '  %s%s installed%s\n' "$RT_C_GRN" "$RT_PROJECT_NAME" "$RT_C_RST"
   rt_ui_kv "Service"  "$name"
   rt_ui_kv "Version"  "$rtv"
+  rt_ui_kv "Panel"    "$(rt_panel_label "$(rt_panel_current)")"
   rt_ui_kv "Template" "$tpl"
   rt_ui_kv "Install dir" "$RT_ROOT"
   rt_ui_kv "Theme"    "$theme"
@@ -3566,9 +4301,13 @@ rt_install_success_screen() {
   rt_ui_kv "GitHub"   "$RT_GITHUB"
   rt_ui_kv "Developer" "$RT_DEVELOPER"
   rt_ui_rule
-  if [ "$theme" != "Active" ]; then
-    rt_ui_info "To activate: Panel Settings -> Subscription -> Sub Theme Directory"
-    rt_ui_kv "Enter exactly" "$RT_ROOT"
+  if [ "$outcome" = "manual" ]; then
+    if [ "$(rt_panel_current)" = "3xui" ]; then
+      rt_ui_info "To activate: Panel Settings -> Subscription -> Sub Theme Directory"
+      rt_ui_kv "Enter exactly" "$RT_ROOT"
+    else
+      rt_panel_manual_steps
+    fi
   fi
 }
 # --- panel interface (P3) -----------------------------------------------------

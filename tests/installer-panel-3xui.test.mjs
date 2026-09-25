@@ -291,7 +291,7 @@ const svcState = (f) => readFileSync(join(f.work, 'svc'), 'utf8').trim();
 /* 1. registration                                                          */
 /* ------------------------------------------------------------------------ */
 
-test('3xui is registered and reachable; the other two panels are not', () => {
+test('3xui is registered and reachable, as are the two panels added in 1.3.0', () => {
   const r = sh(`
     for p in 3xui pasarguard rebecca; do
       printf 'impl|%s|%s\\n' "$p" "$(rt_panel_impl_for "$p" || true)"
@@ -301,19 +301,19 @@ test('3xui is registered and reachable; the other two panels are not', () => {
   assert.equal(r.code, 0, r.err);
   const got = new Map(r.out.split('\n').filter(Boolean).map((l) => l.split('|').slice(1)));
   assert.equal(got.get('3xui'), '3xui', '3xui must resolve to its real implementation');
-  assert.equal(got.get('pasarguard'), '', 'pasarguard must resolve to nothing');
-  assert.equal(got.get('rebecca'), '', 'rebecca must resolve to nothing');
+  assert.equal(got.get('pasarguard'), 'pasarguard', 'pasarguard resolves to its own adapter');
+  assert.equal(got.get('rebecca'), 'rebecca', 'rebecca resolves to its own adapter');
 });
 
-test('the shipping adapter is what answers, and no other adapter exists', () => {
-  assert.equal(existsSync(ADAPTER), true, 'installer/panels/3xui.sh must exist');
-  assert.equal(existsSync(join(PANELS_DIR, 'pasarguard.sh')), false);
-  assert.equal(existsSync(join(PANELS_DIR, 'rebecca.sh')), false);
-  /* The verbs the dispatcher reaches are the ones the adapter defines. */
-  const src = read(ADAPTER);
-  for (const v of ['detect', 'capabilities', 'backup_state', 'install_template',
-    'verify', 'restore_state', 'uninstall_template']) {
-    assert.match(src, new RegExp(`^rt_panel_3xui_${v}\\(\\)`, 'm'), `adapter must define ${v}`);
+test('the shipping adapters are what answer, each defining every frozen verb', () => {
+  for (const name of ['3xui', 'pasarguard', 'rebecca']) {
+    const file = join(PANELS_DIR, `${name}.sh`);
+    assert.equal(existsSync(file), true, `installer/panels/${name}.sh must exist`);
+    const src = read(file);
+    for (const v of ['detect', 'capabilities', 'backup_state', 'install_template',
+      'verify', 'restore_state', 'uninstall_template']) {
+      assert.match(src, new RegExp(`^rt_panel_${name}_${v}\\(\\)`, 'm'), `${name} adapter must define ${v}`);
+    }
   }
 });
 

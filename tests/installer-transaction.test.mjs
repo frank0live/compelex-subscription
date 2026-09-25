@@ -1006,37 +1006,38 @@ test('the user-facing rollback path is unchanged: it still reads the format-1 na
 });
 
 test('the panels directory holds exactly the authorised adapters', () => {
-  /* P4 added no adapter. P5A (2026-09-23) adds exactly one, and the claim is
-     kept PRECISE rather than dropped: a second adapter appearing without a
-     phase authorising it is still a failure, and the panels with no adapter are
-     still asserted absent. */
+  /* P4 added no adapter; P5A added 3xui; 1.3.0 adds pasarguard and rebecca.
+     The claim stays PRECISE: an adapter appearing without a release
+     authorising it is still a failure. */
   const files = readdirSync(PANELS_DIR).sort();
-  assert.deepEqual(files, ['3xui.sh', 'index.sh', 'interface.sh'],
-    'expected the two contract files plus the authorised 3xui adapter');
-  for (const name of ['pasarguard.sh', 'rebecca.sh']) {
-    assert.equal(existsSync(join(PANELS_DIR, name)), false,
-      `${name} must not exist: no adapter is authorised for it`);
-  }
+  assert.deepEqual(files, ['3xui.sh', 'index.sh', 'interface.sh', 'pasarguard.sh', 'rebecca.sh'],
+    'expected the two contract files plus the three authorised adapters');
 });
 
 test('the registry implements exactly the panels a phase has authorised', () => {
   /* The registry is the single decision point, so this is where "implemented"
-     is either true or false for every panel in the enum. A panel with no
-     implementation must resolve to NOTHING -- never to a stub that reports
-     success, because a transaction engine cannot detect a fabricated one. */
-  const body = [
+     is either true or false for every panel in the enum. An adapter that is
+     absent from the build must resolve to NOTHING -- never to a stub that
+     reports success, because a transaction engine cannot detect a fabricated
+     one. */
+  const probe = [
     'for p in 3xui pasarguard rebecca; do',
     '  impl="$(rt_panel_impl_for "$p")"',
     '  printf "%s|%s\\n" "$p" "${impl:-none}"',
     'done',
     'exit 0',
   ].join('\n');
-  const r = sh(body);
+  const r = sh(probe);
   assert.equal(r.code, 0, r.err);
   const got = new Map(r.out.split('\n').filter(Boolean).map((l) => l.split('|')));
-  assert.equal(got.get('3xui'), '3xui', '3xui must resolve to its real implementation');
-  assert.equal(got.get('pasarguard'), 'none', 'pasarguard must resolve to nothing');
-  assert.equal(got.get('rebecca'), 'none', 'rebecca must resolve to nothing');
+  for (const p of ['3xui', 'pasarguard', 'rebecca']) {
+    assert.equal(got.get(p), p, `${p} must resolve to its real implementation`);
+  }
+  const absent = sh('RT_PANEL_PASARGUARD_LOADED=""; RT_PANEL_REBECCA_LOADED=""\n' + probe);
+  assert.equal(absent.code, 0, absent.err);
+  const gone = new Map(absent.out.split('\n').filter(Boolean).map((l) => l.split('|')));
+  assert.equal(gone.get('pasarguard'), 'none', 'an absent adapter resolves to nothing');
+  assert.equal(gone.get('rebecca'), 'none', 'an absent adapter resolves to nothing');
 });
 
 test('a transaction against the real interface, with no panel on this host, fails closed', () => {
