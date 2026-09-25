@@ -11,8 +11,10 @@
  * two columns of exactly the row Rebecca reads; NULL, '' and a value are
  * restored exactly, by rollback and by uninstall; an operator's own directory
  * and page are respected; without database access activation is honestly
- * manual; SQL built from panel data cannot be broken by a quote; and the full
- * life cycle works end to end without Rebecca ever being restarted.
+ * manual; SQL built from panel data cannot be broken by a quote; a foreign
+ * page, a bad restore record, a page for another panel and a backup from
+ * another panel are all refused; secrets never leave .env; and the full life
+ * cycle works end to end without Rebecca ever being restarted.
  */
 
 import test from 'node:test';
@@ -219,6 +221,99 @@ test('admins who override the page for their users are reported by verify', () =
     const r = run([SETUP, 'rt_transaction_run rebecca "$RT_LIVE" 2>/dev/null', 'rt_panel_verify rebecca static; echo "rc=$?"']);
     assert.match(r.out, /rc=0/);
     assert.match(r.err, /2 admin\(s\) override the subscription page/);
+  });
+});
+
+/* --- refusals: a foreign page, a bad record, a tampered page -------------------- */
+
+test('a page that is not Row-Template\'s is never overwritten, and the failed activation changes nothing', () => {
+  withHost({}, ({ host, run }) => {
+    const before = last(host);
+    const tpl = join(host.dataDir, 'templates');
+    mkdirSync(join(tpl, 'row-template'), { recursive: true });
+    writeFileSync(page(tpl), '<p>someone else</p>');
+    const r = run([SETUP, 'rc=0; rt_transaction_run rebecca "$RT_LIVE" || rc=$?; echo "rc=$rc"']);
+    assert.match(r.out, /rc=1/, r.err);
+    assert.match(r.err, /exists and is not Row-Template's/);
+    assert.equal(readFileSync(page(tpl), 'utf8'), '<p>someone else</p>', 'the operator file is untouched');
+    assert.deepEqual(last(host), before, 'the settings row is untouched');
+  });
+});
+
+test('restore refuses a record that lists a file this adapter never places', () => {
+  withHost({}, ({ run }) => {
+    const r = run([SETUP,
+      'rt_transaction_stage_reset', 'rt_panel_backup_state rebecca',
+      'printf "../../etc/passwd\\n" > "$RT_PANEL_STAGE/rebecca/files"',
+      'snap="$(rt_backup_create v2 rebecca 2>/dev/null)" || { echo "snapshot-refused"; exit 0; }',
+      'rc=0; rt_panel_restore_state rebecca "$snap" || rc=$?; echo "rc=$rc"']);
+    assert.match(r.out, /snapshot-refused|rc=1/, r.err);
+  });
+});
+
+test('verify fails a placed page that was changed, and a selection that was moved away', () => {
+  withHost({}, ({ host, run }) => {
+    run([SETUP, 'rt_transaction_run rebecca "$RT_LIVE" 2>/dev/null']);
+    const tpl = join(host.dataDir, 'templates');
+    const good = readFileSync(page(tpl));
+    writeFileSync(page(tpl), good.toString().replace('Test VPN', 'Tampered'));
+    let r = run('rc=0; rt_panel_verify rebecca static || rc=$?; echo "rc=$rc"');
+    assert.match(r.out, /rc=1/);
+    assert.match(r.err, /placed page differs/);
+    writeFileSync(page(tpl), good);
+    const db = `"$(cygpath -u '${host.db.split('\\').join('/')}' 2>/dev/null || printf '%s' '${host.db.split('\\').join('/')}')"`;
+    run(`sqlite3 ${db} "UPDATE subscription_settings SET subscription_page_template = 'subscription/index.html'"`);
+    r = run('rc=0; rt_panel_verify rebecca static || rc=$?; echo "rc=$rc"');
+    assert.match(r.out, /rc=1/);
+    assert.match(r.err, /does not select the Row-Template page/);
+  });
+});
+
+test('secrets in .env never reach output, logs or snapshots', () => {
+  withHost({}, ({ rt, run }) => {
+    const r = run([SETUP, 'rt_transaction_run rebecca "$RT_LIVE"', 'rt_panel_verify rebecca static',
+      'rt_panel_verify rebecca live', 'rt_panel_status rebecca', 'rt_panel_uninstall_template rebecca']);
+    const secret = 'rebecca-secret-do-not-leak';
+    assert.equal(r.out.includes(secret) || r.err.includes(secret), false, 'not in output');
+    const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+      (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
+    for (const f of existsSync(rt) ? walk(rt) : []) {
+      assert.equal(readFileSync(f).includes(secret), false, `not in ${f}`);
+    }
+  });
+});
+
+/* --- the artifact must fit the panel ---------------------------------------- */
+
+test('a 3X-UI artifact, a PasarGuard page, or a shell from before 1.3.0, is refused on Rebecca', () => {
+  withHost({}, ({ base, run }) => {
+    const old = join(base, 'old-shell.html');
+    const shell = readFileSync(join(PAYLOAD, 'shells', 'rebecca', 'row', 'shell.html'), 'utf8');
+    // a 1.2.x shell: the same layout without the context prelude and escaping
+    writeFileSync(old, shell.replace('Row-Template, Rebecca page context', '')
+      .replace('{%- autoescape on -%}', '').replace('{%- endautoescape %}', ''));
+    const u = (p) => `"$(cygpath -u ${JSON.stringify(p.split('\\').join('/'))} 2>/dev/null || printf '%s' ${JSON.stringify(p.split('\\').join('/'))})"`;
+    const r = run([SETUP,
+      'rc=0; rt_set_dist "$PAYLOAD/template.html" 2>/dev/null || rc=$?; echo "xui=$rc"',
+      'rc=0; rt_set_dist "$PAYLOAD/shells/pasarguard/row/shell.html" 2>/dev/null || rc=$?; echo "pg=$rc"',
+      `rc=0; rt_set_dist ${u(old)} 2>/dev/null || rc=$?; echo "old=$rc"`,
+      'rc=0; rt_set_dist "$RT_TEMPLATE_STORE/editorial/template.html" || rc=$?; echo "ok=$rc"']);
+    assert.match(r.out, /xui=1/, 'the 3X-UI artifact is refused');
+    assert.match(r.out, /pg=1/, 'a PasarGuard page is refused');
+    assert.match(r.out, /old=1/, 'a shell without the prelude and escaping is refused');
+    assert.match(r.out, /ok=0/, `a 1.3.0 Rebecca page is accepted\n${r.err}`);
+  });
+});
+
+test('a backup made for another panel is never restored onto Rebecca', () => {
+  withHost({}, ({ run }) => {
+    const r = run([SETUP,
+      'B="$(rt_backup_create)"',
+      'sed -i "s/^panel=rebecca$/panel=pasarguard/" "$B/meta"',
+      'rc=0; rt_restore_from_backup "$B" 2>/dev/null || rc=$?; echo "rc=$rc"',
+      'B2="$(rt_backup_create)"; grep -c "^panel=rebecca$" "$B2/meta"']);
+    assert.match(r.out, /rc=1/, 'refused');
+    assert.match(r.out, /\n1$/, 'and a Rebecca backup records its panel');
   });
 });
 

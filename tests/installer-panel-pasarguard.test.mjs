@@ -281,6 +281,37 @@ test('verify fails a placed page that was changed, and a selection that was remo
   });
 });
 
+/* Two settings in PasarGuard's database outrank the selected page: an admin's
+   own sub_template, and disable_sub_template (app/operation/subscription.py).
+   Row-Template never changes them; verify names them, never fails on them, and
+   reads the database without writing a byte. */
+test('verify names the database settings that outrank the page, and never writes the database', () => {
+  withHost({ db: { admins: [null, 'custom/admin.html', ''], disable: true } }, ({ host, run }) => {
+    run([SETUP, 'rt_transaction_run pasarguard "$RT_LIVE" 2>/dev/null']);
+    const before = sha256(readFileSync(host.db));
+    const r = run('rc=0; rt_panel_verify pasarguard static || rc=$?; echo "rc=$rc"');
+    assert.match(r.out, /rc=0/, 'advice, never a failure');
+    assert.match(r.err, /1 admin\(s\) set their own subscription page \(sub_template\)/);
+    assert.match(r.err, /'disable subscription template' setting is on/);
+    assert.equal(sha256(readFileSync(host.db)), before, 'the database is read, never written');
+    assert.equal(r.out.includes(host.db) || r.err.includes('sqlite+aiosqlite'), false, 'the database URL is never printed');
+  });
+  withHost({ db: { admins: [null, ''], disable: false } }, ({ run }) => {
+    run([SETUP, 'rt_transaction_run pasarguard "$RT_LIVE" 2>/dev/null']);
+    const r = run('rc=0; rt_panel_verify pasarguard static || rc=$?; echo "rc=$rc"');
+    assert.match(r.out, /rc=0/);
+    assert.equal(/sub_template|disable subscription template/.test(r.err), false, 'nothing to say when nothing overrides');
+  });
+  // A server database (its URL carries a password) is never read, and never printed.
+  withHost({ env: PG_ENV.replace(/^SQLALCHEMY_DATABASE_URL = .*$/m,
+    'SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg://pg:db-pass-do-not-leak@127.0.0.1:5432/pasarguard"') }, ({ run }) => {
+    const r = run([SETUP, 'rt_transaction_run pasarguard "$RT_LIVE" 2>/dev/null',
+      'rc=0; rt_panel_verify pasarguard static || rc=$?; echo "rc=$rc"']);
+    assert.match(r.out, /rc=0/);
+    assert.equal((r.out + r.err).includes('db-pass-do-not-leak'), false);
+  });
+});
+
 test('secrets in .env never reach output, logs or snapshots', () => {
   withHost({}, ({ rt, run }) => {
     const r = run([SETUP, 'rt_transaction_run pasarguard "$RT_LIVE"', 'rt_panel_verify pasarguard static',

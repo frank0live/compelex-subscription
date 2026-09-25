@@ -253,7 +253,7 @@ export const PG_ENV = [
   'JWT_SECRET = "jwt-secret-do-not-leak"',
 ].join('\n') + '\n';
 
-export function pasarguardHost(base, { running = true, env = PG_ENV, compose = true, cli = true, data = true } = {}) {
+export function pasarguardHost(base, { running = true, env = PG_ENV, compose = true, cli = true, data = true, db = null } = {}) {
   const app = join(base, 'opt', 'pasarguard');
   const dataDir = join(base, 'var', 'lib', 'pasarguard');
   const cliPath = join(base, 'usr', 'local', 'bin', 'pasarguard');
@@ -276,9 +276,34 @@ export function pasarguardHost(base, { running = true, env = PG_ENV, compose = t
   writeFileSync(join(docker, 'image'), 'pasarguard/panel:latest');
   writeFileSync(join(docker, 'name'), 'pasarguard-pasarguard-1');
   if (running) writeFileSync(join(docker, 'running'), '');
-  const bin = shims(base, { sqlite: false });
+  // With `db`, a SQLite database holding PasarGuard's own columns for the two
+  // settings verify reports on: admins.sub_template, and the subscription JSON
+  // of the settings row. The .env then points at it, as the official installer's
+  // absolute sqlite+aiosqlite URL does.
+  let dbPath = null;
+  if (db) {
+    dbPath = join(dataDir, 'db.sqlite3');
+    const statements = [
+      'CREATE TABLE admins (id INTEGER PRIMARY KEY, username VARCHAR(34), sub_template VARCHAR(1024))',
+      'CREATE TABLE settings (id INTEGER PRIMARY KEY, subscription JSON NOT NULL)',
+      `INSERT INTO settings (subscription) VALUES ('${JSON.stringify({ allow_browser_config: true,
+        disable_sub_template: Boolean(db.disable) })}')`,
+    ];
+    (db.admins || []).forEach((t, i) => statements.push(
+      `INSERT INTO admins (username, sub_template) VALUES ('a${i}', ${t === null ? 'NULL' : `'${t.split("'").join("''")}'`})`));
+    const r = spawnSync(PYTHON, ['-c', [
+      'import sqlite3,sys,json',
+      'con=sqlite3.connect(sys.argv[1])',
+      'for s in json.loads(sys.argv[2]): con.execute(s)',
+      'con.commit(); con.close()',
+    ].join('\n'), dbPath, JSON.stringify(statements)], { encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(r.stderr);
+    writeFileSync(join(app, '.env'), readFileSync(join(app, '.env'), 'utf8').replace(
+      /^SQLALCHEMY_DATABASE_URL = .*$/m, `SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///${posix(dbPath)}"`));
+  }
+  const bin = shims(base, { sqlite: Boolean(db) });
   return {
-    app, dataDir, cliPath, docker, bin, envFile: join(app, '.env'),
+    app, dataDir, cliPath, docker, bin, db: dbPath, envFile: join(app, '.env'),
     paths: { RT_PG_APP_DIR: app, RT_PG_DATA_DIR: dataDir, RT_PG_CLI: cliPath, RT_TEST_DOCKER: docker, RT_TEST_BIN: bin },
   };
 }
