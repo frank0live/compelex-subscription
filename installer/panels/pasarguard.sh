@@ -327,6 +327,59 @@ rt_panel_pasarguard_apply() {
   return 0
 }
 
+# --- what the database can still override (read-only) ------------------------
+# Two panel settings live in PasarGuard's database, not in .env, and both win
+# over the selected page: an admin's own `sub_template` (their users get that
+# page instead) and the subscription setting `disable_sub_template` (browsers
+# get the raw subscription, no page at all). Row-Template never changes either
+# -- they are the operator's choices -- but verify says when one applies, so a
+# page that "does not show" is explained. Read-only, SQLite only; the database
+# URL is read for its path and never printed (a server URL carries a password).
+
+rt_panel_pasarguard_db() {
+  # Echo the host path of PasarGuard's SQLite database, or fail.
+  local env url path rc=0
+  env="$(rt_panel_pasarguard_env)"
+  [ -f "$env" ] && [ ! -L "$env" ] || return 1
+  url="$(rt_dotenv_get "$env" SQLALCHEMY_DATABASE_URL)" || rc=$?
+  [ "$rc" -eq 0 ] && [ -n "$url" ] || return 1
+  case "$url" in
+    sqlite:///*|sqlite+*:///*) path="${url#*:///}" ;;
+    *) return 1 ;;                                       # PostgreSQL/MySQL: not read
+  esac
+  path="${path%%\?*}"
+  case "$path" in
+    /*) : ;;
+    *) [ "$(rt_panel_pasarguard_mode)" = "systemd" ] || return 1   # relative: inside the image
+       path="$(dirname -- "$env")/$path" ;;
+  esac
+  if [ "$(rt_panel_pasarguard_mode)" = "docker" ]; then
+    rt_is_within "$RT_PG_DATA_DIR" "$path" || return 1
+  fi
+  rt_is_sqlite_db "$path" || return 1
+  printf '%s' "$path"
+}
+
+rt_panel_pasarguard_db_notes() {
+  # Warn (never fail) about the two overrides above. Silent when they cannot be
+  # read: this is advice, and verify's pass/fail does not depend on it.
+  local db n off
+  command -v sqlite3 >/dev/null 2>&1 || return 0
+  db="$(rt_panel_pasarguard_db)" || return 0
+  n="$(sqlite3 -readonly -cmd '.timeout 5000' "$db" \
+    "SELECT COUNT(*) FROM admins WHERE sub_template IS NOT NULL AND sub_template <> '';" 2>/dev/null)" || n=0
+  case "${n:-}" in ''|*[!0-9]*) n=0 ;; esac
+  [ "$n" = "0" ] \
+    || rt_warn "panel pasarguard: $n admin(s) set their own subscription page (sub_template); their users keep that page."
+  off="$(sqlite3 -readonly -cmd '.timeout 5000' "$db" \
+    "SELECT json_extract(subscription, '\$.disable_sub_template') FROM settings ORDER BY id LIMIT 1;" 2>/dev/null)" || off=""
+  case "$off" in
+    1|true|True)
+      rt_warn "panel pasarguard: the panel's 'disable subscription template' setting is on, so browsers get the raw subscription instead of any page." ;;
+  esac
+  return 0
+}
+
 # --- the frozen verbs --------------------------------------------------------------
 
 rt_panel_pasarguard_detect() {
@@ -486,6 +539,7 @@ rt_panel_pasarguard_verify() {
     || { rt_err "panel pasarguard: the placed page differs from the generated one"; return "$RT_PANEL_FAIL"; }
   rt_panel_pasarguard_selected \
     || { rt_err "panel pasarguard: .env does not select the Row-Template page"; return "$RT_PANEL_FAIL"; }
+  rt_panel_pasarguard_db_notes
   return "$RT_PANEL_OK"
 }
 
