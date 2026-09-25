@@ -1,7 +1,7 @@
 {
   "panel": "pasarguard",
   "case": "08-on-hold",
-  "note": "on_hold is a third state with no slot in the contract — recorded, expectation deferred",
+  "note": "on_hold with a hold duration: enabled, and the clock starts on first connection (expire = -duration)",
   "source": {
     "route": "GET /{token}/info",
     "version": "5.4.1",
@@ -42,6 +42,23 @@
     }
   },
   "expected": {
-    "model": null
+    "model": {
+      "enabled": true,
+      "online": true,
+      "download": 42949672960,
+      "upload": 0,
+      "used": 42949672960,
+      "total": 107374182400,
+      "expire": -2592000,
+      "lastOnline": 1789732710000,
+      "subUrl": "https://sub.example.com/sub/e3b0c44298fc1c14",
+      "subJsonUrl": "",
+      "subClashUrl": "",
+      "title": "Premium 100 GB",
+      "supportUrl": "https://t.me/example_support",
+      "announce": "Scheduled maintenance on Sunday, 03:00-04:00 UTC.",
+      "jalali": false,
+      "links": []
+    }
   }
 }

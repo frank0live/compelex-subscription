@@ -1,7 +1,7 @@
 {
   "panel": "pasarguard",
-  "case": "01-active-online",
-  "note": "status active with a recent online_at",
+  "case": "21-status-expired",
+  "note": "the panel reports status expired once expire passes; the account stays enabled and the page derives \"expired\" from expire",
   "source": {
     "route": "GET /{token}/info",
     "version": "5.4.1",
@@ -12,14 +12,14 @@
     "info": {
       "id": 42,
       "username": "alice",
-      "status": "active",
+      "status": "expired",
       "used_traffic": 42949672960,
       "lifetime_used_traffic": 98784247808,
       "data_limit": 107374182400,
-      "expire": "2026-11-02T12:00:00Z",
+      "expire": "2026-09-01T00:00:00Z",
       "on_hold_expire_duration": null,
       "on_hold_timeout": null,
-      "online_at": "2026-09-18T11:58:30Z",
+      "online_at": "2026-08-31T23:00:00Z",
       "created_at": "2026-01-11T12:00:00Z",
       "edit_at": null,
       "data_limit_reset_strategy": "no_reset",
@@ -30,7 +30,7 @@
       "ip": null
     },
     "headers": {
-      "subscription-userinfo": "upload=0; download=42949672960; total=107374182400; expire=1793620800",
+      "subscription-userinfo": "upload=0; download=42949672960; total=107374182400; expire=1788220800",
       "profile-web-page-url": "https://sub.example.com/sub/e3b0c44298fc1c14",
       "profile-title": "base64:UHJlbWl1bSAxMDAgR0I=",
       "support-url": "https://t.me/example_support",
@@ -44,13 +44,13 @@
   "expected": {
     "model": {
       "enabled": true,
-      "online": true,
+      "online": false,
       "download": 42949672960,
       "upload": 0,
       "used": 42949672960,
       "total": 107374182400,
-      "expire": 1793620800,
-      "lastOnline": 1789732710000,
+      "expire": 1788220800,
+      "lastOnline": 1788217200000,
       "subUrl": "https://sub.example.com/sub/e3b0c44298fc1c14",
       "subJsonUrl": "",
       "subClashUrl": "",

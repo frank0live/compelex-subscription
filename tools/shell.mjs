@@ -106,16 +106,36 @@ export function assembleShell(panelId, templateId, { withFont = true } = {}) {
   }
 
   const tpl = resolveTemplate(templateId);
-  const source = readFileSync(`src/templates/${templateId}/layout.html`, 'utf8');
+  const source = readFileSync(join(ROOT, 'src', 'templates', templateId, 'layout.html'), 'utf8');
+  const emitter = emitterFor(panelId);
 
   /* 1. dialect. The Go emitter is the identity; the others rewrite the blocks. */
-  let html = transpile(source, emitterFor(panelId));
+  let html = transpile(source, emitter);
 
-  /* 2. placeholders, from the same sources the 3X-UI artifacts use. */
-  html = substitute(html, '/*__STYLES__*/', buildStyles(withFont, tpl.styles));
-  html = substitute(html, '/*__BOOT__*/', buildBoot());
-  html = substitute(html, '/*__LOCALES__*/', buildLocales());
-  html = substitute(html, '/*__APP__*/', buildApp());
+  /* 2. placeholders, from the same sources the 3X-UI artifacts use.
+
+     On a block dialect the assets must carry no template delimiter at all.
+     PasarGuard's Jinja2 and Rebecca's pongo2 both parse the WHOLE file, inline
+     CSS and JavaScript included -- and Rebecca rewrites every {{ }} and {% %}
+     it finds before parsing. A delimiter inside the runtime would therefore be
+     parsed as template code on the server. The check is on the assets alone,
+     before substitution, so the layout's own actions are not confused with it. */
+  const assets = {
+    '/*__STYLES__*/': buildStyles(withFont, tpl.styles),
+    '/*__BOOT__*/': buildBoot(),
+    '/*__LOCALES__*/': buildLocales(),
+    '/*__APP__*/': buildApp(),
+  };
+  for (const [token, text] of Object.entries(assets)) {
+    if (emitter !== 'go') {
+      const hit = text.match(TEMPLATE_DELIMITER);
+      if (hit) {
+        throw new Error(`${panelId}/${templateId}: the ${token} asset contains the template delimiter `
+          + `${JSON.stringify(hit[0])}, which ${emitter} would parse as template code`);
+      }
+    }
+    html = substitute(html, token, text);
+  }
 
   /* 3. the template hook on <html>. Row predates the attribute and drops it
      whole; every other template substitutes its id. */
@@ -135,13 +155,64 @@ export function assembleShell(panelId, templateId, { withFont = true } = {}) {
   const leftover = html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//);
   if (leftover) throw new Error(`unsubstituted build marker: ${leftover[0]}`);
 
+  /* 5. the panel's own context, and escaping.
+
+     `body` is the layout in the panel's dialect: it reads 3X-UI's names
+     (enabled, downloadByte, expire, ...). No other panel supplies those names,
+     so on its own `body` renders an empty page. The PRELUDE derives every one
+     of them from the context the panel really renders with, and the shipped
+     document is prelude + body.
+
+     The body is also wrapped in an explicit autoescape block. On PasarGuard
+     this is what makes the page safe at all: its Jinja2 environment does not
+     autoescape, and without the block a username, a link remark or an
+     announcement would be written into the page as raw HTML. On Rebecca pongo2
+     already escapes by default; the block keeps it so. */
+  const body = html;
+  if (emitter !== 'go') html = wrapForPanel(panelId, emitter, body);
+
   return {
     panelId,
     templateId,
-    emitter: emitterFor(panelId),
+    emitter,
     html,
+    body,
     bytes: Buffer.byteLength(html, 'utf8'),
   };
+}
+
+/* The three delimiters a block dialect parses: values, tags and comments. */
+export const TEMPLATE_DELIMITER = /\{\{|\{%|\{#/;
+
+/* Each block dialect's explicit autoescape block. */
+const AUTOESCAPE = {
+  jinja2: { open: '{%- autoescape true -%}', close: '{%- endautoescape %}' },
+  pongo2: { open: '{%- autoescape on -%}', close: '{%- endautoescape %}' },
+};
+
+/* The prelude a panel's shell starts with: src/panels/<panel>/prelude.<emitter>. */
+export function preludePath(panelId, emitter) {
+  return join(ROOT, 'src', 'panels', panelId, `prelude.${emitter}`);
+}
+
+/* <!doctype html> + prelude + autoescape(body) + </html>.
+
+   The doctype stays the first line, and </html> the last tag, so the installer's
+   structural gate (rt_validate_template) reads a shell exactly as it reads a
+   3X-UI artifact. Both are outside the autoescape block and neither is a
+   template value, so nothing is lost by leaving them there. */
+export function wrapForPanel(panelId, emitter, body) {
+  const esc = AUTOESCAPE[emitter];
+  if (!esc) throw new Error(`no autoescape form for emitter ${JSON.stringify(emitter)}`);
+  const prelude = readFileSync(preludePath(panelId, emitter), 'utf8').replace(/\r\n/g, '\n').trimEnd();
+  const nl = body.indexOf('\n');
+  const first = nl === -1 ? body : body.slice(0, nl);
+  if (!/^<!doctype html>$/i.test(first)) {
+    throw new Error(`${panelId}: a shell must begin with <!doctype html> on its own line`);
+  }
+  const end = body.lastIndexOf('</html>');
+  if (end === -1) throw new Error(`${panelId}: a shell must end with </html>`);
+  return `${first}\n${prelude}\n${esc.open}\n${body.slice(nl + 1, end)}${esc.close}</html>${body.slice(end + '</html>'.length)}`;
 }
 
 /* Assemble every panel in `panels` across every template.

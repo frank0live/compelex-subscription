@@ -34,9 +34,11 @@ const DIR = join(ROOT, 'tests', 'fixtures', 'panels', 'rebecca');
 const FIXTURES = readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()
   .map((f) => ({ file: f, doc: JSON.parse(readFileSync(join(DIR, f), 'utf8')) }));
 
-/* `08-on-hold` and `17-unknown-status` are refusals — they throw before
-   rendering, and have their own tests below. */
-const THROWS = ['08-on-hold', '17-unknown-status'];
+/* `17-unknown-status` is a refusal at the ADAPTER: it throws before rendering
+   and has its own test below. (The shipped page cannot throw; it renders an
+   unknown status as disabled, the way Rebecca classes it -- proven on real
+   pongo2 in tests/panels-engines.test.mjs.) `08-on-hold` renders since 1.3.0. */
+const THROWS = ['17-unknown-status'];
 
 const byCase = (name) => FIXTURES.find((f) => f.doc.case === name);
 
@@ -45,7 +47,7 @@ const byCase = (name) => FIXTURES.find((f) => f.doc.case === name);
 function renderPanel(doc, templateId = 'row', { autoescape = true } = {}) {
   const model = rebeccaIsland({ ...doc.native, now: doc.source.clock * 1000 });
   const shell = assembleShell('rebecca', templateId);
-  return { model, shell, html: renderPongo2(shell.html, toIslandContext(model), { autoescape }) };
+  return { model, shell, html: renderPongo2(shell.body, toIslandContext(model), { autoescape }) };
 }
 
 /* --- 1. the shell assembles for every template --------------------------- */
@@ -256,7 +258,7 @@ test('the page never carries the subscriber address', () => {
 test('a hostile title is escaped by an autoescaping engine', () => {
   const doc = byCase('16-hostile-title').doc;
   const model = rebeccaIsland({ ...doc.native, now: doc.source.clock * 1000 });
-  const html = renderPongo2(assembleShell('rebecca', 'row').html, toIslandContext(model), { autoescape: true });
+  const html = renderPongo2(assembleShell('rebecca', 'row').body, toIslandContext(model), { autoescape: true });
 
   assert.equal(html.includes('&lt;img src=x onerror=&#34;alert(1)&#34;&gt;'), true,
     'the raw page must carry the escaped value');
@@ -265,22 +267,34 @@ test('a hostile title is escaped by an autoescaping engine', () => {
   assert.deepEqual(validateIsland(extractIsland(html)), []);
 });
 
-test('WITHOUT autoescape the title breaks out — Rebecca must configure its engine', () => {
-  /* Same finding as PasarGuard: the shell interpolates into an attribute, so the
-     engine must escape. pongo2 escapes by default only if `autoescape` is set on
-     the template set; this records what happens when it is not. */
+test('WITHOUT autoescape the layout body breaks out, so the shipped shell pins autoescape on', () => {
+  /* Same finding as PasarGuard: the body interpolates into attributes, so the
+     engine must escape. pongo2 escapes by default and Rebecca does not turn it
+     off; the SHIPPED shell nevertheless wraps the body in an explicit
+     `{% autoescape on %}` block so it stays safe if that default ever changes.
+     tests/panels-engines.test.mjs renders it on real pongo2 with hostile data. */
   const doc = byCase('16-hostile-title').doc;
   const model = rebeccaIsland({ ...doc.native, now: doc.source.clock * 1000 });
-  const html = renderPongo2(assembleShell('rebecca', 'row').html, toIslandContext(model), { autoescape: false });
+  const shell = assembleShell('rebecca', 'row');
+  const html = renderPongo2(shell.body, toIslandContext(model), { autoescape: false });
   const errors = validateIsland(extractIsland(html));
   assert.ok(errors.some((e) => /missing attribute/.test(e)), 'attributes are lost after the break');
+
+  const open = shell.html.indexOf('{%- autoescape on -%}');
+  const close = shell.html.lastIndexOf('{%- endautoescape %}');
+  const island = shell.html.indexOf('id="sub-data"');
+  assert.ok(open > 0 && open < island && island < close, 'the shipped shell escapes the whole body');
 });
 
 /* --- refusals ------------------------------------------------------------ */
 
-test('on_hold and an unknown status are refused before rendering', () => {
-  assert.throws(() => renderPanel(byCase('08-on-hold').doc), /unsupported on_hold state/);
+test('the adapter refuses an unknown status, and renders on_hold enabled with an unknown expiry', () => {
   assert.throws(() => renderPanel(byCase('17-unknown-status').doc), /unknown status/);
+  const { html } = renderPanel(byCase('08-on-hold').doc);
+  const island = extractIsland(html);
+  assert.deepEqual(validateIsland(island), []);
+  assert.equal(island.attributes['data-enabled'], '1', 'on_hold is enabled');
+  assert.equal(island.attributes['data-expire'], '', 'and its expiry is unknown, not "never"');
 });
 
 /* --- the shell is written to disk ---------------------------------------- */

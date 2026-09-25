@@ -1,7 +1,7 @@
 {
   "panel": "pasarguard",
-  "case": "01-active-online",
-  "note": "status active with a recent online_at",
+  "case": "20-status-limited",
+  "note": "the panel reports status limited once used_traffic reaches data_limit; the account stays enabled and the page derives \"limited\" from the figures",
   "source": {
     "route": "GET /{token}/info",
     "version": "5.4.1",
@@ -12,8 +12,8 @@
     "info": {
       "id": 42,
       "username": "alice",
-      "status": "active",
-      "used_traffic": 42949672960,
+      "status": "limited",
+      "used_traffic": 107374182400,
       "lifetime_used_traffic": 98784247808,
       "data_limit": 107374182400,
       "expire": "2026-11-02T12:00:00Z",
@@ -30,7 +30,7 @@
       "ip": null
     },
     "headers": {
-      "subscription-userinfo": "upload=0; download=42949672960; total=107374182400; expire=1793620800",
+      "subscription-userinfo": "upload=0; download=107374182400; total=107374182400; expire=1793620800",
       "profile-web-page-url": "https://sub.example.com/sub/e3b0c44298fc1c14",
       "profile-title": "base64:UHJlbWl1bSAxMDAgR0I=",
       "support-url": "https://t.me/example_support",
@@ -45,9 +45,9 @@
     "model": {
       "enabled": true,
       "online": true,
-      "download": 42949672960,
+      "download": 107374182400,
       "upload": 0,
-      "used": 42949672960,
+      "used": 107374182400,
       "total": 107374182400,
       "expire": 1793620800,
       "lastOnline": 1789732710000,
