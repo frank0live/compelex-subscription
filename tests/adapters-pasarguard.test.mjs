@@ -38,7 +38,7 @@ const withClock = (doc) => ({ ...doc.native, now: doc.source.clock * 1000 });
 
 test('every fixture reproduces its expected model exactly', () => {
   for (const { file, doc } of FIXTURES) {
-    if (doc.expected.model === null) continue;        /* deferred: on_hold */
+    if (doc.expected.model === null) continue;        /* none since 1.3.0 */
     const got = island(withClock(doc));
     assert.deepEqual(got, doc.expected.model, file + ': the adapter must match the fixture');
   }
@@ -175,15 +175,26 @@ test('a seconds/milliseconds swap would be caught', () => {
   assert.equal(m.expire * 1000 === m.lastOnline, false, 'they are not the same instant');
 });
 
-/* 14 — on_hold */
-test('on_hold is refused explicitly, never coerced to another state', () => {
+/* 14 — on_hold (decided for 1.3.0, docs/design/PANEL-ON-HOLD-DECISION.md) */
+test('on_hold resolves to a pending expiry of the hold duration, never a tempting wrong answer', () => {
   const doc = byCase('08-on-hold').doc;
   assert.equal(doc.native.info.status, 'on_hold');
-  assert.throws(() => island(withClock(doc)), /unsupported on_hold state/);
-  /* And specifically NOT any of the tempting wrong answers. */
-  for (const wrong of ['disabled', 'active']) {
-    assert.notEqual(doc.native.info.status, wrong);
+  const m = island(withClock(doc));
+  assert.deepEqual(m, doc.expected.model);
+  assert.equal(m.enabled, true, 'not disabled');
+  assert.equal(m.expire, -doc.native.info.on_hold_expire_duration, 'the clock starts on first connection');
+  const noDuration = island(withClock(byCase('22-on-hold-no-duration').doc));
+  assert.equal(noDuration.expire, null, 'without a duration the expiry is unknown, not 0 ("never")');
+});
+
+test('limited and expired are enabled statuses, and a status outside the enum is refused', () => {
+  for (const kase of ['20-status-limited', '21-status-expired']) {
+    const doc = byCase(kase).doc;
+    assert.equal(island(withClock(doc)).enabled, true, kase);
   }
+  const doc = byCase('01-active-online').doc;
+  const bad = { ...doc.native, info: { ...doc.native.info, status: 'suspended' }, now: doc.source.clock * 1000 };
+  assert.throws(() => island(bad), /unknown status "suspended"/);
 });
 
 /* 15 — malformed payload */

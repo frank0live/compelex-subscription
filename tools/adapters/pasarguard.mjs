@@ -19,14 +19,17 @@
  * asserts the header and `used_traffic` agree, so a future version that starts
  * reporting a real split fails loudly instead of silently changing the UI.
  *
- * THE ONE DECISION THAT IS DELIBERATELY ABSENT
+ * ON_HOLD (decided for 1.3.0, docs/design/PANEL-ON-HOLD-DECISION.md)
  *
- * `on_hold` is a real third state with its own countdown. Row's `expire`
- * encoding (0 = never, negative = duration) has no slot for it, so this adapter
- * THROWS rather than guessing. Mapping it to expired, disabled, active or
- * "never" would each be a different lie. The state is recorded in
- * tests/fixtures/panels/pasarguard/08-on-hold.json with a null expectation, so
- * the gap is visible until a product decision closes it.
+ * `on_hold` means the subscription is held and its clock has not started: it
+ * starts on the first connection and then runs for on_hold_expire_duration
+ * seconds. Row's `expire` encoding already has that slot -- a negative value is
+ * "a duration that starts on first connection" -- so an on_hold subscription
+ * with a duration is enabled with expire = -duration, and the page says
+ * "Starts on first connection, valid for N days after that". Without a
+ * duration there is nothing honest to show, so expire is null (unknown); it is
+ * never folded into "never expires". The shipped page applies the same rule in
+ * src/panels/pasarguard/prelude.jinja2.
  *
  * WHAT IS NOT READ
  *
@@ -46,7 +49,10 @@ export const emitter = 'jinja2';
    the number appears. */
 const ONLINE_WINDOW_MS = 120 * 1000;
 
-const STATUSES = ['active', 'disabled', 'on_hold'];
+/* Every status PasarGuard's UserStatus enum defines. `limited` and `expired`
+   are enabled accounts that have run out: the page derives both from the
+   figures, so they are reported as enabled and never folded into disabled. */
+const STATUSES = ['active', 'disabled', 'limited', 'expired', 'on_hold'];
 
 /* PasarGuard's encode_title() emits `base64:<b64>` — the prefix is a
    client-side convention (subscription clients look for it) and nothing in the
@@ -108,11 +114,6 @@ export function island(native) {
     throw new Error(`pasarguard: unknown status ${JSON.stringify(status)}`);
   }
 
-  /* The deliberate refusal. Not expired, not disabled, not active — refused. */
-  if (status === 'on_hold') {
-    throw new Error('unsupported on_hold state');
-  }
-
   const now = Number.isFinite(native.now) ? native.now : Date.now();
 
   /* Traffic. The combined counter, exactly as the panel reports it. */
@@ -124,10 +125,18 @@ export function island(native) {
   const rawLimit = asCount(info.data_limit);
   const total = rawLimit === null || rawLimit === 0 ? 0 : rawLimit;
 
-  /* Expiry. `null` means never, which Row encodes as 0. */
-  const expire = info.expire === null || info.expire === undefined
-    ? 0
-    : (secondsFromIso(info.expire) ?? 0);
+  /* Expiry. `null` means never, which Row encodes as 0. An on_hold
+     subscription has not started its clock: with a duration it is the negative
+     duration (starts on first connection), without one it is unknown. */
+  let expire;
+  if (status === 'on_hold') {
+    const hold = asCount(info.on_hold_expire_duration);
+    expire = hold !== null && hold > 0 ? -hold : null;
+  } else {
+    expire = info.expire === null || info.expire === undefined
+      ? 0
+      : (secondsFromIso(info.expire) ?? 0);
+  }
 
   /* Online. Only ever true on a reported timestamp inside the window. */
   const onlineAt = info.online_at;
@@ -152,7 +161,10 @@ export function island(native) {
     subUrl,
     /* PasarGuard has no JSON-subscription equivalent; the button is omitted. */
     subJsonUrl: '',
-    subClashUrl: subUrl ? `${subUrl}/clash-meta` : '',
+    /* Omitted. PasarGuard serves Clash Meta at /{token}/clash_meta (with an
+       underscore) and only while the admin leaves that format enabled; nothing
+       in the panel's data says whether it is, so no button is offered. */
+    subClashUrl: '',
     title: decodeHeader(headers['profile-title']),
     supportUrl: asText(headers['support-url']),
     announce: decodeHeader(headers['announce']),

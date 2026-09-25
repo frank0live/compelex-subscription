@@ -35,10 +35,10 @@ const FIXTURES = readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()
 const byCase = (name) => FIXTURES.find((f) => f.doc.case === name);
 const withClock = (doc) => ({ ...doc.native, now: doc.source.clock * 1000 });
 
-/* The fixtures whose expectation is deliberately absent: `on_hold` and the
-   unknown status. Both must THROW, so they are excluded from the oracle sweep
-   and covered by their own tests below. */
-const THROWS = ['08-on-hold', '17-unknown-status'];
+/* The fixture whose expectation is deliberately absent: the unknown status.
+   It must THROW, so it is excluded from the oracle sweep and covered by its own
+   test below. (`on_hold` resolves since 1.3.0 and is swept like any other.) */
+const THROWS = ['17-unknown-status'];
 
 /* --- the oracle sweep ---------------------------------------------------- */
 
@@ -106,15 +106,13 @@ test('disabled is the ONLY status that means off', () => {
 
 /* --- on_hold and unknown status both throw ------------------------------- */
 
-test('on_hold is refused explicitly, never coerced to another state', () => {
+test('on_hold resolves to enabled with an unknown expiry, never a tempting wrong answer', () => {
   const doc = byCase('08-on-hold').doc;
   assert.equal(doc.native.info.status, 'on_hold');
-  assert.equal(doc.expected.model, null, 'the fixture records no expectation');
-  assert.throws(() => island(withClock(doc)), /unsupported on_hold state/);
-  /* And specifically NOT any of the tempting wrong answers. */
-  for (const wrong of ['disabled', 'active', 'expired']) {
-    assert.notEqual(doc.native.info.status, wrong);
-  }
+  const m = island(withClock(doc));
+  assert.deepEqual(m, doc.expected.model);
+  assert.equal(m.enabled, true, 'not disabled');
+  assert.equal(m.expire, null, 'not 0 ("never"), and not an invented duration');
 });
 
 test('an unknown status is refused rather than absorbed by an else branch', () => {
@@ -127,7 +125,7 @@ test('an unknown status is refused rather than absorbed by an else branch', () =
   assert.throws(() => island(withClock(doc)), /suspended/);
 });
 
-test('the two refusals are the only fixtures without an expectation', () => {
+test('the refusal is the only fixture without an expectation', () => {
   const deferred = FIXTURES.filter((f) => f.doc.expected.model === null).map((f) => f.doc.case);
   assert.deepEqual(deferred, THROWS);
 });
@@ -198,6 +196,11 @@ test('expire passes through as SECONDS, unchanged', () => {
   for (const { file, doc: d } of FIXTURES) {
     if (THROWS.includes(d.case)) continue;
     const e = d.native.info.expire;
+    if (d.native.info.status === 'on_hold') {
+      /* the clock has not started and Rebecca passes no hold duration */
+      assert.equal(island(withClock(d)).expire, null, file + ': an on_hold expiry is unknown');
+      continue;
+    }
     assert.equal(island(withClock(d)).expire, e === null || e <= 0 ? 0 : e,
       file + ': expire must be DIRECT, never converted');
   }
