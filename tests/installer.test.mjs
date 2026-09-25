@@ -400,8 +400,8 @@ test('restore-from-backup reinstates artifact + VERSION but keeps current config
      admin's CURRENT branding — restoring stale config would silently undo a
      rename the admin made after the backup. The template identity is now
      re-derived from the artifact against the store, so a store entry for the
-     backed-up design is part of the fixture; with no matching entry the
-     restore refuses (see the next test). */
+     backed-up design is part of the fixture; without a matching entry the
+     restore falls back to the meta's template= or Row (see next test). */
   const r = sh(GEN_SETUP +
     'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
     'rt_set_dist "$RT_DIST" >/dev/null; ' +
@@ -418,18 +418,44 @@ test('restore-from-backup reinstates artifact + VERSION but keeps current config
   assert.match(r.out, /NAME=NewName/, 'the current admin config is preserved, not reverted');
 });
 
-test('restore-from-backup refuses an artifact the template store cannot identify', () => {
-  /* Without a store match the restored artifact and the stored selection could
-     disagree, which is the one state this system must never produce. */
+test('restore-from-backup falls back to Row when no store match and no meta template', () => {
+  /* A v1.1.0-generated backup has no template= in its meta and its artifact
+     may not match any entry in the current store. The restore must not refuse —
+     it defaults to Row so the artifact and the persisted selection always agree.
+     This is the path that previously hard-failed and blocked rollback from a
+     fresh install. */
   const r = sh(GEN_SETUP +
     'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
     'rt_set_dist "$RT_DIST" >/dev/null; ' +
     'B="$(rt_backup_create)"; ' +
     'printf "0.9.0\\n" > "$RT_VERSION_FILE"; rt_config_write "NewName" "https://t.me/x" "" ""; ' +
-    'if rt_restore_from_backup "$B" 2>/dev/null; then echo "NO-STORE-ACCEPTED"; else echo "refused"; fi; ' +
-    'printf "NAME=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"');
-  assert.match(r.out, /refused/, 'no store match, no restore');
-  assert.match(r.out, /NAME=NewName/, 'and the current config is untouched');
+    'rt_restore_from_backup "$B" >/dev/null && echo RESTORED; ' +
+    'printf "VER=%s\\n" "$(cat "$RT_VERSION_FILE")"; ' +
+    'printf "NAME=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"; ' +
+    'printf "TPL=%s\\n" "$(rt_config_get_raw TEMPLATE)"; ' +
+    'cmp -s "$RT_DIST" "$B/template.html" && echo "artifact-matches-source"');
+  assert.match(r.out, /RESTORED/, 'no store match falls back to Row');
+  assert.match(r.out, /VER=0\.8\.0/, 'the backed-up version is reinstated');
+  assert.match(r.out, /NAME=NewName/, 'the current admin config is preserved, not reverted');
+  assert.match(r.out, /TPL=row/, 'the selection defaults to Row');
+  assert.match(r.out, /artifact-matches-source/, 'the restored artifact is the backed-up bytes');
+});
+
+test('restore-from-backup ignores an unknown template= in meta and defaults to Row', () => {
+  /* If the backup's meta records a template id the current release does not
+     recognise (e.g. a design removed or renamed since the backup was taken),
+     restoring that id would produce a stale selection. The restore falls back
+     to Row instead, keeping the artifact and the selection in agreement. */
+  const r = sh(GEN_SETUP +
+    'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
+    'rt_set_dist "$RT_DIST" >/dev/null; ' +
+    'B="$(rt_backup_create)"; ' +
+    'printf "template=ghost\\n" >> "$B/meta"; ' +
+    'printf "0.9.0\\n" > "$RT_VERSION_FILE"; rt_config_write "NewName" "https://t.me/x" "" ""; ' +
+    'rt_restore_from_backup "$B" >/dev/null && echo RESTORED; ' +
+    'printf "TPL=%s\\n" "$(rt_config_get_raw TEMPLATE)"');
+  assert.match(r.out, /RESTORED/, 'unknown meta template does not block restore');
+  assert.match(r.out, /TPL=row/, 'an unknown recorded template falls back to Row');
 });
 
 test('archive extraction rejects a symlink member even when its name is clean',
