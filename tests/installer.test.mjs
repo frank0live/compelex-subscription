@@ -284,6 +284,32 @@ test('backup create captures a validatable snapshot', () => {
   assert.match(r.out, /HASVER/);
 });
 
+/* Found running the suite on Linux (1.3.0 validation): a design switch and an
+   immediate `rollback --auto` created their backups in the same second. The
+   names have one-second resolution and `mkdir -p` reused the directory, so the
+   rollback's own pre-rollback snapshot overwrote the backup it then restored --
+   and the "rollback" re-applied the state it was meant to undo. The `date`
+   double pins the clock to one second for the first two readings; the second
+   backup must wait for the next second rather than share the first's name. */
+test('two backups in the same second never share a directory', () => {
+  const r = sh(
+    GEN_SETUP +
+    'B="$(dirname "$RT_ROOT")/bin"; mkdir -p "$B"; C="$(dirname "$RT_ROOT")/clock"; ' +
+    'printf \'#!/usr/bin/env bash\\nn=$(cat "%s" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "%s"\\n' +
+    'if [ $n -le 2 ]; then echo 20260101T000000Z; else echo 20260101T000001Z; fi\\n\' "$C" "$C" > "$B/date"; ' +
+    'chmod +x "$B/date"; PATH="$B:$PATH"; ' +
+    'printf "1.3.0\\n" > "$RT_VERSION_FILE"; ' +
+    'printf "first" > "$RT_DIST"; A="$(rt_backup_create)"; ' +
+    'printf "second" > "$RT_DIST"; Z="$(rt_backup_create)"; ' +
+    'echo "A=${A##*/} Z=${Z##*/}"; echo "A holds: $(cat "$A/template.html")"; ' +
+    'echo "latest: $(basename "$(rt_backup_latest)")"',
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /A=20260101T000000Z__1\.3\.0 Z=20260101T000001Z__1\.3\.0/, 'the second backup gets the next second');
+  assert.match(r.out, /A holds: first/, 'the first backup is not overwritten');
+  assert.match(r.out, /latest: 20260101T000001Z__1\.3\.0/, 'and the newest is still the newest');
+});
+
 test('backup selection returns newest first and prune keeps the N newest', () => {
   const names = [
     '20260101T000000Z__0.7.0',
@@ -542,6 +568,65 @@ test('render smoke classifies a large served page as pass, not a SIGPIPE miss',
     'f="$(mktemp)"; head -c 300000 /dev/zero | tr "\\0" x > "$f"; ' +
     'RT_SMOKE_URL="file://$f" rt_render_smoke; rm -f "$f"');
   assert.equal(miss.out, 'fallback', 'a large page missing the marker is a fallback');
+});
+
+/* Found on a real 3X-UI 3.8.5 host (1.3.0 validation): config, update and
+   rollback print the live check without having located the panel database, so
+   the check could not build its test URL and reported "skipped (no test URL
+   available without sqlite3)" on a host that had sqlite3 and a subscription.
+   The report now locates the database itself. The doubles stand in for sqlite3
+   and curl only; the library's own discovery and classification run. */
+test('the live check after config, update or rollback finds the panel database itself', () => {
+  const r = sh([
+    'B="$(dirname "$RT_ROOT")/bin"; D="$(dirname "$RT_ROOT")/db"; mkdir -p "$B" "$D"',
+    'printf "SQLite format 3\\0" > "$D/x-ui.db"',
+    'cat > "$B/sqlite3" <<\'EOF\'',
+    '#!/usr/bin/env bash',
+    'case "$2" in',
+    '  *subPort*) echo 2096 ;;',
+    '  *subPath*) echo /sub/ ;;',
+    '  *inbounds*) printf \'{"clients":[{"email":"a","subId":"abc123"}]}\\n\' ;;',
+    'esac',
+    'EOF',
+    'cat > "$B/curl" <<\'EOF\'',
+    '#!/usr/bin/env bash',
+    'for a in "$@"; do case "$a" in http://127.0.0.1:2096/sub/abc123) printf \'<html><div id="sub-data"></div></html>\'; exit 0 ;; esac; done',
+    'exit 7',
+    'EOF',
+    'chmod +x "$B/sqlite3" "$B/curl"; PATH="$B:$PATH"',
+    'RT_ACTIVE_PANEL=3xui; XUI_DB_FOLDER="$D"; unset RT_XUI_DB RT_SMOKE_URL',
+    'rt_render_report',
+  ].join('\n'));
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /Live check: a browser request renders Row-Template\./);
+  assert.doesNotMatch(r.out, /skipped/);
+});
+
+/* Found on the same host: activation restarts 3X-UI and its subscription server
+   binds a few seconds after the unit is active, so the check made right after a
+   fresh install warned "could not reach". The check now waits, but ONLY when the
+   unit really just started -- an endpoint that is simply down must still be
+   reported at once. */
+test('the live check waits for a just-restarted panel, and only for one', () => {
+  const fake = (since) => [
+    'B="$(dirname "$RT_ROOT")/bin"; mkdir -p "$B"',
+    'cat > "$B/systemctl" <<EOF',
+    '#!/usr/bin/env bash',
+    `[ "\\$1" = show ] && echo ${since}`,
+    'EOF',
+    'chmod +x "$B/systemctl"; PATH="$B:$PATH"',
+  ].join('\n');
+  const now = 'up=$(awk \'{ printf "%d", $1 * 1000000 }\' /proc/uptime)';
+  assert.equal(sh(`${now}; ${fake('$((up - 2000000))')}; rt_xui_just_started && echo yes || echo no`).out, 'yes',
+    'a unit that became active 2 s ago has just started');
+  assert.equal(sh(`${now}; ${fake('$((up - 120000000))')}; rt_xui_just_started && echo yes || echo no`).out, 'no',
+    'a unit active for two minutes has not');
+  assert.equal(sh(`${fake('0')}; rt_xui_just_started && echo yes || echo no`).out, 'no',
+    'an inactive unit (timestamp 0) has not');
+  const t0 = Date.now();
+  const r = sh(`${fake('0')}; RT_SMOKE_URL="http://127.0.0.1:9/sub/x" rt_render_smoke`);
+  assert.equal(r.out, 'error', 'an unreachable endpoint is reported');
+  assert.ok(Date.now() - t0 < 15000, 'without waiting when the panel did not just start');
 });
 
 test('systemd unit detection survives pipefail when the unit list is long',
