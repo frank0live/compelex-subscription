@@ -130,6 +130,17 @@ PasarGuard می‌بیند، پس صفحه‌ای که آنجا گذاشته ش�
 
 ---
 
+### `panel rebecca: this is Rebecca 0.0.x, the Python edition …`
+
+**معنی.** این Rebecca ایمیج `rebeccapanel/rebecca` از Docker Hub را اجرا می‌کند که هنوز نسخهٔ
+0.0.x پایتونی است. این نسخه نمی‌تواند صفحهٔ Rebecca رو-تمپلیت را رندر کند، پس نصب‌کننده پیش از
+هر تغییری امتناع کرد.
+
+**راه حل.** با دستور `rebecca migrate-binary` خود Rebecca (یا نصب با `rebecca-binary.sh`) به
+Rebecca نسخهٔ 1.x یعنی نسخهٔ Go بروید، سپس نصب‌کننده را دوباره اجرا کنید.
+
+---
+
 ### برخی کاربران Rebecca همچنان صفحهٔ دیگری می‌بینند
 
 **معنی.** `row-template verify` گزارش می‌دهد *N admin(s) override the subscription page for

@@ -146,6 +146,17 @@ installer placed the page but could not select it.
 
 ---
 
+### `panel rebecca: this is Rebecca 0.0.x, the Python edition …`
+
+**What it means.** This Rebecca runs Docker Hub's `rebeccapanel/rebecca` image, which is
+still the 0.0.x Python edition. It cannot render Row-Template's Rebecca page, so the
+installer refused before changing anything.
+
+**Fix.** Move to Rebecca 1.x, the Go edition, with Rebecca's own `rebecca migrate-binary`
+(or install it with `rebecca-binary.sh`), then re-run the installer.
+
+---
+
 ### Some Rebecca users still see another page
 
 **What it means.** `row-template verify` reports *N admin(s) override the subscription page
