@@ -83,6 +83,12 @@ snapshotted first, so a failed rollback can itself be recovered. Every backup re
 panel it was made on and is never restored onto another panel; a backup from a release
 that did not record its design restores as Row.
 
+A rollback restores the page and the recorded version, not the manager itself: after
+rolling back to a backup taken under 1.1.0, `row-template version` reports 1.1.0 while the
+1.3.0 manager stays in place, and the next `row-template update` returns to 1.3.0. **Only the
+two newest backups are kept** — each update, design switch and rollback makes one — so the
+backup an update took of the previous version is replaced after two further changes.
+
 ```bash
 row-template rollback --to <backup-dir>
 ```
