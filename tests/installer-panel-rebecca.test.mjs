@@ -407,6 +407,17 @@ test('a failed panel refresh leaves sub.html and the placed page exactly as they
     assert.match(r.out, /^0$/m, 'no temporary copy is left behind');
     assert.ok(readFileSync(placed).equals(beforePlaced), 'the page Rebecca serves never changed');
   });
+  /* ...and when there was no sub.html before, none is left behind (raised in
+     the second review of PR #6). */
+  withHost({}, ({ run }) => {
+    const r = run([SETUP,
+      'rm -f "$RT_LIVE"',
+      'rt_panel_refresh_page() { return 1; }',
+      'rc=0; rt_activate 2>/dev/null || rc=$?; echo "rc=$rc"',
+      '[ -e "$RT_LIVE" ] && echo "live-left-behind" || echo "live-absent"']);
+    assert.match(r.out, /rc=1/);
+    assert.match(r.out, /live-absent/, 'a failed first activation leaves no sub.html');
+  });
 });
 
 /* --- manual activation --------------------------------------------------------- */
