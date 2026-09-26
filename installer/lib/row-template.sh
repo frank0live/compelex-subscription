@@ -1044,9 +1044,27 @@ rt_backup_create() {
   ver="$(cat "$RT_VERSION_FILE" 2>/dev/null || echo unknown)"
   ver="$(printf '%s' "$ver" | LC_ALL=C tr -cd 'A-Za-z0-9._-')"
   [ -n "$ver" ] || ver="unknown"
+  # Names have one-second resolution. Two backups in the same second -- a design
+  # switch followed at once by `rollback --auto`, which snapshots the current
+  # state first -- used to share one directory (`mkdir -p` reuses it), so the
+  # second silently overwrote the first: the very backup the rollback was about
+  # to restore. The name is now claimed with a plain mkdir, which fails when it
+  # is taken, and a taken name waits for the next second -- exactly as the
+  # format-2 writer below does -- so names stay unique and a lexical sort stays
+  # chronological.
+  mkdir -p "$RT_BACKUPS" || return 1
+  local waited=0
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
   dir="$RT_BACKUPS/${ts}__${ver}"
-  mkdir -p "$dir" || return 1
+  until mkdir "$dir" 2>/dev/null; do
+    if [ -e "$dir" ] && [ "$waited" -lt 3 ]; then
+      waited=$((waited + 1)); sleep 1
+      ts="$(date -u +%Y%m%dT%H%M%SZ)"; dir="$RT_BACKUPS/${ts}__${ver}"
+      continue
+    fi
+    rt_err "could not create a new backup directory under $RT_BACKUPS"
+    return 1
+  done
   cp -- "$RT_DIST" "$dir/template.html" || { rt_safe_rmdir "$dir"; return 1; }
   rt_sha256 "$dir/template.html" > "$dir/template.html.sha256" \
     || { rt_safe_rmdir "$dir"; return 1; }
@@ -1999,6 +2017,18 @@ rt_smoke_derive_url() {
   printf 'http://127.0.0.1:%s%s%s' "$port" "$path" "$sid"
 }
 
+rt_xui_just_started() {
+  # 0 when the 3X-UI unit entered "active" less than 30 s ago (monotonic clock,
+  # so a wall-clock change cannot fake it). Anything unknown answers no.
+  command -v systemctl >/dev/null 2>&1 || return 1
+  local since up
+  since="$(systemctl show -p ActiveEnterTimestampMonotonic --value "${RT_XUI_UNIT:-x-ui.service}" 2>/dev/null || true)"
+  case "$since" in ''|0|*[!0-9]*) return 1 ;; esac
+  up="$(LC_ALL=C awk '{ printf "%d", $1 * 1000000 }' /proc/uptime 2>/dev/null || true)"
+  case "$up" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$up" -ge "$since" ] && [ $((up - since)) -lt 30000000 ]
+}
+
 rt_render_smoke() {
   # classify what a browser request receives: pass (Row-Template served),
   # fallback (built-in default served — our template not active), skip (no test
@@ -2009,11 +2039,21 @@ rt_render_smoke() {
   [ -n "$url" ] || url="$(rt_smoke_derive_url || true)"
   [ -n "$url" ] || { printf 'skip'; return 0; }
   command -v curl >/dev/null 2>&1 || { printf 'skip'; return 0; }
-  body="$(curl -fsS -m 10 -A 'Mozilla/5.0' -H 'Accept: text/html' "$url" 2>/dev/null || true)"
-  if [ -z "$body" ]; then
-    url="https://${url#http://}"
-    body="$(curl -fsS -m 10 -k -A 'Mozilla/5.0' -H 'Accept: text/html' "$url" 2>/dev/null || true)"
-  fi
+  local tries=1
+  # Activation restarts 3X-UI, and its subscription server binds a few seconds
+  # after the unit reports active: a check made in that window reported "could
+  # not reach" on every fresh install. Wait for it only when the panel really
+  # did just start, so an endpoint that is simply unreachable still reports at
+  # once.
+  rt_xui_just_started && tries=8
+  while :; do
+    body="$(curl -fsS -m 10 -A 'Mozilla/5.0' -H 'Accept: text/html' "$url" 2>/dev/null || true)"
+    if [ -z "$body" ]; then
+      body="$(curl -fsS -m 10 -k -A 'Mozilla/5.0' -H 'Accept: text/html' "https://${url#http://}" 2>/dev/null || true)"
+    fi
+    [ -z "$body" ] && [ "$tries" -gt 1 ] || break
+    tries=$((tries - 1)); sleep 2
+  done
   [ -n "$body" ] || { printf 'error'; return 0; }
   # Pure-bash substring test on purpose. `printf %s "$big" | grep -q PAT` under
   # `set -o pipefail` misreports a match as failure: grep -q exits on the first
@@ -2295,11 +2335,15 @@ rt_render_report() {
     esac
     return 0
   fi
+  # The test URL is derived from the panel database. config, update and
+  # rollback reach this report without having located it, so the check used to
+  # skip on every 3X-UI host after those commands; locate it here, read-only.
+  [ -n "${RT_XUI_DB:-}" ] || rt_detect_xui_db >/dev/null 2>&1 || true
   r="$(rt_render_smoke)"
   case "$r" in
     pass)     rt_ok   "Live check: a browser request renders Row-Template." ;;
     fallback) rt_warn "Live check: the panel served its built-in page. If you just set the theme dir, restart the panel; otherwise run 'row-template verify'." ;;
-    skip)     rt_info "Live check skipped (no test URL available without sqlite3)." ;;
+    skip)     rt_info "Live check skipped (no test URL: it needs sqlite3, the panel database and a client with a subscription ID)." ;;
     error)    rt_warn "Live check could not reach the subscription endpoint." ;;
   esac
   rv="$(rt_render_smoke_vpn)"
