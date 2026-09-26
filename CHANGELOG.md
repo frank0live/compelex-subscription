@@ -87,6 +87,10 @@ own.
   `sqlite3` installed, because those commands had not located the panel
   database. And the check made right after activation no longer warns "could
   not reach the subscription endpoint" while 3X-UI is still restarting.
+- **A page change that cannot reach PasarGuard or Rebecca changes nothing.**
+  Regenerating the page (a rebrand, a design switch, an update) replaced
+  `sub.html` before copying it into the panel; if that copy failed, `sub.html`
+  was left newer than the page the panel serves. It is now put back.
 - **A valid page is never refused under load.** The structural check before
   every install, update and design switch read the page through
   `head | grep -q`. On a busy server `grep -q` could stop reading before `head`

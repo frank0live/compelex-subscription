@@ -22,7 +22,7 @@ The tarball expands to a single `row-template-<version>/` directory:
 | ---- | -------- |
 | `template.html` | The Row design, the page an older installed version updates against. |
 | `templates/<id>/template.html` (+ `.sha256`) | Every selectable design for 3X-UI, each with its own checksum. |
-| `shells/<panel>/<id>/shell.html` (+ `.sha256`) | Every design for PasarGuard (Jinja2) and Rebecca (pongo2), each with its own checksum. The installer places the one you select, and refuses a page built for another panel or by a release before 1.3.0. |
+| `shells/<panel>/<id>/shell.html` (+ `.sha256`) | Every design for every panel, each with its own checksum. On PasarGuard (Jinja2) and Rebecca 1.x (pongo2) the installer places the one you select, and refuses a page built for another panel or by a release before 1.3.0. `shells/3xui/` is byte-identical to `templates/`, which is what 3X-UI installs use. |
 | `VERSION`, `install.sh`, `lib/`, `bin/` | The version, the installer and the `row-template` manager. |
 | `panels/` | The panel interface and one adapter per panel (`3xui.sh`, `pasarguard.sh`, `rebecca.sh`); installed next to `lib/`. |
 | `SHA256SUMS` | The checksum of every payload file, so the contents can be checked after extraction as well. |
