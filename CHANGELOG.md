@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - 2026-09-25
+## [1.3.0] - 2026-09-26
 
 Row-Template now installs on **PasarGuard** and **Rebecca** as well as 3X-UI,
 and ships two more designs. A minor release: nothing changes for an existing
@@ -160,7 +160,15 @@ own.
   the next `row-template`, `row-template config` or `row-template verify`
   completes the install. Your design, branding and panel wiring are kept.
 - On **PasarGuard** or **Rebecca**: run the installer. Earlier releases did not
-  install on these panels.
+  install on these panels. Rebecca must be 1.x (its binary install); a Docker
+  Rebecca is 0.0.x and is refused until it is moved to 1.x.
+- **Rolling back after the update.** `row-template update` backs up the version
+  it replaces, and `row-template rollback --to <that backup>` returns to its page
+  and branding. A rollback restores the page and the recorded version, not the
+  manager itself: `row-template` stays 1.3.0 and reports the version it rolled
+  back to, and the next `row-template update` returns to 1.3.0. Only the two
+  newest backups are kept, so the pre-update backup is replaced after two
+  further changes (a design switch, an update or a rollback each make one).
 
 ## [1.2.1] - Unreleased (shipped in 1.3.0)
 
