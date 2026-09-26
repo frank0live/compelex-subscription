@@ -90,7 +90,8 @@ own.
 - **A page change that cannot reach PasarGuard or Rebecca changes nothing.**
   Regenerating the page (a rebrand, a design switch, an update) replaced
   `sub.html` before copying it into the panel; if that copy failed, `sub.html`
-  was left newer than the page the panel serves. It is now put back.
+  was left newer than the page the panel serves. It is now put back, and on a
+  first activation, where there was no `sub.html` before, none is left behind.
 - **A valid page is never refused under load.** The structural check before
   every install, update and design switch read the page through
   `head | grep -q`. On a busy server `grep -q` could stop reading before `head`
@@ -125,6 +126,12 @@ own.
   minimum-supported and detected versions.
 - `row-template uninstall` returns each panel to the page it had before
   Row-Template, and leaves a page you chose afterwards alone.
+- **A scripted fresh install on a server with more than one supported panel
+  needs `RT_PANEL`.** 1.2 installed for 3X-UI there because it was the only
+  panel it supported; 1.3.0 does not guess which panel you meant, and stops
+  with a message naming `RT_PANEL=3xui|pasarguard|rebecca`. An interactive
+  install asks instead. Re-running the installer on an existing install, and
+  `row-template update`, keep the install's own panel and are unaffected.
 - The `on_hold` state on PasarGuard and Rebecca is shown as active: with its
   "starts on first connection" duration on PasarGuard, and with an unknown
   expiry on Rebecca, which does not give the page that duration
