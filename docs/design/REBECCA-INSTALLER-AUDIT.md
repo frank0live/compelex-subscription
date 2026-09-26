@@ -34,9 +34,30 @@ overrides are the operator's and are reported, never changed.
 | fact | source |
 |---|---|
 | Application directory `/opt/rebecca`, data directory `/var/lib/rebecca`, compose file `/opt/rebecca/docker-compose.yml`. | `scripts/rebecca/rebecca.sh` (`INSTALL_DIR`, `APP_DIR`, `DATA_DIR`, `COMPOSE_FILE`) |
-| Docker: `image: rebeccapanel/rebecca:latest`, `env_file: .env`, bind mount `/var/lib/rebecca:/var/lib/rebecca`. | `docker-compose.yml` |
+| Docker: `image: rebeccapanel/rebecca:latest`, `env_file: .env`, bind mount `/var/lib/rebecca:/var/lib/rebecca` — but see §2a: that image is not 1.x. | `docker-compose.yml` |
 | Binary mode runs as `rebecca.service`. | `scripts/rebecca/rebecca-binary.sh` |
 | SQLite is `SQLALCHEMY_DATABASE_URL = "sqlite:////var/lib/rebecca/db.sqlite3"`; MySQL/MariaDB URLs carry the password inline. | `rebecca.sh`, `rebecca-binary.sh` |
+
+### 2a. Two editions — corrected by real-host validation
+
+The source audited above is Rebecca **1.x**, the Go edition (pongo2), and that is
+what Rebecca publishes today through its **binary** installer, `rebecca-binary.sh`
+(`/opt/rebecca/bin/rebecca-server`, `rebecca.service`). The **Docker** installer,
+`rebecca.sh`, pulls `rebeccapanel/rebecca:latest` from Docker Hub — and on Docker
+Hub `latest` is still `v0.0.37-alpha` (built 2026-02-18), the earlier **Python**
+edition (FastAPI, Jinja2, entrypoint `/code/scripts/entrypoint.sh`). No 1.x image
+is published there.
+
+Validated on a real host (1.3.0): on 1.x everything below holds. On the Python
+edition the `subscription_settings` selection is written and accepted — Rebecca
+serves a custom page chosen that way — but this release's pongo2 page cannot render
+under Jinja2, and Rebecca silently falls back to its own page. That is an install
+that would report success and change nothing a subscriber sees, so the adapter
+**establishes the edition first** (`rt_panel_rebecca_edition`): a binary install is
+1.x; a Docker install is 1.x only when its image runs `rebecca-server`. The Python
+edition, and an edition that cannot be identified, are refused before anything is
+written (`rt_panel_preflight`, and again in capture, `install_template`, static
+verify and refresh). The message names Rebecca's own `rebecca migrate-binary`.
 
 ## 3. Detection
 
@@ -131,6 +152,7 @@ malformed data (missing fields, `null`s, zero and negative limits, huge values).
 
 ## 10. Limitations
 
+- Rebecca 1.x only. The Docker Hub image (0.0.x, Python) is refused (§2a).
 - MySQL/MariaDB: manual selection in the dashboard (the page is placed automatically).
 - Per-admin overrides keep their own page (reported by verify).
 - No live verification (none is possible beyond what static verify reads).

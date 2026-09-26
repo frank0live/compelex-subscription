@@ -110,7 +110,7 @@
 | ----- | ------ | ----- |
 | [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ مدعومة | تتطلب الإصدار **>= 3.6.0** |
 | [PasarGuard](https://github.com/PasarGuard/panel) | ✅ مدعومة منذ 1.3.0 | التثبيت الرسمي عبر Docker أو التثبيت من المصدر (`pasarguard.service`) |
-| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ مدعومة منذ 1.3.0 | تفعيل تلقائي مع SQLite و`sqlite3`؛ ومع MySQL/MariaDB إعداد واحد يُدخَل في لوحة التحكم |
+| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ مدعومة منذ 1.3.0 | Rebecca الإصدار **1.x**، إصدار Go (التثبيت الثنائي لـ Rebecca). تفعيل تلقائي مع SQLite و`sqlite3`؛ ومع MySQL/MariaDB إعداد واحد يُدخَل في لوحة التحكم. صورة Docker ما زالت 0.0.x وتُرفض |
 
 تستخدم اللوحات الثلاث ثلاثة محرّكات قوالب مختلفة — `html/template` في Go وJinja2 وpongo2 — لذا يُبنى كل تصميم مرة لكل لوحة، ويُختبر كل إصدار منه بعرضه بمحرّك تلك اللوحة الحقيقي. يكتشف المثبّت اللوحة الموجودة على الخادم؛ وعلى خادم فيه أكثر من لوحة يسألك (أو يقرأ `RT_PANEL`). **مدعومة** تعني توفّر القدرات السبع كلها على تلك اللوحة — الاكتشاف والتثبيت والتفعيل والتحقق والنسخ الاحتياطي والاستعادة وإلغاء التثبيت — ويختبر كلًّا منها مجموعة الاختبارات. راجع [التوافق](https://iitzseridev.github.io/Row-Template/ar/compatibility/) لتفاصيل كل لوحة.
 
@@ -151,7 +151,7 @@ flowchart TB
 
 > **نظام التشغيل المُوصى به: Ubuntu 24.04 LTS (x86_64).** قد تعمل توزيعات Linux الحديثة الأخرى لكنها لم تحظَ بالمستوى نفسه من تغطية التحقق.
 
-**المتطلبات:** خادم يشغّل 3X-UI **>= 3.6.0** أو PasarGuard أو Rebecca؛ وصلاحية root عليه؛ و`curl` و`tar` و`sha256sum` (متوفرة على جميع أنظمة Linux تقريبًا). ويحتاج التفعيل التلقائي في 3X-UI وRebecca أيضًا إلى `sqlite3`.
+**المتطلبات:** خادم يشغّل 3X-UI **>= 3.6.0** أو PasarGuard أو Rebecca **1.x**؛ وصلاحية root عليه؛ و`curl` و`tar` و`sha256sum` (متوفرة على جميع أنظمة Linux تقريبًا). ويحتاج التفعيل التلقائي في 3X-UI وRebecca أيضًا إلى `sqlite3`.
 
 شغّل الأمر بصلاحية **root** على الخادم الذي يستضيف لوحتك:
 
@@ -213,6 +213,8 @@ SUBSCRIPTION_PAGE_TEMPLATE = "row-template/index.html"
 ```
 
 تقرأ PasarGuard ملف `.env` عند الإقلاع، لذا تُعاد تشغيل اللوحة العاملة مرة واحدة. لا يُعدَّل أي سطر من أسطرك؛ ويزيل إلغاء التثبيت الكتلة ويعيد `.env` إلى بايتاته السابقة بدقة. يبقى للمشرف الذي له قالب اشتراك خاص، أو لإعداد **disable subscription template**، الأولوية — ويخبرك `row-template verify` إن انطبق أيٌّ منهما.
+
+يدعم Row-Template الإصدار **1.x** من Rebecca، أي إصدار Go الذي تنشره Rebecca لتثبيتها الثنائي (`rebecca-binary.sh`). أما صورة `rebeccapanel/rebecca` على Docker Hub فما زالت إصدار 0.0.x المكتوب بـ Python، الذي لا يستطيع عرض هذه الصفحة؛ لذا يرفضها المثبّت ولا يغيّر شيئًا، والأمر `rebecca migrate-binary` الخاص بـ Rebecca ينقل تثبيت Docker إلى 1.x.
 
 **Rebecca.** توضع الصفحة في `/var/lib/rebecca/templates/row-template/index.html` (أو داخل مجلد القوالب المخصّص الخاص بك)، وتُضبط إعدادات الاشتراك في Rebecca على `row-template/index.html`. تقرأ Rebecca هذه الإعدادات مع كل طلب، فلا حاجة إلى إعادة التشغيل.
 

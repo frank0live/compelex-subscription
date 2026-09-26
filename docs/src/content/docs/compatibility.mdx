@@ -8,7 +8,7 @@ description: The panels Row-Template supports, what it changes on each, and what
 | | 3X-UI | PasarGuard | Rebecca |
 |---|---|---|---|
 | **Supported since** | 1.0.0 | 1.3.0 | 1.3.0 |
-| **Versions** | **3.6.0 or newer** | 5.x — the official Docker install or a source install | 1.3 or newer — Docker or binary |
+| **Versions** | **3.6.0 or newer** | 5.x — the official Docker install or a source install | **1.x** (the Go edition) — Rebecca's binary install; the Docker image (0.0.x) is refused |
 | **Template engine** | Go `html/template` | Jinja2 | pongo2 (Django-style, in Go) |
 | **Install root** | `/etc/3x-ui/sub_templates/row-template` | `/etc/row-template` | `/etc/row-template` |
 | **What activation changes** | `subThemeDir` | one marked block in `/opt/pasarguard/.env` | two fields of the newest subscription settings row |
@@ -84,6 +84,14 @@ v6.1.0 (Rebecca's pinned version) for Rebecca — including hostile and malforme
 
 ## Rebecca
 
+- **Edition.** Row-Template supports Rebecca **1.x**, the Go edition, which Rebecca
+  publishes for its binary install (`rebecca-binary.sh`, run as `rebecca.service`). Docker
+  Hub's `rebeccapanel/rebecca` image is still the **0.0.x Python edition**, which renders
+  pages from a different context and cannot render this one: there, Rebecca would accept
+  the setting and silently keep serving its own page. The installer therefore identifies
+  the edition first (a binary install, or an image that runs `rebecca-server`) and refuses
+  anything else before changing a thing. Rebecca's own `rebecca migrate-binary` moves a
+  Docker install to 1.x.
 - **Placement.** `/var/lib/rebecca/templates/row-template/index.html`, or inside your own
   custom templates directory.
 - **Selection.** The page and directory fields of the newest `subscription_settings` row —

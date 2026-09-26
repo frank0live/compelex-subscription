@@ -111,7 +111,7 @@ Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scri
 | ----- | ------ | ----- |
 | [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ Supported | Requires version **>= 3.6.0** |
 | [PasarGuard](https://github.com/PasarGuard/panel) | ✅ Supported since 1.3.0 | The official Docker install or a source install (`pasarguard.service`) |
-| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ Supported since 1.3.0 | Automatic activation with SQLite and `sqlite3`; with MySQL/MariaDB, one setting to enter in the dashboard |
+| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ Supported since 1.3.0 | Rebecca **1.x**, the Go edition (Rebecca's binary install). Automatic activation with SQLite and `sqlite3`; with MySQL/MariaDB, one setting to enter in the dashboard. The Docker image is still 0.0.x and is refused |
 
 The three panels use three different template engines — Go `html/template`, Jinja2 and pongo2 — so every design is built once per panel, and each version is tested by rendering it with that panel's real engine. The installer detects which panel is on the server; on a server with more than one, it asks (or reads `RT_PANEL`). **Supported** means all seven capabilities are present on that panel — detect, install, activate, verify, backup, restore and uninstall — and each one is exercised by the test suite. See [Compatibility](https://iitzseridev.github.io/Row-Template/compatibility/) for the details of each panel.
 
@@ -152,7 +152,7 @@ flowchart TB
 
 > **Recommended OS: Ubuntu 24.04 LTS (x86_64).** Other modern Linux distributions may work but have not had the same validation coverage.
 
-**Requirements:** a server running 3X-UI **>= 3.6.0**, PasarGuard, or Rebecca; root access to it; and `curl`, `tar`, and `sha256sum` (present on virtually all Linux systems). Automatic activation on 3X-UI and Rebecca also needs `sqlite3`.
+**Requirements:** a server running 3X-UI **>= 3.6.0**, PasarGuard, or Rebecca **1.x**; root access to it; and `curl`, `tar`, and `sha256sum` (present on virtually all Linux systems). Automatic activation on 3X-UI and Rebecca also needs `sqlite3`.
 
 Run as **root** on the server that hosts your panel:
 
@@ -214,6 +214,8 @@ SUBSCRIPTION_PAGE_TEMPLATE = "row-template/index.html"
 ```
 
 PasarGuard reads `.env` at start-up, so a running panel is restarted once. None of your own lines are edited; uninstall removes the block and returns `.env` to its exact previous bytes. An admin with their own subscription template, or the **disable subscription template** setting, still takes precedence — `row-template verify` tells you when either applies.
+
+Row-Template supports Rebecca **1.x**, the Go edition, which Rebecca publishes for its binary install (`rebecca-binary.sh`). Docker Hub's `rebeccapanel/rebecca` image is still the 0.0.x Python edition, which cannot render this page; the installer refuses it and changes nothing, and Rebecca's own `rebecca migrate-binary` moves a Docker install to 1.x.
 
 **Rebecca.** The page is placed at `/var/lib/rebecca/templates/row-template/index.html` (or inside your own custom templates directory), and Rebecca's subscription settings are set to `row-template/index.html`. Rebecca reads them on every request, so no restart is needed.
 

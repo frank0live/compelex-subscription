@@ -110,7 +110,7 @@ Row-Template 1.3.0 提供十七种设计，默认设计为 Row。
 | ----- | ------ | ----- |
 | [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ 已支持 | 需要 **>= 3.6.0** 版本 |
 | [PasarGuard](https://github.com/PasarGuard/panel) | ✅ 自 1.3.0 起支持 | 官方 Docker 安装或源码安装（`pasarguard.service`） |
-| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ 自 1.3.0 起支持 | 使用 SQLite 和 `sqlite3` 时自动激活；使用 MySQL/MariaDB 时需在控制台中填写一项设置 |
+| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ 自 1.3.0 起支持 | Rebecca **1.x**，即 Go 版本（Rebecca 的二进制安装）。使用 SQLite 和 `sqlite3` 时自动激活；使用 MySQL/MariaDB 时需在控制台中填写一项设置。Docker 镜像仍是 0.0.x，会被拒绝 |
 
 三个面板使用三种不同的模板引擎 —— Go `html/template`、Jinja2 和 pongo2 —— 因此每种设计都会为每个面板分别构建，并用该面板真实的引擎渲染来测试每个版本。安装程序会检测服务器上是哪一个面板；如果有多个，它会询问你（或读取 `RT_PANEL`）。**支持**意味着该面板具备全部七项能力 —— 检测、安装、激活、校验、备份、还原和卸载 —— 并且每一项都由测试套件覆盖。各面板的详细信息见[兼容性](https://iitzseridev.github.io/Row-Template/compatibility/)。
 
@@ -151,7 +151,7 @@ flowchart TB
 
 > **推荐操作系统：Ubuntu 24.04 LTS (x86_64)。** 其他较新的 Linux 发行版或许也能运行，但未经过同等程度的验证覆盖。
 
-**环境要求：** 运行 3X-UI **>= 3.6.0**、PasarGuard 或 Rebecca 的服务器；该服务器的 root 权限；以及 `curl`、`tar` 和 `sha256sum`（几乎所有 Linux 系统都自带）。在 3X-UI 和 Rebecca 上自动激活还需要 `sqlite3`。
+**环境要求：** 运行 3X-UI **>= 3.6.0**、PasarGuard 或 Rebecca **1.x** 的服务器；该服务器的 root 权限；以及 `curl`、`tar` 和 `sha256sum`（几乎所有 Linux 系统都自带）。在 3X-UI 和 Rebecca 上自动激活还需要 `sqlite3`。
 
 在托管你的面板的服务器上以 **root** 身份运行：
 
@@ -213,6 +213,8 @@ SUBSCRIPTION_PAGE_TEMPLATE = "row-template/index.html"
 ```
 
 PasarGuard 在启动时读取 `.env`，因此正在运行的面板会重启一次。你自己的任何一行都不会被修改；卸载会删除该块，并把 `.env` 精确恢复为之前的字节。拥有自己订阅模板的管理员，或 **disable subscription template** 设置，仍然优先 —— 如果其中之一生效，`row-template verify` 会告诉你。
+
+Row-Template 支持 Rebecca **1.x**，即 Rebecca 为其二进制安装（`rebecca-binary.sh`）发布的 Go 版本。Docker Hub 上的 `rebeccapanel/rebecca` 镜像仍是 0.0.x 的 Python 版本，无法渲染此页面；安装程序会拒绝它且不做任何更改，而 Rebecca 自带的 `rebecca migrate-binary` 可以把 Docker 安装迁移到 1.x。
 
 **Rebecca。** 页面放在 `/var/lib/rebecca/templates/row-template/index.html`（或你自己的自定义模板目录中），并把 Rebecca 的订阅设置设为 `row-template/index.html`。Rebecca 在每次请求时读取这些设置，因此无需重启。
 

@@ -25,8 +25,9 @@ own.
   exact previous bytes. `row-template verify` also reports the two panel
   settings that still take precedence over the page: an admin's own
   `sub_template`, and `disable_sub_template`.
-- **Rebecca support.** Rebecca is supported from this release, with the same
-  seven operations. The page is placed at
+- **Rebecca support.** Rebecca 1.x — the Go edition, which Rebecca publishes for
+  its binary install — is supported from this release, with the same seven
+  operations. The page is placed at
   `/var/lib/rebecca/templates/row-template/index.html` (or inside your own
   custom templates directory) and selected in the newest
   `subscription_settings` row, which Rebecca reads on every request — so
@@ -125,6 +126,10 @@ own.
   status on a path suffix.
 - PasarGuard's page title (`subTitle`) and Clash templates are not produced.
 - Rebecca on MySQL/MariaDB needs its one setting entered in the dashboard.
+- Rebecca's Docker image (`rebeccapanel/rebecca` on Docker Hub) is still the
+  0.0.x Python edition, which cannot render this page. The installer
+  identifies it and refuses before changing anything; Rebecca's own
+  `rebecca migrate-binary` moves a Docker install to 1.x.
 
 ### Documentation
 
