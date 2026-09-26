@@ -125,6 +125,12 @@ own.
   minimum-supported and detected versions.
 - `row-template uninstall` returns each panel to the page it had before
   Row-Template, and leaves a page you chose afterwards alone.
+- **A scripted fresh install on a server with more than one supported panel
+  needs `RT_PANEL`.** 1.2 installed for 3X-UI there because it was the only
+  panel it supported; 1.3.0 does not guess which panel you meant, and stops
+  with a message naming `RT_PANEL=3xui|pasarguard|rebecca`. An interactive
+  install asks instead. Re-running the installer on an existing install, and
+  `row-template update`, keep the install's own panel and are unaffected.
 - The `on_hold` state on PasarGuard and Rebecca is shown as active: with its
   "starts on first connection" duration on PasarGuard, and with an unknown
   expiry on Rebecca, which does not give the page that duration

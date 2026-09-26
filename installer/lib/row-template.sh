@@ -2201,8 +2201,9 @@ rt_activate() {
   # fails puts the previous sub.html back before returning: the contract above
   # holds for every panel, and a caller that reports "nothing was changed" is
   # telling the truth.
-  local staged dir panel prev="" rc=0
+  local staged dir panel prev="" had_live=0 rc=0
   dir="$(dirname "$RT_LIVE")"
+  [ -f "$RT_LIVE" ] && had_live=1
   panel="$(rt_panel_current)"
   if [ "$panel" != "3xui" ]; then
     rt_installer_complete || { rt_err "the installer's panel components are missing; run 'row-template update'."; return 1; }
@@ -2223,6 +2224,8 @@ rt_activate() {
         if [ -n "$prev" ]; then
           rt_atomic_install "$prev" "$RT_LIVE" 644 \
             || rt_err "could not put the previous page back at $RT_LIVE."
+        elif [ "$had_live" -eq 0 ]; then
+          rm -f -- "$RT_LIVE"   # there was none before: leave none behind
         fi
         rm -f "$prev"
         rt_err "could not update the page in $(rt_panel_label "$panel")'s template directory."
