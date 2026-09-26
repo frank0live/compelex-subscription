@@ -74,6 +74,17 @@ own.
   panel could read. It now prints both the copy and the two `.env` values
   (`CUSTOM_TEMPLATES_DIRECTORY` and `SUBSCRIPTION_PAGE_TEMPLATE`), and says to
   keep your own templates directory if you already have one.
+- **A rollback right after a change undoes that change.** Backup names have
+  one-second resolution, and two backups made in the same second — a design
+  switch followed at once by `row-template rollback --auto`, which snapshots
+  the current state first — shared one directory. The newer snapshot
+  overwrote the older one, so the rollback re-applied the state it was meant
+  to undo. A backup now waits for the next second rather than reuse a name.
+- **The live check after `config`, `update` and `rollback` runs on 3X-UI.**
+  It always said "skipped (no test URL available without sqlite3)", even with
+  `sqlite3` installed, because those commands had not located the panel
+  database. And the check made right after activation no longer warns "could
+  not reach the subscription endpoint" while 3X-UI is still restarting.
 - All fixes prepared for 1.2.1 (below): one `row-template update` is enough to
   move from 1.1.0, misplaced designs are moved back, branding works on an
   install the 1.1.0 updater left incomplete, and `verify` names missing and
