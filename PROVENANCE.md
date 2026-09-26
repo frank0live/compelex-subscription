@@ -13,7 +13,7 @@ Every release published on GitHub carries these assets:
 | ----- | ------- |
 | `row-template-<version>.tar.gz` | The runtime payload — see below. |
 | `SHA256SUMS` | The SHA-256 checksum of the tarball above. |
-| `manifest.txt` | Plain-text metadata (`name`, `version`, `artifact`, `min_xui`, `created`), parsed as data — never executed. |
+| `manifest.txt` | Plain-text metadata (`name`, `version`, `artifact`, `min_xui`, `created`), parsed as data — never executed. `min_xui` applies to 3X-UI only. |
 | `install.sh` | The bootstrap used by the one-command installer. |
 
 The tarball expands to a single `row-template-<version>/` directory:
@@ -21,11 +21,20 @@ The tarball expands to a single `row-template-<version>/` directory:
 | Path | Contents |
 | ---- | -------- |
 | `template.html` | The Row design, the page an older installed version updates against. |
-| `templates/<id>/template.html` (+ `.sha256`) | Every selectable design, each with its own checksum. |
-| `shells/<panel>/<id>/shell.html` (+ `.sha256`) | Each design's page shell per panel, packaged for research; the installer does not place them. |
+| `templates/<id>/template.html` (+ `.sha256`) | Every selectable design for 3X-UI, each with its own checksum. |
+| `shells/<panel>/<id>/shell.html` (+ `.sha256`) | Every design for PasarGuard (Jinja2) and Rebecca (pongo2), each with its own checksum. The installer places the one you select, and refuses a page built for another panel or by a release before 1.3.0. |
 | `VERSION`, `install.sh`, `lib/`, `bin/` | The version, the installer and the `row-template` manager. |
-| `panels/` | The panel interface layer the manager loads; installed next to `lib/`. |
+| `panels/` | The panel interface and one adapter per panel (`3xui.sh`, `pasarguard.sh`, `rebecca.sh`); installed next to `lib/`. |
 | `SHA256SUMS` | The checksum of every payload file, so the contents can be checked after extraction as well. |
+
+Every design is built from this repository's own sources (`src/`). Meter and
+Notebook (1.3.0) were contributed by the project's author and ported onto the
+shared runtime; like every other design they contain no third-party code beyond
+the bundled QR generator and font listed in the README's License section. The
+PasarGuard and Rebecca pages contain no code from either panel: both panels are
+AGPL-3.0, so the preludes and the test harnesses that render them with the
+panels' real engines are independent implementations, written from the source
+audits in `docs/design/`.
 
 The build is deterministic: the same sources always produce a byte-identical
 `row-template-<version>.tar.gz`. Anyone can rebuild it from a checkout with

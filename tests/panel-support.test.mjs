@@ -56,7 +56,16 @@ const VERBS = {
   verification: ['verify', 'static'],
   backup: ['backup_state'],
   restore: ['restore_state', '/nonexistent/snap'],
+  uninstall: ['uninstall_template'],
 };
+
+/* Activation is NOT one verb, so it is not checked by a return code. It is the
+   panel-side act of SELECTING the page, and the frozen P3 vocabulary names the
+   mechanisms that may perform it. A panel can be activated only when its
+   adapter declares at least one of them, so "Activate" is a capability question
+   and is asked as one. Claiming activation without a mechanism would be a
+   matrix cell with nothing behind it. */
+const ACTIVATION_TOKENS = ['selection_write', 'env_activation', 'db_activation'];
 
 /* Ask the installer. For every panel id: the implementation the registry
    resolves to, and the return code of every operation above. */
@@ -72,6 +81,7 @@ function installerMatrix() {
   for (const [col, [verb, ...args]] of Object.entries(VERBS)) {
     lines.push(`  rc=0; rt_panel_${verb} "$p" ${args.join(' ')} >/dev/null 2>&1 || rc=$?; echo "${col}-$p=$rc"`);
   }
+  lines.push('  echo "caps-$p=$(rt_panel_capabilities "$p" 2>/dev/null | tr \'\\n\' \' \')"');
   lines.push('done');
   const r = bash(lines.join('\n'));
   assert.equal(r.code, 0, r.err);
@@ -79,9 +89,15 @@ function installerMatrix() {
   const ids = kv.ids.split(' ').filter(Boolean);
   return Object.fromEntries(ids.map((p) => [p, {
     implemented: kv[`impl-${p}`] !== '',
+    caps: (kv[`caps-${p}`] || '').split(' ').filter(Boolean),
     rc: Object.fromEntries(Object.keys(VERBS).map((c) => [c, Number(kv[`${c}-${p}`])])),
   }]));
 }
+
+/* The seven capabilities the status column stands for, in matrix order. A panel
+   is Supported only when every one of them is present -- which is what makes
+   "Supported" a claim about behaviour rather than about a file existing. */
+const CAPABILITY_COLUMNS = ['detection', 'install', 'activation', 'verification', 'backup', 'restore', 'uninstall'];
 
 const MATRIX = installerMatrix();
 const INSTALLABLE = Object.keys(MATRIX).filter((p) => MATRIX[p].implemented);
@@ -94,6 +110,25 @@ test('the installer implements all three panels', () => {
   assert.deepEqual(buildablePanelIds().sort(), ['3xui', 'pasarguard', 'rebecca'],
     'and a page shell is built for each');
 });
+
+test('every implemented panel declares a way to activate', () => {
+  for (const p of INSTALLABLE) {
+    const mechanisms = MATRIX[p].caps.filter((c) => ACTIVATION_TOKENS.includes(c));
+    assert.ok(mechanisms.length >= 1,
+      `${p}: activation needs a declared mechanism (one of ${ACTIVATION_TOKENS.join(', ')}), `
+      + `but the adapter declares [${MATRIX[p].caps.join(', ')}]`);
+  }
+});
+
+/* Does the installer REALLY have all seven capabilities for PANEL? Activation
+   is answered from the declared mechanism (there is no activation verb);
+   everything else must have a real operation, which VERBS enumerates. */
+function hasAllCapabilities(p) {
+  if (!INSTALLABLE.includes(p)) return false;
+  return CAPABILITY_COLUMNS.every((col) => (col === 'activation'
+    ? MATRIX[p].caps.some((c) => ACTIVATION_TOKENS.includes(c))
+    : Object.prototype.hasOwnProperty.call(MATRIX[p].rc, col)));
+}
 
 test('on a host without the panel, no operation reports success', () => {
   /* This test host runs none of the panels. An operation that answered
@@ -178,31 +213,33 @@ function tableRows(md, width) {
   return rows;
 }
 
-/* The capability matrix. Columns 1-5 are installer capabilities, 6 is the
-   page shell, 7 the status -- in every language. */
+/* The capability matrix. Columns 1-7 are the seven capabilities in
+   CAPABILITY_COLUMNS order, 8 is the page shell, 9 the status -- in every
+   language. A panel may be marked Supported only when ALL SEVEN are present, so
+   "Supported" cannot be claimed on a partial implementation. */
 const COMPAT = {
   en: { file: 'docs/src/content/docs/compatibility.mdx', research: 'Research' },
   fa: { file: 'docs/src/content/docs/fa/compatibility.mdx', research: 'پژوهش' },
   ar: { file: 'docs/src/content/docs/ar/compatibility.mdx', research: 'بحث' },
 };
-const INSTALLER_COLUMNS = ['detection', 'install', 'activation', 'verification', 'backup'];
 
 for (const [lang, { file, research }] of Object.entries(COMPAT)) {
   test(`the ${lang} compatibility matrix matches what the installer can do`, () => {
-    const rows = tableRows(read(file), 8);
+    const rows = tableRows(read(file), 10);
     assert.deepEqual(Object.keys(rows).sort(), Object.keys(MATRIX).sort(), `${file}: one matrix row per panel`);
     for (const [p, cells] of Object.entries(rows)) {
-      const installable = INSTALLABLE.includes(p);
-      INSTALLER_COLUMNS.forEach((col, i) => {
-        assert.equal(cells[i + 1], installable ? '✅' : '❌',
-          `${file}: ${p} ${col} must be ${installable ? '✅' : '❌'} -- the installer ${installable ? 'implements' : 'does not implement'} it`);
+      const supported = hasAllCapabilities(p);
+      CAPABILITY_COLUMNS.forEach((col, i) => {
+        assert.equal(cells[i + 1], supported ? '✅' : '❌',
+          `${file}: ${p} ${col} must be ${supported ? '✅' : '❌'} -- the installer `
+          + `${supported ? 'implements' : 'does not implement'} it`);
       });
-      assert.equal(cells[6], buildablePanelIds().includes(p) ? '✅' : '❌', `${file}: ${p} page shell`);
-      if (installable) {
-        assert.ok(cells[7].startsWith('**'), `${file}: ${p} is marked supported`);
+      assert.equal(cells[8], buildablePanelIds().includes(p) ? '✅' : '❌', `${file}: ${p} page shell`);
+      if (supported) {
+        assert.ok(cells[9].startsWith('**'), `${file}: ${p} is marked supported`);
       } else {
-        assert.equal(cells[7].includes('**'), false, `${file}: ${p} must not be marked supported`);
-        assert.ok(cells[7].includes(research), `${file}: ${p} is marked as research`);
+        assert.equal(cells[9].includes('**'), false, `${file}: ${p} must not be marked supported`);
+        assert.ok(cells[9].includes(research), `${file}: ${p} is marked as research`);
       }
     }
   });

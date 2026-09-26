@@ -2902,8 +2902,11 @@ rt_panel_manual_steps() {
       rt_info "  ${RT_RB_DATA_DIR:-/var/lib/rebecca}/templates/row-template/ into it instead."
       rt_info "(Automatic activation needs the sqlite3 command and Rebecca's SQLite database.)" ;;
     pasarguard)
-      rt_info "In ${RT_PG_APP_DIR:-/opt/pasarguard}/.env set, then run 'pasarguard restart':"
-      rt_info "  SUBSCRIPTION_PAGE_TEMPLATE = \"row-template/index.html\"" ;;
+      rt_info "Copy $RT_LIVE to ${RT_PG_DATA_DIR:-/var/lib/pasarguard}/templates/row-template/index.html,"
+      rt_info "then in ${RT_PG_APP_DIR:-/opt/pasarguard}/.env set these and run 'pasarguard restart':"
+      rt_info "  CUSTOM_TEMPLATES_DIRECTORY = \"${RT_PG_DATA_DIR:-/var/lib/pasarguard}/templates\""
+      rt_info "  SUBSCRIPTION_PAGE_TEMPLATE = \"row-template/index.html\""
+      rt_info "(Keep your own CUSTOM_TEMPLATES_DIRECTORY if you have one, and copy the page into it.)" ;;
     *)
       rt_info "In the panel: Settings -> Subscription -> Sub Theme Directory"
       rt_info "Set it to exactly: $RT_ROOT" ;;

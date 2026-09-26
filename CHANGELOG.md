@@ -5,7 +5,140 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.1] - Unreleased
+## [1.3.0] - 2026-09-25
+
+Row-Template now installs on **PasarGuard** and **Rebecca** as well as 3X-UI,
+and ships two more designs. A minor release: nothing changes for an existing
+3X-UI install except what is listed below, and Row stays the default design.
+It also carries every fix prepared for 1.2.1, which was not released on its
+own.
+
+### Added
+
+- **PasarGuard support.** PasarGuard is supported from this release: detect,
+  install, activate, verify, back up, restore and uninstall, on the official
+  Docker install and on a source install (`pasarguard.service`). The page is
+  placed at `/var/lib/pasarguard/templates/row-template/index.html` (or inside
+  your own `CUSTOM_TEMPLATES_DIRECTORY`) and selected by one marked block
+  appended to `/opt/pasarguard/.env`; a running panel is restarted once. None
+  of your own `.env` lines is edited, and uninstall returns the file to its
+  exact previous bytes. `row-template verify` also reports the two panel
+  settings that still take precedence over the page: an admin's own
+  `sub_template`, and `disable_sub_template`.
+- **Rebecca support.** Rebecca is supported from this release, with the same
+  seven operations. The page is placed at
+  `/var/lib/rebecca/templates/row-template/index.html` (or inside your own
+  custom templates directory) and selected in the newest
+  `subscription_settings` row, which Rebecca reads on every request — so
+  nothing is ever restarted. Activation is automatic with the default SQLite
+  database and `sqlite3`; with MySQL/MariaDB the page is still placed and the
+  installer prints the two values to enter in the dashboard. `NULL`, empty and
+  a set templates directory are each restored exactly.
+- **Panel detection and choice.** The installer finds the panel on the server
+  and installs for it (`/etc/3x-ui/sub_templates/row-template` for 3X-UI,
+  `/etc/row-template` for PasarGuard and Rebecca). A panel counts only when two
+  independent signals agree; a half-installed panel is refused, not guessed at.
+  On a server with more than one panel it asks, or reads
+  `RT_PANEL=3xui|pasarguard|rebecca` in a script.
+- **Transactional activation on PasarGuard and Rebecca.** The panel's state is
+  snapshotted, changed and verified; if any step fails it is restored exactly,
+  and the installer says so — and shows the real cause.
+- **Two new designs: Meter and Notebook.** Meter is a calm instrument
+  dashboard of rounded cards with a segmented traffic meter; Notebook is a
+  page from a dotted notebook, hand-inked. Both were contributed by the
+  project's author, ported onto the shared runtime, and held to the same
+  contract as the other fifteen — seventeen designs in all, on every panel.
+- **Every design, for every panel.** Each release now carries a PasarGuard
+  (Jinja2) and a Rebecca (pongo2) page for every design, under `shells/`,
+  checksum-verified like the 3X-UI pages.
+
+### Fixed
+
+- **Rolling back to a backup taken under 1.1.0 works.** 1.2.x refused it with
+  "backup artifact matches no installed template". A backup that names its
+  design is restored as that design; one that does not (1.1.0's) is restored
+  as Row.
+- **A successful rollback is reported as a success.** The transaction engine
+  checked, after restoring the panel, that the panel was still pointing at
+  Row-Template's directory — which is exactly the state a correct rollback has
+  just undone. Every rollback therefore ended in "the rollback failed" even
+  when the panel had been restored perfectly. The engine no longer asks that
+  question: the restore verifies itself. Each panel adapter now re-reads the
+  panel's own setting after restoring and confirms it matches the value it
+  recorded before changing anything, and a restore that does not land is
+  reported as a failed rollback with the real cause. A regression test pins
+  this: the engine must never re-run the forward check after a restore.
+- **The manual PasarGuard instructions are complete.** When activation cannot
+  be done automatically, the installer printed only `SUBSCRIPTION_PAGE_TEMPLATE`
+  and told you to edit `.env` — but the page had not been copied anywhere the
+  panel could read. It now prints both the copy and the two `.env` values
+  (`CUSTOM_TEMPLATES_DIRECTORY` and `SUBSCRIPTION_PAGE_TEMPLATE`), and says to
+  keep your own templates directory if you already have one.
+- All fixes prepared for 1.2.1 (below): one `row-template update` is enough to
+  move from 1.1.0, misplaced designs are moved back, branding works on an
+  install the 1.1.0 updater left incomplete, and `verify` names missing and
+  damaged designs.
+
+### Security
+
+- **Every value is escaped on every panel.** PasarGuard renders pages with a
+  non-sandboxed Jinja2 whose autoescaping is off. Every PasarGuard and Rebecca
+  page therefore wraps its body in an explicit autoescape block, and is tested
+  with the panels' real engines against hostile usernames, notes, links and
+  malformed data.
+- **Branding can never open a template tag.** `{` and `}` in your service name,
+  support link or logo are written as `{` and `}`, so no branding
+  value can start a Jinja2 or pongo2 expression.
+- **Panel secrets stay where they are.** PasarGuard's `.env` and Rebecca's
+  database URL are read only for the keys the installer needs, never printed,
+  and never copied into a backup. A MySQL/MariaDB password is never asked for
+  or read.
+- **Backups record their panel** and are never restored onto another one.
+
+### Changed
+
+- `row-template version` shows the panel it serves; on 3X-UI it still shows the
+  minimum-supported and detected versions.
+- `row-template uninstall` returns each panel to the page it had before
+  Row-Template, and leaves a page you chose afterwards alone.
+- The `on_hold` state on PasarGuard and Rebecca is shown as active: with its
+  "starts on first connection" duration on PasarGuard, and with an unknown
+  expiry on Rebecca, which does not give the page that duration
+  (`docs/design/PANEL-ON-HOLD-DECISION.md`).
+
+### Known limitations
+
+- On PasarGuard and Rebecca the page shows the values as of when it was opened;
+  live refresh (`?format=info`) is 3X-UI only, because both panels serve live
+  status on a path suffix.
+- PasarGuard's page title (`subTitle`) and Clash templates are not produced.
+- Rebecca on MySQL/MariaDB needs its one setting entered in the dashboard.
+
+### Documentation
+
+- The compatibility page, installation, configuration and troubleshooting
+  cover all three panels, in English, Persian and Arabic; the READMEs in all
+  five languages describe PasarGuard and Rebecca as supported.
+- `docs/design/PASARGUARD-INSTALLER-AUDIT.md` and
+  `docs/design/REBECCA-INSTALLER-AUDIT.md` record, from each panel's source,
+  what activation is and how the installer follows it.
+
+### Development
+
+- The test suite renders the PasarGuard and Rebecca pages with the real
+  engines, and needs Python 3 with Jinja2 as well as Go; a missing engine is a
+  failure, never a skip.
+- `tools/make-release.sh` writes checksums in the text form on every platform.
+
+### Upgrading
+
+- From **1.2.0** or **1.1.0** on 3X-UI: run `row-template update`. From 1.1.0,
+  the next `row-template`, `row-template config` or `row-template verify`
+  completes the install. Your design, branding and panel wiring are kept.
+- On **PasarGuard** or **Rebecca**: run the installer. Earlier releases did not
+  install on these panels.
+
+## [1.2.1] - Unreleased (shipped in 1.3.0)
 
 Fixes the update from 1.1.0, which could leave the manager with no designs to
 choose from. 3X-UI (>= 3.6.0) stays the only supported panel.
@@ -227,7 +360,8 @@ First stable release.
 - Requires 3X-UI (MHSanaei) **>= 3.6.0**; validated against stock 3.7.0.
 - Recommended operating system: Ubuntu 24.04 LTS (x86_64).
 
-[1.2.1]: https://github.com/frank0live/Row-Template/compare/v1.2.0...main
+[1.3.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.3.0
+[1.2.1]: https://github.com/frank0live/Row-Template/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.2.0
 [1.1.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.1.0
 [1.0.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.0.0
