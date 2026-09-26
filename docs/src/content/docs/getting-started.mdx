@@ -30,7 +30,7 @@ only changes what the subscriber sees.
 
 | | |
 |---|---|
-| **A supported panel** | **3X-UI 3.6.0 or newer**, **PasarGuard** or **Rebecca**. The installer detects which one is installed; see [Compatibility](/compatibility/). |
+| **A supported panel** | **3X-UI 3.6.0 or newer**, **PasarGuard 5.x** or **Rebecca 1.x** (not the 0.0.x Docker image). The installer detects which one is installed; see [Compatibility](/compatibility/). |
 | **A Linux server** | Any distribution with `bash`, `coreutils`, `curl`, `tar` and `sha256sum`. These are present on virtually every Linux system. |
 | **Root access** | Required for the commands that change the system: `config`, `update`, `rollback`, `uninstall`. `verify` and `version` run without it. |
 
@@ -58,7 +58,7 @@ leaves your existing setup untouched.
 
 On 3X-UI that path is the panel's *Sub Theme Directory*. The installer sets it for you when
 `sqlite3` is available; otherwise you set it once by hand — see
-[Installation](/installation/#activate-it).
+[Installation](/installation/#step-2--activate-it).
 
 On PasarGuard and Rebecca the install lives in `/etc/row-template`, and the page the panel
 serves is placed in the panel's own templates directory, under `row-template/index.html`.

@@ -23,7 +23,10 @@ description: The panels Row-Template supports, what it changes on each, and what
 | **Locales** | English, Persian, Arabic, Russian, Simplified Chinese |
 
 The installer detects which panel is on the server. On a server with more than one, it
-asks — or, in a script, reads `RT_PANEL=3xui|pasarguard|rebecca`. A panel counts as
+asks; a scripted (non-interactive) fresh install there **must** set
+`RT_PANEL=3xui|pasarguard|rebecca`, or it stops before changing anything. One installation
+serves one panel: a re-run or an update keeps it, and serving another panel on the same
+server means `row-template uninstall` first. A panel counts as
 installed only when two independent signals agree (its configuration, its compose file or
 service, its CLI, its data directory); a panel that is only partly there is refused rather
 than guessed at.
