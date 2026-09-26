@@ -28,10 +28,10 @@
 #                                       # install with it (RT_INSTALLER_COMPANIONS)
 #   SHA256SUMS                          # inner checksums of the payload files
 #
-# The shells are PACKAGED, not installed. Nothing here places them on a target
-# host or configures a panel to use them — that is the installer's business and
-# it is deliberately untouched. Shipping them makes the release honest: the
-# product builds three panels' shells, so it should carry them.
+# The shells are what the installer places on PasarGuard and Rebecca (1.3.0):
+# it copies the selected design's shell into the panel's templates directory,
+# after checking it against its .sha256 and refusing one built for another
+# panel. Nothing in this script touches a host; it only builds and packages.
 
 set -Eeuo pipefail
 
