@@ -4,13 +4,15 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { build, buildLocales, stripModuleSyntax, REQUIRED_HOOKS } from '../tools/build.mjs';
 import { TEMPLATES, templateIds, coreTemplateIds, lockedTemplateIds } from '../tools/templates.mjs';
+import { writeIfChanged } from '../tools/write-if-changed.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -1112,5 +1114,26 @@ test('the frozen set is exactly the seventeen core templates, and a custom templ
     if (TEMPLATES[id].tier === 'custom') {
       assert.ok(!frozen.includes(id), `${id} is custom and must never be byte-locked`);
     }
+  }
+});
+
+/* The build tools write through writeIfChanged, because the suite runs its
+   files in parallel and two of them rebuild the committed artifacts while
+   others read them: a truncate-then-write let a reader see half a page. */
+test('build outputs are written only when they change, and never truncated in place', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'row-wic-'));
+  try {
+    const f = join(dir, 'index.html');
+    assert.equal(writeIfChanged(f, '<!doctype html>a'), true, 'an absent file is written');
+    assert.equal(readFileSync(f, 'utf8'), '<!doctype html>a');
+    writeFileSync(join(dir, 'marker'), '');
+    const before = statSync(f).mtimeMs;
+    assert.equal(writeIfChanged(f, '<!doctype html>a'), false, 'identical bytes are not rewritten');
+    assert.equal(statSync(f).mtimeMs, before, 'so a concurrent reader is never disturbed');
+    assert.equal(writeIfChanged(f, Buffer.from('<!doctype html>b')), true, 'changed bytes are written');
+    assert.equal(readFileSync(f, 'utf8'), '<!doctype html>b');
+    assert.deepEqual(readdirSync(dir).sort(), ['index.html', 'marker'], 'no temporary file is left behind');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
