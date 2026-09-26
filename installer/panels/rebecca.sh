@@ -370,8 +370,16 @@ rt_panel_rebecca_remove_page() {
 
 rt_panel_rebecca_restore_record() {
   # rt_panel_rebecca_restore_record SNAPSHOT PANEL -- put both columns back
-  # exactly as the record has them. Validates everything before writing.
-  local snap="$1" panel="$2" st page dstate dir
+  # exactly as the record has them. Validates everything before writing, then
+  # reads both columns BACK and compares them with the record.
+  #
+  # The read-back is what makes this function's SUCCESS mean what interface.sh
+  # says SUCCESS means -- "operation completed AND its required verification
+  # passed" -- and the transaction engine's rollback now relies on exactly that
+  # rather than re-running a forward check of its own. A correct rollback
+  # deliberately stops the panel selecting Row-Template, so a forward check
+  # would fail by design; the comparison with the record is the real evidence.
+  local snap="$1" panel="$2" st page dstate dir nowpage nowdir
   st="$(rt_backup_panel_state "$snap" "$panel")" || return 1
   case "$st" in
     present) page="$(rt_backup_panel_selection "$snap" "$panel")" || return 1 ;;
@@ -381,7 +389,19 @@ rt_panel_rebecca_restore_record() {
   dstate="$(rt_backup_panel_aux "$snap" "$panel" dir_state)" || return 1
   dir="$(rt_backup_panel_aux "$snap" "$panel" dir)" || return 1
   case "$dstate" in absent|empty|present) : ;; *) rt_err "panel rebecca: malformed dir_state record"; return 1 ;; esac
-  rt_panel_rebecca_write "$page" "$dstate" "$dir"
+  rt_panel_rebecca_write "$page" "$dstate" "$dir" || return 1
+
+  nowpage="$(rt_panel_rebecca_page_get)" \
+    || { rt_err "panel rebecca: cannot read subscription_page_template back after restoring"; return 1; }
+  [ "$nowpage" = "$page" ] || {
+    rt_err "panel rebecca: after restoring, subscription_page_template is '$nowpage', expected '$page'"
+    return 1; }
+  nowdir="$(rt_panel_rebecca_dir_get)" \
+    || { rt_err "panel rebecca: cannot read custom_templates_directory back after restoring"; return 1; }
+  [ "$nowdir" = "$dstate:$dir" ] || {
+    rt_err "panel rebecca: after restoring, custom_templates_directory is not the recorded value"
+    return 1; }
+  return 0
 }
 
 rt_panel_rebecca_restore_state() {

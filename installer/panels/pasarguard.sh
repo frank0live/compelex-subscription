@@ -561,6 +561,7 @@ rt_panel_pasarguard_restore_state() {
   # Validate the record, put .env's block back the way it was, remove the page
   # this change created, restore the running/stopped state.
   local panel="$1" snap="$2" st mech was_running files f block dir root created
+  local rc now_block now_page want_page
   st="$(rt_backup_panel_state "$snap" "$panel")" || { rt_err "panel pasarguard: malformed selection.state"; return "$RT_PANEL_FAIL"; }
   case "$st" in absent|empty|present) : ;; *) return "$RT_PANEL_FAIL" ;; esac
   rt_backup_panel_meta_check "$snap" "$panel" || { rt_err "panel pasarguard: malformed panel meta"; return "$RT_PANEL_FAIL"; }
@@ -585,6 +586,44 @@ rt_panel_pasarguard_restore_state() {
   else
     rt_panel_pasarguard_env_rewrite write "$dir" || return "$RT_PANEL_FAIL"
   fi
+
+  # --- the restore is not done until it is CHECKED ---------------------------
+  # interface.sh fixes the meaning of this function's SUCCESS: "operation
+  # completed AND its required verification passed". The transaction engine's
+  # rollback relies on exactly that and deliberately does NOT re-run a forward
+  # check of its own -- after a correct rollback this panel no longer selects
+  # Row-Template, so a forward check would fail by design and report a good
+  # rollback as a broken one. This comparison with the record is therefore the
+  # whole evidence that the rollback landed.
+  #
+  # The block's shape is checked first, then the effective value the panel will
+  # read for the page key. "unset" and "set to empty" are different facts (the
+  # P2 record distinguishes absent from empty), so the exit status is compared
+  # too, not only the text.
+  now_block="$(rt_panel_pasarguard_block_state)"
+  [ "$now_block" = "$block" ] || {
+    rt_err "panel pasarguard: after restoring, the Row-Template block is '$now_block', expected '$block'"
+    return "$RT_PANEL_FAIL"; }
+  if [ "$block" = "present" ]; then
+    [ "$(rt_panel_pasarguard_block_value "$RT_PG_KEY_DIR")" = "$dir" ] || {
+      rt_err "panel pasarguard: after restoring, the block's directory is not the recorded value"
+      return "$RT_PANEL_FAIL"; }
+  fi
+  want_page=""
+  if [ "$st" = "present" ]; then want_page="$(rt_backup_panel_selection "$snap" "$panel")"; fi
+  rc=0
+  now_page="$(rt_panel_pasarguard_env_get "$RT_PG_KEY_PAGE")" || rc=$?
+  case "$st" in
+    absent)
+      [ "$rc" -eq 3 ] || {
+        rt_err "panel pasarguard: after restoring, $RT_PG_KEY_PAGE is set, but the record says it was unset"
+        return "$RT_PANEL_FAIL"; } ;;
+    *)
+      [ "$rc" -eq 0 ] && [ "$now_page" = "$want_page" ] || {
+        rt_err "panel pasarguard: after restoring, $RT_PG_KEY_PAGE is not the recorded value"
+        return "$RT_PANEL_FAIL"; } ;;
+  esac
+
   if [ -n "$files" ]; then
     rt_panel_pasarguard_remove_page "$root" "${created:-0}" || return "$RT_PANEL_FAIL"
   fi

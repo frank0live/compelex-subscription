@@ -368,7 +368,7 @@ rt_panel_3xui_restore_state() {
   #
   # This function never calls the transaction engine, and never triggers a
   # second recovery. P4 owns rollback sequencing and its exactly-once rule.
-  local panel="$1" snap="$2" st mech was_running files rc=0
+  local panel="$1" snap="$2" st mech was_running files rc=0 now nowval want
 
   # --- the record must be structurally complete and within its closed sets ---
   st="$(rt_backup_panel_state "$snap" "$panel")" || {
@@ -421,6 +421,30 @@ rt_panel_3xui_restore_state() {
       rt_panel_3xui_selection_write "$(rt_backup_panel_selection "$snap" "$panel")" \
         || return "$RT_PANEL_FAIL" ;;
   esac
+
+  # --- the restore is not done until it is CHECKED ---------------------------
+  # interface.sh fixes the meaning of this function's SUCCESS: "operation
+  # completed AND its required verification passed". The transaction engine's
+  # rollback relies on exactly that and deliberately does NOT re-run a forward
+  # check of its own -- after a correct rollback this panel no longer selects
+  # Row-Template, so a forward check would fail by design and report a good
+  # rollback as a broken one. That makes the read-back below the WHOLE evidence
+  # that a rollback landed, so it compares the state and, for `present`, the
+  # value: a write that silently did not take, or took the wrong value, is a
+  # FAILURE and never a claim.
+  now="$(rt_panel_3xui_selection_state)" \
+    || { rt_err "panel 3xui: cannot read the selection back after restoring"; return "$RT_PANEL_FAIL"; }
+  [ "$now" = "$st" ] || {
+    rt_err "panel 3xui: after restoring, the selection state is '$now', expected '$st'"
+    return "$RT_PANEL_FAIL"; }
+  if [ "$st" = "present" ]; then
+    want="$(rt_backup_panel_selection "$snap" "$panel")"
+    nowval="$(rt_panel_3xui_selection_value)" \
+      || { rt_err "panel 3xui: cannot read the selection value back after restoring"; return "$RT_PANEL_FAIL"; }
+    [ "$nowval" = "$want" ] || {
+      rt_err "panel 3xui: after restoring, subThemeDir is not the recorded value"
+      return "$RT_PANEL_FAIL"; }
+  fi
 
   # --- service state ---------------------------------------------------------
   if [ "$was_running" = "1" ]; then

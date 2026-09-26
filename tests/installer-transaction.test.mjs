@@ -109,9 +109,19 @@ const FLOCK_SHIM = [
  * never read capabilities" and "the engine never took a snapshot". Appending to
  * a file survives the subshell.
  *
- * The two verification counters let a scenario distinguish the engine's
- * FORWARD static check from the ROLLBACK one, which is what makes "rollback
- * exactly once" and "a failed rollback does not retry" observable. */
+ * The verification counters make the CALL SEQUENCE observable, which is what
+ * pins "rollback exactly once" and "a failed rollback does not retry".
+ *
+ * STATIC IS CALLED EXACTLY ONCE, and that is the 1.3.0 correction rather than
+ * an accident: the engine used to run the forward static check a second time
+ * AFTER a rollback, asking "does this panel serve Row-Template?" -- a question
+ * whose honest answer after a correct rollback is no, because rollback restores
+ * the panel's PREVIOUS selection. That made every good rollback look failed.
+ * The rollback's verification now lives in the panel layer (restore_state
+ * returns SUCCESS only once it has read the state back), so D_VSTATIC drives
+ * the single forward check and nothing else. The live counter still has two
+ * call sites, because live verification runs on the forward path and again
+ * after a rollback as evidence. */
 const DOUBLES = [
   'double() { printf "%s\\n" "$1" >> "${RT_TXN_LOGFILE:-/dev/null}"; }',
   'rt_panel_detect()             { double detect;       return "${D_DETECT:-0}"; }',
@@ -121,8 +131,7 @@ const DOUBLES = [
   'rt_panel_verify() {',
   '  double "verify:$2"',
   '  case "$2" in',
-  '    static) D_VS_N=$(( ${D_VS_N:-0} + 1 ))',
-  '            if [ "$D_VS_N" -eq 1 ]; then return "${D_VSTATIC:-0}"; else return "${D_VSTATIC2-${D_VSTATIC:-0}}"; fi ;;',
+  '    static) D_VS_N=$(( ${D_VS_N:-0} + 1 )); return "${D_VSTATIC:-0}" ;;',
   '    live)   D_VL_N=$(( ${D_VL_N:-0} + 1 ))',
   '            if [ "$D_VL_N" -eq 1 ]; then return "${D_VLIVE:-0}"; else return "${D_VLIVE2-${D_VLIVE:-0}}"; fi ;;',
   '  esac',
@@ -264,13 +273,14 @@ const SCENARIOS = [
   ['live-fail',               '3xui',  ['D_VLIVE=1']],
   ['no-live-capability',      '3xui',  ['D_CAPS=file_placement static_verify']],
   ['install-fail',            '3xui',  ['D_INSTALL=1']],
-  ['static-fail',             '3xui',  ['D_VSTATIC=1', 'D_VSTATIC2=0']],
-  ['static-unavailable',      '3xui',  ['D_VSTATIC=2', 'D_VSTATIC2=0']],
-  ['static-not-applicable',   '3xui',  ['D_VSTATIC=3', 'D_VSTATIC2=0']],
+  ['static-fail',             '3xui',  ['D_VSTATIC=1']],
+  ['static-unavailable',      '3xui',  ['D_VSTATIC=2']],
+  ['static-not-applicable',   '3xui',  ['D_VSTATIC=3']],
   ['rollback-restore-fail',   '3xui',  ['D_INSTALL=1', 'D_RESTORE=1']],
-  /* Placement fails, so the rollback's static check is the FIRST one this
-   * scenario makes -- D_VSTATIC, not D_VSTATIC2. */
-  ['rollback-verify-fail',    '3xui',  ['D_INSTALL=1', 'D_VSTATIC=1']],
+  /* A restore that reports UNAVAILABLE is ALSO a failed rollback. The panel was
+   * not returned to its recorded state, and the engine must not call that a
+   * clean rollback merely because the status was not FAILURE. */
+  ['rollback-restore-unavailable', '3xui', ['D_INSTALL=1', 'D_RESTORE=2']],
   ['pasarguard-ok',           'pasarguard', []],
   ['rebecca-ok',              'rebecca',    []],
 ];
@@ -293,7 +303,7 @@ function runTable() {
     '  # against ${rest} -- not ${row} -- is what detects that case; comparing',
     '  # against ${row} never matches and would export the PANEL as a variable.',
     '  if [ "$assigns" = "$rest" ]; then assigns=""; fi',
-    '  unset D_DETECT D_CAPS D_CAPS_RC D_BACKUP D_INSTALL D_VSTATIC D_VSTATIC2 D_VLIVE D_VLIVE2 D_RESTORE D_SNAP',
+    '  unset D_DETECT D_CAPS D_CAPS_RC D_BACKUP D_INSTALL D_VSTATIC D_VLIVE D_VLIVE2 D_RESTORE D_SNAP',
     '  : > "$RT_TXN_LOGFILE"',
     '  D_VS_N=0; D_VL_N=0',
     '  if [ -n "$assigns" ]; then',
@@ -620,11 +630,35 @@ test('a placement failure after the mutation boundary triggers rollback exactly 
   assert.equal(row.mutated, 1);
   assert.equal(countCall('install-fail', 'restore'), 1, 'exactly one restore');
   assert.equal(E('install-fail').filter((e) => e === 'rollback').length, 1);
-  /* The FORWARD static check is never reached: placement failed first. The
-   * rollback's own static check does run, so the distinguishing fact is the
-   * call immediately following placement. */
+  /* The FORWARD static check is never reached: placement failed first, so the
+   * call immediately following placement is the rollback. */
   assert.equal(calls('install-fail')[calls('install-fail').indexOf('install') + 1], 'restore',
     'placement failure must go straight to rollback, not to verification');
+});
+
+/* THE REGRESSION GUARD for the 1.3.0 rollback correction.
+ *
+ * The engine used to run the FORWARD static check after every rollback and
+ * treat a non-zero result as a failed rollback. Because rollback restores the
+ * panel's PREVIOUS selection, that check answers "no" on every correct
+ * rollback, so a clean rollback was reported as a failure -- and, worse, the
+ * engine recorded FAILED instead of ROLLED_BACK. The panel layer now verifies
+ * its own restore, and the engine must NOT re-ask the forward question.
+ *
+ * This asserts the absence of the call, not merely its outcome, because the
+ * outcome is what made the defect invisible: with the doubles below, a second
+ * static call returning SUCCESS looks harmless, and it is only the call
+ * sequence that shows the engine asked a question it had no right to ask. */
+test('a rollback never re-runs the forward static verification', () => {
+  for (const label of ['install-fail', 'static-fail', 'live-fail']) {
+    const seq = calls(label);
+    const restoreAt = seq.indexOf('restore');
+    assert.ok(restoreAt >= 0, `${label}: the rollback must have run`);
+    assert.equal(seq.slice(restoreAt).includes('verify:static'), false,
+      `${label}: the engine must not ask the forward question after a rollback`);
+    assert.equal(countCall(label, 'verify:static') <= 1, true,
+      `${label}: static verification has exactly one call site, on the forward path`);
+  }
 });
 
 test('a rollback whose restore fails is reported, and does NOT trigger another recovery attempt', () => {
@@ -637,12 +671,19 @@ test('a rollback whose restore fails is reported, and does NOT trigger another r
   assert.equal(E('rollback-restore-fail').filter((e) => e === 'rollback-failed').length, 1);
 });
 
-test('a rollback whose static verification fails is reported as a rollback failure', () => {
-  const row = R('rollback-verify-fail');
+test('a rollback whose restore is UNAVAILABLE is reported as a rollback failure', () => {
+  /* UNAVAILABLE is not FAILURE on the forward path -- there it means "cannot be
+   * checked here" and must not roll a good change back. On the ROLLBACK path
+   * the meaning is different: the panel was not returned to its recorded state,
+   * and "we could not put it back" is not a clean rollback. The engine
+   * therefore reports it, and the two outcomes stay distinguishable. */
+  const row = R('rollback-restore-unavailable');
   assert.equal(row.rc, 1);
-  assert.equal(row.state, 'FAILED');
-  assert.equal(countCall('rollback-verify-fail', 'restore'), 1);
-  assert.equal(E('rollback-verify-fail').filter((e) => e === 'rollback-failed').length, 1);
+  assert.equal(row.state, 'FAILED',
+    'a restore that could not be performed leaves the panel unrestored');
+  assert.equal(countCall('rollback-restore-unavailable', 'restore'), 1);
+  assert.equal(E('rollback-restore-unavailable').filter((e) => e === 'rollback').length, 1);
+  assert.equal(E('rollback-restore-unavailable').filter((e) => e === 'rollback-failed').length, 1);
 });
 
 test('a malformed safety snapshot is refused before restore is attempted', () => {
