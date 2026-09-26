@@ -81,6 +81,84 @@ description: مشکلات شناخته‌شده، معنی‌شان، و راه 
 
 سپس لینک اشتراک را دوباره باز کنید.
 
+---
+
+### PasarGuard همچنان صفحهٔ خودش را نشان می‌دهد
+
+**معنی.** بلوک رو-تمپلیت در `/opt/pasarguard/.env` اعمال نشده، یا چیزی در پنل بر آن مقدم است.
+
+**راه حل.** `row-template verify` را با root اجرا کنید. علت را نام می‌برد:
+
+- *the running panel does not use the Row-Template page yet (restart it)* — پنل پس از
+  فعال‌سازی راه‌اندازی مجدد نشده است. `pasarguard restart` را اجرا کنید.
+- *N admin(s) set their own subscription page (sub_template)* — کاربران آن ادمین‌ها همان صفحه را
+  نگه می‌دارند. اگر می‌خواهید آن‌ها هم رو-تمپلیت ببینند، قالب اشتراک آن ادمین را در PasarGuard پاک
+  کنید.
+- *the panel's 'disable subscription template' setting is on* — PasarGuard به مرورگرها خود
+  اشتراک خام را می‌دهد. این تنظیم را در پنل خاموش کنید.
+
+---
+
+### `panel pasarguard: <dir> is outside /var/lib/pasarguard, the directory the container shares with the host`
+
+**معنی.** `CUSTOM_TEMPLATES_DIRECTORY` شما به بیرون از پوشه‌ای اشاره می‌کند که container
+PasarGuard می‌بیند، پس صفحه‌ای که آنجا گذاشته شود هرگز ارائه نمی‌شود. چیزی تغییر نکرد.
+
+**راه حل.** قالب‌های سفارشی‌تان را به زیر `/var/lib/pasarguard` منتقل کنید،
+`CUSTOM_TEMPLATES_DIRECTORY` را به‌روز کنید و دوباره اجرا کنید.
+
+---
+
+### `the Row-Template block in .env is damaged`
+
+**معنی.** فقط یکی از دو خط نشانگر بلوک در `/opt/pasarguard/.env` هست، پس نصب‌کننده نمی‌تواند
+بفهمد بلوکش کجا تمام می‌شود. به‌جای حدس زدن، امتناع می‌کند.
+
+**راه حل.** خط باقی‌ماندهٔ `# >>> row-template` یا `# <<< row-template <<<` (و دو کلید بین
+آن‌ها، اگر هست) را دستی حذف کنید، سپس دوباره اجرا کنید.
+
+---
+
+### Rebecca: *One manual step remains*
+
+**معنی.** Rebecca از MySQL/MariaDB استفاده می‌کند، یا `sqlite3` نصب نیست، پس نصب‌کننده صفحه را
+جایگذاری کرد اما نتوانست آن را انتخاب کند.
+
+**راه حل.** `sqlite3` را نصب کنید و `row-template` ← **Activate** را اجرا کنید، یا خودتان در
+**Settings → Subscription → Templates** انتخابش کنید: *Subscription page template*
+`row-template/index.html` و *Custom templates directory* `/var/lib/rebecca/templates`.
+
+---
+
+### `panel rebecca: this is Rebecca 0.0.x, the Python edition …`
+
+**معنی.** این Rebecca ایمیج `rebeccapanel/rebecca` از Docker Hub را اجرا می‌کند که هنوز نسخهٔ
+0.0.x پایتونی است. این نسخه نمی‌تواند صفحهٔ Rebecca رو-تمپلیت را رندر کند، پس نصب‌کننده پیش از
+هر تغییری امتناع کرد.
+
+**راه حل.** با دستور `rebecca migrate-binary` خود Rebecca (یا نصب با `rebecca-binary.sh`) به
+Rebecca نسخهٔ 1.x یعنی نسخهٔ Go بروید، سپس نصب‌کننده را دوباره اجرا کنید.
+
+---
+
+### برخی کاربران Rebecca همچنان صفحهٔ دیگری می‌بینند
+
+**معنی.** `row-template verify` گزارش می‌دهد *N admin(s) override the subscription page for
+their own users*. Rebecca به ادمین اجازه می‌دهد برای کاربران خودش صفحه‌ای انتخاب کند؛ آن
+کاربران همان را نگه می‌دارند.
+
+**راه حل.** اگر می‌خواهید کاربران آن ادمین هم رو-تمپلیت ببینند، تنظیمات قالب اشتراک آن ادمین را
+در Rebecca پاک کنید.
+
+---
+
+### `<path> exists and is not Row-Template's; it was left untouched`
+
+**معنی.** فایلی که رو-تمپلیت ننوشته، در مسیری است که رو-تمپلیت صفحه‌اش را آنجا می‌گذارد
+(`…/templates/row-template/index.html`). هرگز بازنویسی نمی‌شود و فعال‌سازی بازگردانده شد.
+
+**راه حل.** آن فایل را جای دیگری ببرید، سپس دوباره اجرا کنید.
+
 ## وضعیت زنده
 
 ### `Live check could not reach the subscription endpoint.`
@@ -89,6 +167,14 @@ description: مشکلات شناخته‌شده، معنی‌شان، و راه 
 
 **راه حل.** این یک **هشدار است، نه شکست**. مقادیر سمت سرور همچنان کار می‌کنند. بررسی کنید
 پنل از خود سرور پاسخ می‌دهد، سپس `row-template verify` را دوباره اجرا کنید.
+
+---
+
+### ارقام در PasarGuard یا Rebecca به‌روز نمی‌شوند
+
+**معنی.** این رفتار مورد انتظار است. هر دو پنل وضعیت زنده را روی یک پسوند مسیر ارائه
+می‌دهند نه `?format=info`، پس صفحه مقادیر لحظهٔ بازشدنش را نشان می‌دهد. برای به‌روز کردن آن‌ها
+صفحه را دوباره بارگذاری کنید. [سازگاری](/fa/compatibility/) را ببینید.
 
 ## ساخت و بررسی
 
@@ -100,6 +186,37 @@ description: مشکلات شناخته‌شده، معنی‌شان، و راه 
 برگردانید. **به‌روزرسانی قفل یک رویداد بازبینی‌شده است، نه یک تشریفات.**
 
 ## به‌روزرسانی و بازگردانی
+
+### `No templates are installed` (Reconfigure branding → Template)
+
+**معنی.** مدیر هیچ طرحی در مخزن طرح‌ها، یعنی `dist/templates/` زیر ریشهٔ نصب، پیدا نکرد.
+
+**علت.** به‌روزرسانی از 1.1.0: به‌روزرسان خود 1.1.0 فقط بخشی از نسخهٔ جدید را کپی می‌کند. از
+1.2.1 به بعد مدیر هنگام باز شدن طرح‌های گم‌شده را خودش دریافت می‌کند، پس این پیام فقط وقتی
+دیده می‌شود که آن دریافت ناموفق بوده است؛ پیام بالای آن علتش را می‌گوید.
+
+**راه حل.** مطمئن شوید سرور به منبع انتشار دسترسی دارد، سپس منو را دوباره باز کنید یا
+`row-template update` را اجرا کنید.
+
+---
+
+### `template store is incomplete (<n> of <total> designs); missing: …`
+
+**معنی.** `row-template verify` طرح‌هایی را در مخزن پیدا نکرد. همهٔ طرح‌های نصب‌شده همچنان کار
+می‌کنند؛ طرح‌های گم‌شده در مدیر پیشنهاد نمی‌شوند.
+
+**راه حل.** `row-template verify` را با دسترسی root و در دسترس بودن منبع انتشار اجرا کنید، یا
+`row-template update` را اجرا کنید.
+
+---
+
+### `Template store: moved <n> design(s) from …/templates to …/dist/templates`
+
+**معنی.** طرح‌ها در پوشهٔ `templates/` در ریشهٔ نصب پیدا شدند — جایی که یک نسخهٔ کپی‌شده یا
+بازشده آن‌ها را می‌گذارد — نه در `dist/templates/`. هر کدام checksum خود را گذراند و به جای خود
+منتقل شد. کاری لازم نیست.
+
+---
 
 ### `refusing to roll back from a path outside the backups tree`
 
@@ -115,7 +232,8 @@ description: مشکلات شناخته‌شده، معنی‌شان، و راه 
 **معنی.** حذف‌کننده پوشه را بررسی کرده و آن را متعلق به خودش نشناخته است.
 
 **راه حل.** این محافظی در برابر حذف پوشهٔ اشتباه است. تأیید کنید که ریشهٔ نصب
-`/etc/3x-ui/sub_templates/row-template` است، سپس دوباره اجرا کنید.
+`/etc/3x-ui/sub_templates/row-template` (۳X-UI) یا `/etc/row-template` (PasarGuard، Rebecca)
+است، سپس دوباره اجرا کنید.
 
 ## مرورگر و نمایش
 
@@ -137,4 +255,5 @@ row-template verify
 هنگام باز کردن issue، خروجی هر دو را ضمیمه کنید.
 
 > **اطلاعات محرمانه را نفرستید.** هرگز لینک اشتراک، مقدار `subId`، UUID کلاینت، نام کاربری
-> یا گذرواژهٔ پنل، کوکی، توکن، `webBasePath`، کلیدهای TLS یا آدرس واقعی سرور را منتشر نکنید.
+> یا گذرواژهٔ پنل، کوکی، توکن، `webBasePath`، محتوای `.env`، آدرس پایگاه‌داده، کلیدهای TLS یا
+> آدرس واقعی سرور را منتشر نکنید.

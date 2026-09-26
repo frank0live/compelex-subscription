@@ -10,7 +10,7 @@
  * Each template is built in memory by the same build(true, id) the tests
  * compare against, then rendered and checked by the Go fixture tool. The tool is
  * compiled once and run per template, rather than `go run` per template, which
- * would recompile it fifteen times. Pages are always regenerated, never reused:
+ * would recompile it seventeen times. Pages are always regenerated, never reused:
  * a stale page would let the suite pass against sources that no longer exist.
  *
  * `npm run fixtures` is unchanged: it still renders the committed Row artifact

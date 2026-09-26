@@ -1,0 +1,84 @@
+{%- comment -%}
+  Row-Template, Rebecca page context.
+
+  Rebecca renders its subscription page with pongo2 and hands the template a
+  map: user (username, status, data_limit, used_traffic, expire, online_at,
+  subscription_url, ...), links, support_url and current_timestamp. The Row
+  layouts read the 3X-UI names instead (enabled, isOnline, downloadByte,
+  expire, ...). This prelude derives every one of them from Rebecca's own
+  context, once, so the layout below it is the same document on every panel.
+
+  Rules (docs/design/REBECCA-ADAPTER-DECISIONS.md, tools/adapters/rebecca.mjs):
+    enabled       status is not disabled; active, limited, expired and on_hold
+                  are enabled (the page derives expired and limited itself). A
+                  status Rebecca does not know is classed disabled by Rebecca
+                  itself (status_class), and so it is here: fail safe
+    isOnline      online_at within 120 s of current_timestamp while enabled, an
+                  adapter window and not a panel fact; never inferred from traffic
+    downloadByte  used_traffic, the panel's single combined counter
+    uploadByte    0, exactly as Rebecca's own subscription-userinfo header
+    totalByte     data_limit, which Rebecca passes only when positive
+    expire        epoch seconds, already; absent means never (0); on_hold is
+                  outside the plausible range, which the page reads as unknown,
+                  because Rebecca does not pass the hold duration to templates
+    lastOnline    online_at in epoch milliseconds. Rebecca writes it WITHOUT a
+                  zone and it is UTC; pongo2 cannot parse dates, so the civil
+                  date is converted with integer arithmetic (days from civil).
+                  A value with a non-UTC offset is left unknown, never guessed.
+    subUrl        user.subscription_url, and Clash Meta at its /clash-meta suffix
+    support       support_url
+  Rebecca has no announcement and no page title in its template context.
+
+  Every value is escaped on output: pongo2 autoescapes by default, and the
+  explicit autoescape block after this prelude keeps it so.
+{%- endcomment -%}
+{%- set rt_status = user.status -%}
+{%- set enabled = true -%}
+{%- if rt_status == "disabled" or user.status_class == "disabled" -%}{%- set enabled = false -%}{%- endif -%}
+{%- set downloadByte = user.used_traffic|integer -%}
+{%- set uploadByte = 0 -%}
+{%- set totalByte = 0 -%}
+{%- if user.data_limit -%}{%- set totalByte = user.data_limit|integer -%}{%- endif -%}
+{%- set expire = 0 -%}
+{%- if rt_status == "on_hold" -%}{%- set expire = 9999999999 -%}{%- elif user.expire -%}{%- set expire = user.expire|integer -%}{%- endif -%}
+{%- set isOnline = false -%}
+{%- set lastOnline = "" -%}
+{%- if user.online_at -%}
+{%- set rt_at = user.online_at -%}
+{%- set rt_tail = rt_at|slice:"19:" -%}
+{%- set rt_zone_ok = false -%}
+{%- if rt_tail == "" or rt_tail == "Z" or rt_tail == "+00:00" -%}{%- set rt_zone_ok = true -%}{%- endif -%}
+{%- if rt_tail|slice:"0:1" == "." and not ("+" in rt_tail) and not ("-" in rt_tail) -%}{%- set rt_zone_ok = true -%}{%- endif -%}
+{%- if rt_at|length >= 19 and rt_zone_ok and rt_at|slice:"4:5" == "-" and rt_at|slice:"7:8" == "-" and rt_at|slice:"13:14" == ":" and rt_at|slice:"16:17" == ":" -%}
+{%- set rt_y = rt_at|slice:"0:4"|integer -%}
+{%- set rt_m = rt_at|slice:"5:7"|integer -%}
+{%- set rt_d = rt_at|slice:"8:10"|integer -%}
+{%- set rt_hh = rt_at|slice:"11:13"|integer -%}
+{%- set rt_mi = rt_at|slice:"14:16"|integer -%}
+{%- set rt_ss = rt_at|slice:"17:19"|integer -%}
+{%- set rt_yy = rt_y -%}
+{%- if rt_m <= 2 -%}{%- set rt_yy = rt_y - 1 -%}{%- set rt_mp = rt_m + 9 -%}{%- else -%}{%- set rt_mp = rt_m - 3 -%}{%- endif -%}
+{%- set rt_era = rt_yy / 400 -%}
+{%- set rt_yoe = rt_yy - rt_era * 400 -%}
+{%- set rt_doy = (153 * rt_mp + 2) / 5 + rt_d - 1 -%}
+{%- set rt_doe = rt_yoe * 365 + rt_yoe / 4 - rt_yoe / 100 + rt_doy -%}
+{%- set rt_secs = (rt_era * 146097 + rt_doe - 719468) * 86400 + rt_hh * 3600 + rt_mi * 60 + rt_ss -%}
+{%- if rt_y >= 1970 and rt_m >= 1 and rt_m <= 12 and rt_d >= 1 and rt_d <= 31 -%}
+{%- set lastOnline = rt_secs * 1000 -%}
+{%- set rt_age = current_timestamp - rt_secs -%}
+{%- if enabled and rt_age >= 0 and rt_age <= 120 -%}{%- set isOnline = true -%}{%- endif -%}
+{%- endif -%}
+{%- endif -%}
+{%- endif -%}
+{%- set subUrl = user.subscription_url -%}
+{%- set subJsonUrl = "" -%}
+{%- set subClashUrl = "" -%}
+{%- if subUrl -%}{%- set subClashUrl = subUrl|add:"/clash-meta" -%}{%- endif -%}
+{%- set subTitle = "" -%}
+{%- set subSupportUrl = support_url -%}
+{%- set datepicker = "gregorian" -%}
+{%- set announce = "" -%}
+{%- set used = downloadByte|bytesformat -%}
+{%- set total = totalByte|bytesformat -%}
+{%- set remained = "" -%}
+{%- if totalByte > downloadByte -%}{%- set rt_left = totalByte - downloadByte -%}{%- set remained = rt_left|bytesformat -%}{%- endif -%}

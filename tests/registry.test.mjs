@@ -170,10 +170,10 @@ test('every template carries a tier and a lock, and the defaults are core + lock
     assert.equal(typeof tpl.locked, 'boolean', `${id} locked must be a boolean`);
   }
 
-  /* The fifteen shipped designs are core and locked. None of them declares the
+  /* The seventeen shipped designs are core and locked. None of them declares the
      fields in the registry literal, so this also proves the defaults apply. */
   const core = coreTemplateIds();
-  assert.equal(core.length, 15, 'exactly fifteen core templates ship in this release');
+  assert.equal(core.length, 17, 'exactly seventeen core templates ship in this release');
   for (const id of core) {
     assert.equal(TEMPLATES[id].tier, 'core', `${id} is core`);
     assert.equal(TEMPLATES[id].locked, true, `${id} is locked`);
@@ -181,11 +181,11 @@ test('every template carries a tier and a lock, and the defaults are core + lock
   assert.deepEqual(lockedTemplateIds(), core, 'every core template is locked');
 });
 
-test('core templates keep order 1..15 and a custom template must use order >= 200', () => {
+test('core templates keep order 1..17 and a custom template must use order >= 200', () => {
   const coreOrders = coreTemplateIds()
     .map((id) => TEMPLATES[id].order)
     .sort((a, b) => a - b);
-  assert.deepEqual(coreOrders, Array.from({ length: 15 }, (_, i) => i + 1));
+  assert.deepEqual(coreOrders, Array.from({ length: 17 }, (_, i) => i + 1));
 
   /* The rule a future custom entry must satisfy. Enforced here rather than at
      import time so a misconfiguration fails a test instead of breaking the
@@ -201,7 +201,7 @@ test('core templates keep order 1..15 and a custom template must use order >= 20
 });
 
 test('applyTierDefaults keeps the current behaviour and defaults a custom entry to unlocked', () => {
-  /* An entry that declares nothing is core and locked - exactly what all fifteen
+  /* An entry that declares nothing is core and locked - exactly what all seventeen
      current entries rely on. */
   assert.deepEqual(applyTierDefaults({}), { tier: 'core', locked: true });
 

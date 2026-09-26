@@ -36,7 +36,7 @@ const byCase = (name) => FIXTURES.find((f) => f.doc.case === name);
 /* --- the set is present and well formed --------------------------------- */
 
 test('the fixture set is present', () => {
-  assert.equal(FIXTURES.length, 20, 'the planned case set is 20 fixtures');
+  assert.equal(FIXTURES.length, 23, 'the planned case set is 23 fixtures (20-22 added for 1.3.0: limited, expired, on_hold without a duration)');
   assert.deepEqual(FILES, [...FILES].sort(), 'files must be listed in order');
 });
 
@@ -230,23 +230,34 @@ test('every encoded header in the set carries the prefix', () => {
   }
 });
 
-test('on_hold is recorded with an explicit null expectation', () => {
+test('on_hold with a duration is recorded as a pending expiry, never a guess', () => {
+  /* Decided for 1.3.0 (docs/design/PANEL-ON-HOLD-DECISION.md). The clock of an
+     on_hold subscription starts on the first connection: Row's negative expire. */
   const f = byCase('08-on-hold');
   assert.ok(f, 'the on_hold case must exist');
   assert.equal(f.doc.native.info.status, 'on_hold');
   assert.ok(f.doc.native.info.on_hold_expire_duration > 0, 'the countdown is recorded');
-  assert.equal(f.doc.expected.model, null,
-    'on_hold has no slot in the contract; the expectation is explicitly deferred, not guessed');
+  const m = f.doc.expected.model;
+  assert.equal(m.enabled, true, 'on_hold is enabled');
+  assert.equal(m.expire, -f.doc.native.info.on_hold_expire_duration, 'expire is the negative hold duration');
 });
 
-test('the deferred case is the only one with a null expectation', () => {
+test('on_hold without a duration is recorded as unknown, never "never expires"', () => {
+  const f = byCase('22-on-hold-no-duration');
+  assert.ok(f, 'the case must exist');
+  assert.equal(f.doc.native.info.status, 'on_hold');
+  assert.equal(f.doc.native.info.on_hold_expire_duration, null);
+  assert.equal(f.doc.expected.model.expire, null, 'unknown, not 0');
+});
+
+test('no fixture defers its expectation any longer', () => {
   const deferred = FIXTURES.filter((f) => f.doc.expected.model === null).map((f) => f.doc.case);
-  assert.deepEqual(deferred, ['08-on-hold'], 'exactly one case is deferred, and it is visible');
+  assert.deepEqual(deferred, [], 'every PasarGuard case now has a decided expectation');
 });
 
 /* --- nothing was rebuilt ------------------------------------------------- */
 
-test('the 15 artifacts are byte-identical to their committed locks', async () => {
+test('the 17 artifacts are byte-identical to their committed locks', async () => {
   const { build } = await import('../tools/build.mjs');
   const { templateIds } = await import('../tools/templates.mjs');
   const source = readFileSync(join(ROOT, 'tests', 'build.test.mjs'), 'utf8');
@@ -256,7 +267,7 @@ test('the 15 artifacts are byte-identical to their committed locks', async () =>
     const id = m[2] === 'Row' ? 'row' : m[2] === 'Pulse Nova' ? 'pulsenova' : m[2].toLowerCase();
     locked[id] = +m[1];
   }
-  assert.equal(Object.keys(locked).length, 15);
+  assert.equal(Object.keys(locked).length, 17);
   for (const id of templateIds()) {
     assert.equal(Buffer.byteLength(build(true, id).html, 'utf8'), locked[id], id + ' must not move');
   }

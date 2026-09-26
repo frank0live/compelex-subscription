@@ -189,8 +189,10 @@ test('the release payload ships every panel shell for every design, with checksu
   // all three families, and nothing else
   assert.deepEqual(readdirSync(shellRoot).sort(), buildablePanelIds().sort(),
     'shells/ must contain exactly the buildable panels');
+  /* Buildable, not supported: a shell is packaged for every panel in the
+     registry, but only 3X-UI can be installed (see panel-support.test.mjs). */
   assert.deepEqual(buildablePanelIds().sort(), ['3xui', 'pasarguard', 'rebecca'],
-    'the three supported panels');
+    'the three buildable panels');
 
   // every design, under every panel
   for (const panel of buildablePanelIds()) {
@@ -264,7 +266,7 @@ test('the release tarball is byte-deterministic', () => {
 /* The management library's companions: what rt_panels_load and
    rt_transaction_load source, so what a release must ship and an install
    must put next to the library. */
-const COMPANIONS = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', 'panels/interface.sh'];
+const COMPANIONS = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', 'panels/interface.sh', 'panels/pasarguard.sh', 'panels/rebecca.sh'];
 
 /* installer/lib/row-template.sh exactly as released in v1.1.0; see its README. */
 const V110_LIB = join(ROOT, 'tests', 'fixtures', 'installer-1.1.0', 'row-template.sh');
@@ -306,7 +308,10 @@ function sandbox() {
   return { base, rt: join(base, 'rt'), bin: join(base, 'bin', 'row-template') };
 }
 
-/* What a fresh bash sees when it sources the INSTALLED library. */
+/* What a fresh bash sees when it sources the INSTALLED library. verify
+   completes an incomplete install from the release source, so none is
+   reachable here: this reports the state as it is. (A library that predates
+   that ignores the stub.) */
 function installedState(sb) {
   return bashRun([
     'if . "$RT_ROOT/lib/row-template.sh"; then echo "loaded=yes"; else echo "loaded=NO"; exit 0; fi',
@@ -314,6 +319,7 @@ function installedState(sb) {
     'if rt_installer_complete; then echo "complete=yes"; else echo "complete=no"; fi',
     'echo "name=$(rt_config_get_text SERVICE_NAME_B64)"',
     PANEL_STUBS,
+    'rt_fetch_release(){ return 1; }',
     'echo "--- verify"',
     '( rt_cmd_verify ) 2>&1 || true',
   ], { RT_ROOT: sb.rt, RT_BIN: sb.bin });
@@ -480,6 +486,133 @@ test('the manager offers to complete an incomplete install even when it is up to
     assert.equal(r.code, 0, r.err);
     assert.match(r.out, /incomplete/, 'the manager says why it offers a re-install');
     assertComplete(sb, 'manager completion');
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
+  }
+});
+
+/* ------------------------------------------------------------------------ */
+/* One `row-template update` from v1.1.0 is enough                          */
+/*                                                                          */
+/* v1.1.0's updater installs this release's library but copies only four    */
+/* files, so the store arrives empty. The FIRST run of the new code -- the  */
+/* manager an operator opens next -- completes the install from the same    */
+/* release, and the Template chooser offers every design. No second update, */
+/* no manual copy.                                                          */
+/* ------------------------------------------------------------------------ */
+
+const DESIGN_NAMES = availableTemplateIds().map((id) => TEMPLATES[id].name);
+
+/* The manager as an operator opens it, then Reconfigure branding -> Template.
+   stdin is not a terminal, so every menu reads EOF and backs out. */
+function openChooser(sb, rel) {
+  return bashRun(['. "$RT_ROOT/lib/row-template.sh"', PANEL_STUBS,
+    'export RT_RELEASE_DIR="$REL"',
+    'rt_manager_main </dev/null >"$RT_ROOT/../manager.log" 2>&1',
+    'rt_reconfig_template </dev/null 2>&1'], { REL: rel, RT_ROOT: sb.rt, RT_BIN: sb.bin });
+}
+
+function assertChooserOffersAll(r, label) {
+  assert.equal(r.code, 0, r.err);
+  assert.doesNotMatch(r.out, /No templates are installed/, `${label}: the chooser is not empty`);
+  for (const name of DESIGN_NAMES) {
+    assert.match(r.out, new RegExp(`^\\s*\\d+\\s+${name}$`, 'm'), `${label}: ${name} is offered`);
+  }
+}
+
+test('after one row-template update from v1.1.0, the next manager run offers every design', () => {
+  const { out, payload } = sharedPayload();
+  const sb = sandbox();
+  try {
+    upgradedByV110(sb, out, payload);
+    assert.equal(existsSync(join(sb.rt, 'dist', 'templates')), false,
+      'the v1.1.0 updater leaves no store: this is the state operators are in');
+    const backups = readdirSync(join(sb.rt, 'backups')).sort();
+
+    const r = openChooser(sb, out);
+    assertChooserOffersAll(r, 'first manager run');
+    assert.match(readFileSync(join(sb.base, 'manager.log'), 'utf8'), new RegExp(`Installation completed: ${availableTemplateIds().length} design`),
+      'the manager says what it completed');
+    const s = assertComplete(sb, 'completed on first run');
+    assert.match(s.out, /name=Test VPN/, 'branding survived');
+    assert.equal(existsSync(join(sb.rt, 'templates')), false, 'no store outside dist/templates');
+    assert.deepEqual(readdirSync(join(sb.rt, 'backups')).sort(), backups, 'every backup is kept');
+
+    /* rollback still works on the completed install */
+    const rb = bashRun(['. "$RT_ROOT/lib/row-template.sh"', PANEL_STUBS, 'rt_cmd_rollback'],
+      { RT_ROOT: sb.rt, RT_BIN: sb.bin });
+    assert.equal(rb.code, 0, 'rollback after the completed upgrade\n' + rb.err);
+    assert.match(rb.out, /Rollback complete/);
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
+  }
+});
+
+test('after one row-template update from v1.1.0, row-template verify completes the install and passes', () => {
+  const { out, payload } = sharedPayload();
+  const sb = sandbox();
+  try {
+    upgradedByV110(sb, out, payload);
+    const v = bashRun(['. "$RT_ROOT/lib/row-template.sh"', PANEL_STUBS,
+      'RT_RELEASE_DIR="$REL" rt_cmd_verify'], { REL: out, RT_ROOT: sb.rt, RT_BIN: sb.bin });
+    assert.equal(v.code, 0, 'verify passes on the first run after the update\n' + v.err);
+    assert.match(v.out, new RegExp(`Installation completed: ${availableTemplateIds().length} design`));
+    assertComplete(sb, 'completed by verify');
+    assertChooserOffersAll(openChooser(sb, out), 'after verify');
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
+  }
+});
+
+/* The layout from the report: the payload's templates/ landed at the install
+   root, beside dist/ instead of inside it. */
+function misplaceStore(sb, payload) {
+  const dest = join(sb.rt, 'templates');
+  for (const id of availableTemplateIds()) {
+    mkdirSync(join(dest, id), { recursive: true });
+    for (const f of ['template.html', 'template.html.sha256']) {
+      copyFileSync(join(payload, 'templates', id, f), join(dest, id, f));
+    }
+  }
+}
+
+test('a store left at the install root is moved into dist/templates by update', () => {
+  const { out, payload } = sharedPayload();
+  const sb = sandbox();
+  try {
+    upgradedByV110(sb, out, payload);
+    misplaceStore(sb, payload);
+    const r = bashRun(['. "$RT_ROOT/lib/row-template.sh"', PANEL_STUBS,
+      'RT_RELEASE_DIR="$REL" rt_cmd_update'], { REL: out, RT_ROOT: sb.rt, RT_BIN: sb.bin });
+    assert.equal(r.code, 0, r.err);
+    assertComplete(sb, 'update over a misplaced store');
+    assert.equal(existsSync(join(sb.rt, 'templates')), false, 'the misplaced copy is retired');
+    assertChooserOffersAll(openChooser(sb, out), 'after update');
+  } finally {
+    rmSync(sb.base, { recursive: true, force: true });
+  }
+});
+
+test('a store left at the install root is moved home by verify, from the host alone', () => {
+  const { out, payload } = sharedPayload();
+  const sb = sandbox();
+  try {
+    upgradedByV110(sb, out, payload);
+    misplaceStore(sb, payload);
+    /* No release source is reachable, so every design must come from the host.
+       (verify still TRIES a download here, for the installer files v1.1.0's
+       updater never installs -- it fails, and that is reported separately.) */
+    const v = bashRun(['. "$RT_ROOT/lib/row-template.sh"', PANEL_STUBS,
+      'rt_fetch_release(){ return 1; }',
+      '( rt_cmd_verify ) 2>&1 || true'], { RT_ROOT: sb.rt, RT_BIN: sb.bin });
+    assert.equal(v.code, 0, v.err);
+    assert.match(v.out, new RegExp(`moved ${availableTemplateIds().length} design`), 'verify moves the store home');
+    assert.match(v.out, new RegExp(`Template store verified \\(${availableTemplateIds().length} design`),
+      'and the store is complete without any download');
+    assert.doesNotMatch(v.out, /template store is incomplete/);
+    assert.match(v.out, /installer components are missing/, 'the one gap left is named');
+    assert.deepEqual(readdirSync(join(sb.rt, 'dist', 'templates')).sort(), availableTemplateIds().sort());
+    assert.equal(existsSync(join(sb.rt, 'templates')), false);
   } finally {
     rmSync(sb.base, { recursive: true, force: true });
   }

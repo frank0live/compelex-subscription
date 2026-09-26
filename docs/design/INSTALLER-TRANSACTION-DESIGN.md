@@ -96,9 +96,9 @@ FAIL
   |
   +-- validate snapshot   rt_transaction_snapshot_validate     before anything is touched
   |
-  +-- restore             rt_panel_restore_state               the P3 frozen order applies
-  |
-  +-- verify static       rt_panel_verify PANEL static         mandatory
+  +-- restore             rt_panel_restore_state               restores the PREVIOUS panel
+  |                                                            state, and verifies it landed
+  |                                                            (the P3 frozen order applies)
   |
   +-- verify live         optional; UNAVAILABLE is not a failure here
   |
@@ -108,6 +108,8 @@ FAIL
   |
   +-- STOP                no second recovery attempt
 ```
+
+**There is no forward static check after the restore** (corrected in 1.3.0). See step 3 below.
 
 **Failure BEFORE the boundary** is an abort, not a rollback: the panel has not been touched, so
 there is nothing to undo, and running a restore against an unmutated panel would write state that
@@ -286,17 +288,34 @@ repair.
 
 1. **Validate the safety snapshot.** Before anything is touched. A malformed snapshot is refused,
    never partially applied — a half-applied restore is worse than none.
-2. **`rt_panel_restore_state PANEL SNAPSHOT`.** The panel layer owns *what* to restore and *through
-   which mechanism*; the recorded `mechanism` is the one that must be used, because a different
-   write path may not even address the same setting.
-3. **Static verification — mandatory.** This is what makes "the restore worked" a checked claim
-   rather than an assertion.
+2. **`rt_panel_restore_state PANEL SNAPSHOT`.** The panel layer owns *what* to restore, *through
+   which mechanism*, and *whether the restore landed*; the recorded `mechanism` is the one that must
+   be used, because a different write path may not even address the same setting.
+3. **The restore is its own verification — and there is no forward static check here** (corrected in
+   1.3.0). The engine used to run `rt_panel_verify PANEL static` after the restore and treat a
+   non-zero result as a failed rollback. That check asks the **install** question — *does this panel
+   serve Row-Template?* — while a rollback restores the panel's **previous** selection, so the honest
+   answer is *no* by design. The check therefore failed on every correct rollback, and a clean
+   rollback was reported as `rollback-failed` and recorded `FAILED` instead of `ROLLED_BACK`.
+
+   The obligation to verify a restore belongs to the layer that owns the state model, and
+   `interface.sh` already places it there: `restore_state` returns `SUCCESS` only when the operation
+   completed **and its required verification passed**. Each adapter therefore reads the state back and
+   compares it with the record, and the engine checks *that* status. `FAILURE` and `UNAVAILABLE` are
+   both treated as a failed rollback, because in both cases the panel was not returned to its
+   recorded state — "we could not put it back" is not a clean rollback.
 4. **Live verification — optional.** `UNAVAILABLE` and `NOT_APPLICABLE` are acceptable here, and
    neither is reported as a pass.
 
 **The engine does not touch `selection`, `files` or the service itself.** Those live behind
 `rt_panel_restore_state`. Duplicating them here would create a second restore implementation that
 can disagree with the first, and only one of them can be right.
+
+**Rollback takes Option A: it restores the previous panel state exactly, including the previous
+template selection.** The alternative — leaving the panel pointed at Row-Template while the
+installer's own state is rolled back — was rejected: if the install failed part-way, that leaves real
+subscribers being served a broken or half-written page. A rollback means *undo the change*, and the
+panel's selection is part of the change.
 
 **Never:**
 
@@ -453,8 +472,8 @@ so they override the P3 public entry points for the duration of a run:
 | `rt_panel_capabilities` | any capability set, including empty, unknown-token and unavailable |
 | `rt_panel_backup_state` | capture success / failure |
 | `rt_panel_install_template` | placement success / failure |
-| `rt_panel_verify` | per-mode success / failure / unavailable / not-applicable, with a **call counter** so the engine's forward check is distinguishable from the rollback's |
-| `rt_panel_restore_state` | restore success / failure |
+| `rt_panel_verify` | per-mode success / failure / unavailable / not-applicable, with a **call counter** so a repeat call would be visible. Static is called exactly once (the forward check); live is called twice on a rollback path, and the counter distinguishes the two |
+| `rt_panel_restore_state` | restore success / failure / unavailable — all three are exercised, because a restore that did not land is a failed rollback whichever code says so |
 | `rt_backup_create` | snapshot success / failure, echoing a pre-built snapshot |
 
 Each double appends its name to a log, so the **order** of the engine's calls is asserted, not just
@@ -539,7 +558,9 @@ properties, and P5 must not break them:
 | nothing before the boundary mutates | order of phases; `RT_TXN_MUTATED` raised before placement |
 | safety snapshot required | `rt_transaction_snapshot_validate` before placement |
 | snapshot validated before restore | first step of `rt_transaction_rollback` |
-| static verification mandatory | `rt_transaction_static_verify`; caller treats any non-zero as failure |
+| static verification mandatory on the forward path | `rt_transaction_static_verify`; caller treats any non-zero as failure |
+| no forward static check after a rollback | `rt_transaction_rollback` calls only `rt_panel_restore_state`; the call sequence is asserted, so a reintroduced check fails |
+| a restore that did not land is a failed rollback | `rt_transaction_rollback` treats any non-OK `restore_state` as failure, UNAVAILABLE included |
 | live UNAVAILABLE is not a rollback trigger | `case` arm in `rt_transaction_body` |
 | static verification universally required | `RT_TXN_REQUIRED_CAPABILITIES` (checked token by token) |
 | an apply mechanism is required, but not named | `RT_TXN_REQUIRED_APPLY_CAPABILITIES` + `rt_transaction_has_any_capability` |

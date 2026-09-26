@@ -25,7 +25,8 @@
  * in a document.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { writeIfChanged } from './write-if-changed.mjs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -64,7 +65,7 @@ export function buildPanelShell(panelId, templateId) {
 
   const out = panelShellPath(panelId, templateId);
   mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, html, 'utf8');
+  writeIfChanged(out, html);
 
   return {
     panelId,

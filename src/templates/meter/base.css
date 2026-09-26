@@ -1,0 +1,127 @@
+/* Reset, document shell and the primitives everything else builds on. */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text);
+  background: var(--bg);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p, ul, ol {
+  margin: 0;
+  font-weight: inherit;
+  font-size: inherit;
+}
+
+ul, ol { padding: 0; list-style: none; }
+
+a { color: var(--accent); }
+
+button {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  font-variant-numeric: inherit;
+}
+
+input, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+canvas { display: block; }
+
+svg.sprite { display: none; }
+
+.icon {
+  inline-size: 1.0625rem;
+  block-size: 1.0625rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.announce-text,
+#connect-hint { max-inline-size: var(--measure); }
+
+/* Latin figures stay Latin inside an RTL paragraph. */
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Scripting gate: the boot script sets data-js before first paint. */
+html:not([data-js]) .js-only { display: none !important; }
+
+/* The tap floor, stated on element types so no control can slip under it:
+   every button, link-button, tab and field is at least 44px tall. */
+button,
+a.btn,
+[role="tab"],
+input { min-block-size: var(--tap); }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.topbar,
+#main { animation: page-in var(--dur-slow) var(--ease); }
+
+#main {
+  animation-delay: 60ms;
+  animation-fill-mode: backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

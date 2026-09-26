@@ -1,0 +1,26 @@
+/* Direction-specific rules. Every offset is a logical property, so dir on
+   <html> does the layout; what remains are the glyphs with a direction of
+   their own, and Latin tracking, which would break Arabic joins. The meter
+   fills from the start edge in both directions: the track is masked as a
+   whole, so its segments stay aligned either way. */
+
+[dir="rtl"] .icon-chevron,
+[dir="rtl"] .icon-external {
+  transform: scaleX(-1);
+}
+
+[lang="fa"] .cfg-proto,
+[lang="ar"] .cfg-proto,
+[lang="fa"] .brand-name,
+[lang="ar"] .brand-name,
+[lang="fa"] .hero-big,
+[lang="ar"] .hero-big {
+  letter-spacing: 0;
+}
+
+/* Persian and Arabic ascenders and descenders need room the tight Latin
+   display leading would clip. */
+[lang="fa"] .hero-big,
+[lang="ar"] .hero-big {
+  line-height: 1.35;
+}

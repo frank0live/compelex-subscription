@@ -416,11 +416,29 @@ rt_transaction_rollback() {
   # each step protects the next:
   #   1. validate the snapshot   -- before anything is touched; a malformed
   #                                 snapshot must be refused, not half applied
-  #   2. rt_panel_restore_state  -- the panel layer owns WHAT to restore and
-  #                                 through which mechanism
-  #   3. static verification     -- mandatory, and it is what makes "the restore
-  #                                 worked" a checked claim
-  #   4. live verification       -- optional evidence, never a failure here
+  #   2. rt_panel_restore_state  -- the panel layer owns WHAT to restore, through
+  #                                 which mechanism, and the verification that
+  #                                 the restore actually landed
+  #   3. live verification       -- optional evidence, never a failure here
+  #
+  # WHY THERE IS NO ENGINE-SIDE STATIC CHECK AFTER THE RESTORE (corrected in
+  # 1.3.0, and this was a real defect). The engine used to run the FORWARD
+  # static check here -- rt_panel_verify PANEL static -- and treat a non-zero
+  # result as "the rollback failed". That check answers "is Row-Template
+  # installed AND selected by this panel?". After a CORRECT rollback the answer
+  # is NO BY DESIGN: rollback takes Option A and restores the panel's PREVIOUS
+  # selection, so the panel deliberately stops pointing at Row-Template. The
+  # forward check therefore failed on every genuine rollback, the engine
+  # reported "rollback also failed", and a clean rollback was recorded as
+  # FAILED instead of ROLLED_BACK.
+  #
+  # The obligation to verify a restore belongs to the layer that owns the state
+  # model, and interface.sh already places it there: a panel's restore_state
+  # returns SUCCESS only when the operation completed AND its required
+  # verification passed. Every adapter therefore reads the state back and
+  # compares it with the record, and the engine checks THAT status. Asking the
+  # panel a forward question and calling a correct rollback a failure was the
+  # bug; re-asking it here would be the same bug again.
   #
   # This function deliberately does NOT touch selection, files or the service
   # itself. Those details live behind rt_panel_restore_state; duplicating them
@@ -437,18 +455,16 @@ rt_transaction_rollback() {
     return "$RT_PANEL_FAIL"
   fi
 
+  # 2. The restore, and with it the rollback's required verification: a panel
+  #    returns SUCCESS only after it has re-read the state it wrote and found it
+  #    equal to the record. FAILURE and UNAVAILABLE both mean the panel was NOT
+  #    returned to the recorded state, which is a failed rollback -- the two are
+  #    not distinguished here because the recovery is the same (report, stop,
+  #    attempt nothing further).
   rc=0
   rt_panel_restore_state "$panel" "$snap" || rc=$?
   if [ "$rc" -ne "$RT_PANEL_OK" ]; then
     rt_transaction_rollback_report_failure "$original" "restore_state returned status $rc"
-    rt_transaction_state_set FAILED >/dev/null 2>&1 || true
-    return "$RT_PANEL_FAIL"
-  fi
-
-  rc=0
-  rt_transaction_static_verify "$panel" || rc=$?
-  if [ "$rc" -ne "$RT_PANEL_OK" ]; then
-    rt_transaction_rollback_report_failure "$original" "post-restore static verification returned status $rc"
     rt_transaction_state_set FAILED >/dev/null 2>&1 || true
     return "$RT_PANEL_FAIL"
   fi
