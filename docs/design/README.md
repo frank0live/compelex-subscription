@@ -29,8 +29,10 @@ Code and tests cite these documents by file name (for example
 
 ## Panel compatibility
 
-How the subscription page is made to render on panels other than 3X-UI. 3X-UI
-is the only supported panel; PasarGuard and Rebecca are research targets.
+How the subscription page is made to render on panels other than 3X-UI. These
+records date from when 3X-UI was the only supported panel and PasarGuard and
+Rebecca were research targets; since 1.3.0 all three are supported (see the
+1.3.0 installer records below and the compatibility page).
 
 | Document | What it is |
 | --- | --- |

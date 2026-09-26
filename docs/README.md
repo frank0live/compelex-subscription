@@ -32,7 +32,7 @@ consistent with the product's promise that the artifact fetches nothing from any
 
 | path | purpose |
 |---|---|
-| `src/content/docs/en/` | English content (root locale) |
+| `src/content/docs/` | English content (the root locale) |
 | `src/content/docs/fa/` | Persian content |
 | `src/content/docs/ar/` | Arabic content |
 | `src/styles/` | design tokens from the design system proposal |
