@@ -2899,6 +2899,7 @@ rt_panel_activate() {
   local panel rc=0
   panel="$(rt_panel_current)"
   rt_installer_complete || { rt_err "the installer's panel components are missing; run 'row-template update'."; return 1; }
+  rt_panel_preflight "$panel" || return 1
   if [ "$(rt_panel_status "$panel")" = "manual" ]; then
     rt_panel_refresh_page "$panel" "$RT_LIVE" place >/dev/null || rc=$?
     [ "$rc" -eq 0 ] || { rt_err "could not place the page for $(rt_panel_label "$panel")."; return 1; }
@@ -2993,6 +2994,9 @@ rt_cmd_install() {
   # this host. This also decides the install root (rt_panel_choose).
   rt_panel_choose || rt_die "nothing was changed."
   panel="$RT_ACTIVE_PANEL"
+  # A panel can be present and still unable to serve this release's page
+  # (Rebecca's 0.0.x Python edition); refuse before anything is written.
+  rt_panel_preflight "$panel" || rt_die "nothing was changed."
 
   # environment discovery + hard version gate (fail closed). 3X-UI only: the
   # other panels are identified by their adapter, and their activation does not

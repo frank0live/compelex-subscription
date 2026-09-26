@@ -87,6 +87,61 @@ rt_panel_rebecca_running() {
   esac
 }
 
+# --- which Rebecca ----------------------------------------------------------------
+# Two different programs are published as Rebecca. 1.x is the Go edition: it
+# renders the page with pongo2, from the page context this release's Rebecca
+# page is built for, and ships as a binary (rebecca-binary.sh). But Docker Hub's
+# rebeccapanel/rebecca:latest -- what rebecca.sh's Docker install pulls -- is
+# still the 0.0.x Python edition (FastAPI + Jinja2, another context). Found on
+# a real host (1.3.0 validation): there the selection is written and accepted,
+# the page cannot render, and Rebecca silently serves its own page instead --
+# an install that reports success and changes nothing a subscriber sees. So
+# the edition is established first, and anything but 1.x is refused.
+
+rt_panel_rebecca_image() {
+  # echo the Rebecca image the compose file runs, or nothing.
+  [ -f "$RT_RB_APP_DIR/docker-compose.yml" ] || return 0
+  LC_ALL=C awk '
+    { l=$0; sub(/\r$/,"",l) }
+    l ~ /^[ \t]*image:/ {
+      v=l; sub(/^[ \t]*image:[ \t]*/,"",v); gsub(/["\047]/,"",v); sub(/[ \t].*$/,"",v)
+      if (v ~ /(^|\/)rebeccapanel\/rebecca([:@]|$)/) { print v; exit }
+    }' "$RT_RB_APP_DIR/docker-compose.yml" 2>/dev/null || true
+}
+
+rt_panel_rebecca_edition() {
+  # go | python | unknown. A binary install is 1.x by definition (the Python
+  # edition has none); a Docker one is told apart by its image's entrypoint.
+  local img cfg
+  case "$(rt_panel_rebecca_mode)" in
+    binary) printf 'go'; return 0 ;;
+    docker) : ;;
+    *) printf 'unknown'; return 0 ;;
+  esac
+  command -v docker >/dev/null 2>&1 || { printf 'unknown'; return 0; }
+  img="$(rt_panel_rebecca_image)"
+  [ -n "$img" ] || { printf 'unknown'; return 0; }
+  cfg="$(docker image inspect -f '{{json .Config.Entrypoint}} {{json .Config.Cmd}} {{.Config.WorkingDir}}' "$img" 2>/dev/null || true)"
+  case "$cfg" in
+    *rebecca-server*) printf 'go' ;;
+    *'/code'*)        printf 'python' ;;
+    *)                printf 'unknown' ;;
+  esac
+}
+
+rt_panel_rebecca_edition_ok() {
+  # 0 when this Rebecca can serve the page this release builds for it;
+  # otherwise say why and fail. Unknown fails closed.
+  case "$(rt_panel_rebecca_edition)" in
+    go) return 0 ;;
+    python)
+      rt_err "panel rebecca: this is Rebecca 0.0.x, the Python edition (Docker image $(rt_panel_rebecca_image)). Row-Template's Rebecca page is built for Rebecca 1.x, the Go edition, which Rebecca publishes for its binary install (rebecca-binary.sh); Rebecca's own 'rebecca migrate-binary' moves a Docker install to it." ;;
+    *)
+      rt_err "panel rebecca: cannot tell which Rebecca edition this is (the Docker image could not be inspected); refusing rather than placing a page Rebecca may not be able to render." ;;
+  esac
+  return 1
+}
+
 rt_panel_rebecca_db() {
   # Echo the host path of Rebecca's SQLite database, or fail. Reads ONE key of
   # .env and never prints it: a MySQL URL carries a password.
@@ -260,6 +315,7 @@ rt_panel_rebecca_backup_state() {
   #   aux        dir_state/dir: custom_templates_directory exactly (NULL, '' or
   #              a value), root, root_created
   local panel="$1" page state was_running=0 d root files=()
+  rt_panel_rebecca_edition_ok || return "$RT_PANEL_FAIL"
   rt_panel_rebecca_db_ready || return "$RT_PANEL_UNAVAILABLE"
   page="$(rt_panel_rebecca_page_get)" || { rt_err "panel rebecca: cannot read subscription_settings"; return "$RT_PANEL_FAIL"; }
   if [ -z "$page" ]; then state="empty"; else state="present"; fi
@@ -303,6 +359,7 @@ rt_panel_rebecca_install_template() {
   [ -f "$src" ] || { rt_err "panel rebecca: SOURCE is not a regular file: $src"; return "$RT_PANEL_FAIL"; }
   rt_is_within "$RT_ROOT" "$src" || { rt_err "panel rebecca: SOURCE is outside $RT_ROOT"; return "$RT_PANEL_FAIL"; }
   rt_panel_rebecca_shell_ok "$src" || { rt_err "panel rebecca: SOURCE is not a Rebecca page this release can serve"; return "$RT_PANEL_FAIL"; }
+  rt_panel_rebecca_edition_ok || return "$RT_PANEL_FAIL"
   rt_panel_rebecca_db_ready || return "$RT_PANEL_UNAVAILABLE"
   root="$(rt_panel_rebecca_root)" || return "$RT_PANEL_FAIL"
   rt_panel_rebecca_place "$src" "$root" || return "$RT_PANEL_FAIL"
@@ -344,6 +401,7 @@ rt_panel_rebecca_verify() {
   fi
   rt_validate_template "$RT_LIVE" >/dev/null 2>&1 \
     || { rt_err "panel rebecca: the generated page is missing or invalid: $RT_LIVE"; return "$RT_PANEL_FAIL"; }
+  rt_panel_rebecca_edition_ok || return "$RT_PANEL_FAIL"
   rt_panel_rebecca_db_ready || { rt_err "panel rebecca: cannot read the panel selection (sqlite3 and a SQLite database are needed)"; return "$RT_PANEL_FAIL"; }
   root="$(rt_panel_rebecca_root)" || return "$RT_PANEL_FAIL"
   dest="$root/$RT_RB_PAGE"
@@ -480,6 +538,13 @@ rt_panel_rebecca_refresh() {
   # rt_panel_rebecca_refresh SOURCE [place]
   local src="$1" place="${2:-}" root
   rt_panel_rebecca_shell_ok "$src" || return "$RT_PANEL_FAIL"
+  # Installing fails closed on an edition it cannot identify; refreshing an
+  # existing install refuses only one it KNOWS cannot serve the page, so a
+  # Docker daemon that is briefly unreachable does not block a rebrand.
+  if [ "$(rt_panel_rebecca_edition)" = python ]; then
+    rt_panel_rebecca_edition_ok
+    return "$RT_PANEL_FAIL"
+  fi
   if ! root="$(rt_panel_rebecca_page_root 2>/dev/null)"; then
     # A directory Row-Template cannot use holds no page of ours -- unless the
     # panel selects our page from it, which is a real failure to report.
