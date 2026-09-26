@@ -29,7 +29,8 @@
  * so the tests can prove a rendered page is correct.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { writeIfChanged } from './write-if-changed.mjs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -244,7 +245,7 @@ export function writeShell(panelId, templateId, { withFont = true } = {}) {
   const sh = assembleShell(panelId, templateId, { withFont });
   const out = shellOutPath(panelId, templateId);
   mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, sh.html, 'utf8');
+  writeIfChanged(out, sh.html);
   return { ...sh, out };
 }
 
