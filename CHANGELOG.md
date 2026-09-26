@@ -87,6 +87,13 @@ own.
   `sqlite3` installed, because those commands had not located the panel
   database. And the check made right after activation no longer warns "could
   not reach the subscription endpoint" while 3X-UI is still restarting.
+- **A valid page is never refused under load.** The structural check before
+  every install, update and design switch read the page through
+  `head | grep -q`. On a busy server `grep -q` could stop reading before `head`
+  finished writing, and the shell then reported the match as a failure —
+  "generated template does not begin with <!doctype html>" for a perfectly
+  valid page, about once in 150 checks. Every such check is now written so
+  that it cannot be cut short.
 - All fixes prepared for 1.2.1 (below): one `row-template update` is enough to
   move from 1.1.0, misplaced designs are moved back, branding works on an
   install the 1.1.0 updater left incomplete, and `verify` names missing and
