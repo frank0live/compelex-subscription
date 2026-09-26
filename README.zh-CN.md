@@ -79,7 +79,7 @@ Row-Template 1.3.0 提供十七种设计，默认设计为 Row。
 
 <sub>预览图使用项目自带的示例数据渲染。每种设计的桌面端和移动端预览见<a href="https://iitzseridev.github.io/Row-Template/templates/">模板画廊</a>。</sub>
 
-可以在全新的交互式安装时选择设计，在脚本安装时设置 `RT_TEMPLATE`，或之后在管理器中更改（**Reconfigure branding → Template**）。更新会保留你的选择。
+可以在全新的交互式安装时选择设计，在脚本安装时设置 `RT_TEMPLATE`，或之后在管理器中更改（**Reconfigure branding → Template**）。更新会保留你的选择。`RT_TEMPLATE` 的取值为 `row`、`editorial`、`canvas`、`prism`、`terminal`、`pulse`、`brutal`、`arcade`、`sketch`、`signature`、`saffron`、`pulsenova`、`prismnova`、`terminalnova`、`arcadenova`、`meter` 和 `notebook`。
 
 ## 功能特性
 
@@ -109,10 +109,19 @@ Row-Template 1.3.0 提供十七种设计，默认设计为 Row。
 | 面板 | 状态 | 说明 |
 | ----- | ------ | ----- |
 | [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ 已支持 | 需要 **>= 3.6.0** 版本 |
-| [PasarGuard](https://github.com/PasarGuard/panel) | ✅ 自 1.3.0 起支持 | 官方 Docker 安装或源码安装（`pasarguard.service`） |
-| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ 自 1.3.0 起支持 | Rebecca **1.x**，即 Go 版本（Rebecca 的二进制安装）。使用 SQLite 和 `sqlite3` 时自动激活；使用 MySQL/MariaDB 时需在控制台中填写一项设置。Docker 镜像仍是 0.0.x，会被拒绝 |
+| [PasarGuard](https://github.com/PasarGuard/panel) | ✅ 自 1.3.0 起支持 | PasarGuard **5.x** —— 官方 Docker 安装或源码安装（`pasarguard.service`） |
+| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ 自 1.3.0 起支持 | Rebecca **1.x**，即 Go 版本（Rebecca 的二进制安装）。使用 SQLite 和 `sqlite3` 时自动激活；使用 MySQL/MariaDB 时需在控制台中填写一项设置。**不支持：** Docker 镜像，它仍是 Rebecca 0.0.x（Python 版本）—— 安装程序会拒绝它且不做任何更改 |
 
 三个面板使用三种不同的模板引擎 —— Go `html/template`、Jinja2 和 pongo2 —— 因此每种设计都会为每个面板分别构建，并用该面板真实的引擎渲染来测试每个版本。安装程序会检测服务器上是哪一个面板；如果有多个，它会询问你（或读取 `RT_PANEL`）。**支持**意味着该面板具备全部七项能力 —— 检测、安装、激活、校验、备份、还原和卸载 —— 并且每一项都由测试套件覆盖。各面板的详细信息见[兼容性](https://iitzseridev.github.io/Row-Template/compatibility/)。
+
+**1.3.0 的限制：**
+
+- **实时刷新仅限 3X-UI。** 在 PasarGuard 和 Rebecca 上，页面显示的是打开时的用量和到期时间。
+- **Rebecca 的 Docker 镜像会被拒绝。** 它仍是 0.0.x，即 Python 版本；Rebecca 自带的 `rebecca migrate-binary` 可以把 Docker 安装迁移到 1.x。
+- **无法自动激活时需手动设置一项：** 没有 `sqlite3` 的 3X-UI，以及使用 MySQL/MariaDB 或没有 `sqlite3` 的 Rebecca。
+- **面板设置仍然优先**（PasarGuard 和 Rebecca）：管理员自己的订阅模板，以及 PasarGuard 的 **disable subscription template** 设置。`row-template verify` 会报告这两种情况。
+- **PasarGuard 的页面标题**（`subTitle`）和 **Clash 模板**不会生成；只生成订阅页面。
+- **每台服务器一个面板。** 一次安装只为安装时所选的面板提供页面；若要改为另一个面板，请先运行 `row-template uninstall`。
 
 ## 架构
 
@@ -131,7 +140,7 @@ flowchart TB
   end
   build -- "GitHub Releases" --> host
   host -- "serves the page" --> BROWSER["Subscriber's browser"]
-  BROWSER -. "live status: ?format=info" .-> host
+  BROWSER -. "live status (3X-UI): ?format=info" .-> host
 ```
 
 - **每种设计一个文件。** `tools/build.mjs` 将共享的运行时代码、翻译、字体和二维码生成器内联到设计的布局中，并拒绝缺少任何运行时所需钩子（hook）的布局。随后 `tools/verify.mjs` 会拒绝任何加载远程资源或包含禁用结构的文件。
@@ -151,7 +160,7 @@ flowchart TB
 
 > **推荐操作系统：Ubuntu 24.04 LTS (x86_64)。** 其他较新的 Linux 发行版或许也能运行，但未经过同等程度的验证覆盖。
 
-**环境要求：** 运行 3X-UI **>= 3.6.0**、PasarGuard 或 Rebecca **1.x** 的服务器；该服务器的 root 权限；以及 `curl`、`tar` 和 `sha256sum`（几乎所有 Linux 系统都自带）。在 3X-UI 和 Rebecca 上自动激活还需要 `sqlite3`。
+**环境要求：** 运行 3X-UI **>= 3.6.0**、PasarGuard **5.x** 或 Rebecca **1.x**（二进制安装；不支持 0.0.x 的 Docker 镜像）的服务器；该服务器的 root 权限；以及 `curl`、`tar` 和 `sha256sum`（几乎所有 Linux 系统都自带）。在 3X-UI 和 Rebecca 上自动激活还需要 `sqlite3`。
 
 在托管你的面板的服务器上以 **root** 身份运行：
 
@@ -174,11 +183,13 @@ bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/dow
 RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
 
-在运行多个受支持面板的服务器上，安装程序会询问要为哪一个提供页面；在脚本中，可用 `RT_PANEL`（`3xui`、`pasarguard` 或 `rebecca`）指定：
+在运行多个受支持面板的服务器上，安装程序会询问要为哪一个提供页面。在这样的服务器上用脚本（非交互式）全新安装时，**必须**用 `RT_PANEL`（`3xui`、`pasarguard` 或 `rebecca`）指定面板；否则安装程序会在做任何更改之前停止：
 
 ```bash
 RT_PANEL=pasarguard bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
+
+`RT_PANEL` 必须指向该服务器上已安装的面板。重新运行或更新会保留 Row-Template 安装时所服务的面板。
 
 如果你不希望直接从网络通过管道执行，可以从 [Releases 页面](https://github.com/frank0live/Row-Template/releases/latest)将四个发布文件（`install.sh`、`manifest.txt`、`SHA256SUMS` 和 `row-template-<version>.tar.gz`）下载到同一个文件夹，按照 [PROVENANCE.md](PROVENANCE.md) 中的说明自行校验校验和，然后让安装程序使用该文件夹：
 
@@ -214,12 +225,12 @@ SUBSCRIPTION_PAGE_TEMPLATE = "row-template/index.html"
 
 PasarGuard 在启动时读取 `.env`，因此正在运行的面板会重启一次。你自己的任何一行都不会被修改；卸载会删除该块，并把 `.env` 精确恢复为之前的字节。拥有自己订阅模板的管理员，或 **disable subscription template** 设置，仍然优先 —— 如果其中之一生效，`row-template verify` 会告诉你。
 
-Row-Template 支持 Rebecca **1.x**，即 Rebecca 为其二进制安装（`rebecca-binary.sh`）发布的 Go 版本。Docker Hub 上的 `rebeccapanel/rebecca` 镜像仍是 0.0.x 的 Python 版本，无法渲染此页面；安装程序会拒绝它且不做任何更改，而 Rebecca 自带的 `rebecca migrate-binary` 可以把 Docker 安装迁移到 1.x。
-
 **Rebecca。** 页面放在 `/var/lib/rebecca/templates/row-template/index.html`（或你自己的自定义模板目录中），并把 Rebecca 的订阅设置设为 `row-template/index.html`。Rebecca 在每次请求时读取这些设置，因此无需重启。
 
 - **自动：** 使用默认的 SQLite 数据库并已安装 `sqlite3` 时。
 - **手动：** 使用 MySQL/MariaDB（或没有 `sqlite3`）时：页面仍会放好；在 Rebecca 控制台中打开 **Settings → Subscription → Templates**，把 **Subscription page template** 设为 `row-template/index.html`，把 **Custom templates directory** 设为 `/var/lib/rebecca/templates`。
+
+Row-Template 支持 Rebecca **1.x**，即 Rebecca 为其二进制安装（`rebecca-binary.sh`）发布的 Go 版本。Docker Hub 上的 `rebeccapanel/rebecca` 镜像仍是 0.0.x 的 Python 版本，无法渲染此页面；安装程序会拒绝它且不做任何更改，而 Rebecca 自带的 `rebecca migrate-binary` 可以把 Docker 安装迁移到 1.x。
 
 ## 使用
 
@@ -245,8 +256,8 @@ row-template
 
 - **品牌信息**以数据形式存储，从不执行，并以文本形式注入页面。将某个字段留空即可得到无品牌的页面。支持链接只接受浏览器应当打开的协议，例如 `https://…`、`tg://…` 或 `mailto:…`。
 - **更新**来自公共稳定通道。`row-template update` 总是应用最新的稳定版本，即使你已安装的就是该版本；管理器中的 **Update** 会先比较版本，并在做出任何更改前询问。如果无法访问发布源，则不会做任何更改，你的安装也绝不会因此被视为已损坏。
-- **从 1.1.0 或 1.2.x 更新**只需运行一次 `row-template update`。1.1.0 自带的更新程序只会复制新版本的一部分，因此下一次以 root 运行 `row-template`、`row-template config` 或 `row-template verify` 时，会先下载同一版本的其余部分——所有设计，并校验 checksum。你的设计、品牌配置和面板连接都会保留。
-- **回滚**会从经过验证的备份中恢复之前的版本。系统会先为当前版本创建快照（snapshot），因此失败的回滚也可以恢复，且你的品牌配置会被保留。备份会记录其所在的面板，绝不会恢复到另一个面板上；来自旧版本、未记录设计名称的备份会按 Row 恢复。
+- **从 1.1.0 或 1.2.0 更新**只需运行一次 `row-template update`。1.1.0 自带的更新程序只会复制新版本的一部分，因此下一次以 root 运行 `row-template`、`row-template config` 或 `row-template verify` 时，会先下载同一版本的其余部分——所有设计，并校验 checksum。你的设计、品牌配置和面板连接都会保留。早期版本不能安装在 PasarGuard 或 Rebecca 上；在这些面板上请运行安装程序。
+- **回滚**会从经过验证的备份中恢复之前的版本。系统会先为当前版本创建快照（snapshot），因此失败的回滚也可以恢复，且你的品牌配置会被保留。备份会记录其所在的面板，绝不会恢复到另一个面板上；来自旧版本、未记录设计名称的备份会按 Row 恢复。回滚恢复的是页面和备份记录的版本，而不是 `row-template` 管理器本身：回滚到 1.1.0 的备份后，`row-template version` 显示 1.1.0，而 1.3.0 的管理器仍然保留，下一次 `row-template update` 会回到 1.3.0。只保留最新的两个备份——每次更新、切换设计和回滚都会创建一个。
 - **卸载**会移除 Row-Template 的文件，并让面板恢复之前使用的页面：在 3X-UI 上，只有当 `subThemeDir` 指向 Row-Template 时才会将其清除；在 PasarGuard 上，删除它在 `.env` 中的块和它的页面；在 Rebecca 上，恢复它修改过的两项订阅设置（如果你此后已选择了其他页面，则不做改动）。你的用户、入站（inbound）、客户端、节点和证书都不会受到影响。
 
 [文档](https://iitzseridev.github.io/Row-Template/)更详细地介绍了配置、品牌设置和故障排查。
@@ -277,7 +288,6 @@ npm run preview        # preview the fixture pages at http://127.0.0.1:8787
 
 这是方向，而非承诺：
 
-- **Row-Template 1.3.0** —— 上文介绍的 PasarGuard 和 Rebecca 支持，以及 Meter 和 Notebook 设计。
 - **PasarGuard 和 Rebecca 上的实时状态** —— 两者都通过路径后缀而不是 `?format=info` 提供它；接入需要对运行时代码做一处小改动，这一决定已推迟。参见[兼容性](https://iitzseridev.github.io/Row-Template/compatibility/)。
 - **自定义模板** —— 关于添加你自己设计的提案：[`docs/design/CUSTOM-TEMPLATES-PROPOSAL.md`](docs/design/CUSTOM-TEMPLATES-PROPOSAL.md)。
 

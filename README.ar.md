@@ -79,7 +79,7 @@
 
 <sub>المعاينات مولَّدة من بيانات المشروع النموذجية. معاينات سطح المكتب والهاتف لكل تصميم موجودة في <a href="https://iitzseridev.github.io/Row-Template/ar/templates/">معرض القوالب</a>.</sub>
 
-اختر التصميم أثناء تثبيت تفاعلي جديد، أو اضبط `RT_TEMPLATE` للتثبيت عبر سكربت، أو غيّره لاحقًا من المدير (**Reconfigure branding → Template**). تحتفظ التحديثات باختيارك.
+اختر التصميم أثناء تثبيت تفاعلي جديد، أو اضبط `RT_TEMPLATE` للتثبيت عبر سكربت، أو غيّره لاحقًا من المدير (**Reconfigure branding → Template**). تحتفظ التحديثات باختيارك. قيم `RT_TEMPLATE` هي `row` و`editorial` و`canvas` و`prism` و`terminal` و`pulse` و`brutal` و`arcade` و`sketch` و`signature` و`saffron` و`pulsenova` و`prismnova` و`terminalnova` و`arcadenova` و`meter` و`notebook`.
 
 ## المزايا
 
@@ -109,10 +109,19 @@
 | اللوحة | الحالة | ملاحظات |
 | ----- | ------ | ----- |
 | [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ مدعومة | تتطلب الإصدار **>= 3.6.0** |
-| [PasarGuard](https://github.com/PasarGuard/panel) | ✅ مدعومة منذ 1.3.0 | التثبيت الرسمي عبر Docker أو التثبيت من المصدر (`pasarguard.service`) |
-| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ مدعومة منذ 1.3.0 | Rebecca الإصدار **1.x**، إصدار Go (التثبيت الثنائي لـ Rebecca). تفعيل تلقائي مع SQLite و`sqlite3`؛ ومع MySQL/MariaDB إعداد واحد يُدخَل في لوحة التحكم. صورة Docker ما زالت 0.0.x وتُرفض |
+| [PasarGuard](https://github.com/PasarGuard/panel) | ✅ مدعومة منذ 1.3.0 | PasarGuard الإصدار **5.x** — التثبيت الرسمي عبر Docker أو التثبيت من المصدر (`pasarguard.service`) |
+| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ مدعومة منذ 1.3.0 | Rebecca الإصدار **1.x**، إصدار Go (التثبيت الثنائي لـ Rebecca). تفعيل تلقائي مع SQLite و`sqlite3`؛ ومع MySQL/MariaDB إعداد واحد يُدخَل في لوحة التحكم. **غير مدعومة:** صورة Docker، التي ما زالت Rebecca الإصدار 0.0.x (إصدار Python) — يرفضها المثبّت ولا يغيّر شيئًا |
 
 تستخدم اللوحات الثلاث ثلاثة محرّكات قوالب مختلفة — `html/template` في Go وJinja2 وpongo2 — لذا يُبنى كل تصميم مرة لكل لوحة، ويُختبر كل إصدار منه بعرضه بمحرّك تلك اللوحة الحقيقي. يكتشف المثبّت اللوحة الموجودة على الخادم؛ وعلى خادم فيه أكثر من لوحة يسألك (أو يقرأ `RT_PANEL`). **مدعومة** تعني توفّر القدرات السبع كلها على تلك اللوحة — الاكتشاف والتثبيت والتفعيل والتحقق والنسخ الاحتياطي والاستعادة وإلغاء التثبيت — ويختبر كلًّا منها مجموعة الاختبارات. راجع [التوافق](https://iitzseridev.github.io/Row-Template/ar/compatibility/) لتفاصيل كل لوحة.
+
+**حدود الإصدار 1.3.0:**
+
+- **التحديث الحي في 3X-UI فقط.** في PasarGuard وRebecca تعرض الصفحة الاستهلاك وتاريخ الانتهاء كما كانا عند فتحها.
+- **صورة Docker الخاصة بـ Rebecca مرفوضة.** ما زالت 0.0.x، أي إصدار Python؛ والأمر `rebecca migrate-binary` الخاص بـ Rebecca ينقل تثبيت Docker إلى 1.x.
+- **إعداد واحد يدويًا** حين يتعذّر التفعيل التلقائي: 3X-UI دون `sqlite3`، وRebecca مع MySQL/MariaDB أو دون `sqlite3`.
+- **إعدادات اللوحة تبقى لها الأولوية** في PasarGuard وRebecca: قالب الاشتراك الخاص بمشرف ما، وإعداد **disable subscription template** في PasarGuard. ويُبلغ `row-template verify` عن كليهما.
+- **عنوان صفحة PasarGuard** (`subTitle`) و**قوالب Clash** لا تُنتَج؛ تُنتَج صفحة الاشتراك فقط.
+- **لوحة واحدة لكل خادم.** يخدم التثبيت اللوحة التي ثُبّت لها؛ ولخدمة لوحة أخرى، شغّل `row-template uninstall` أولًا.
 
 ## البنية
 
@@ -131,7 +140,7 @@ flowchart TB
   end
   build -- "GitHub Releases" --> host
   host -- "serves the page" --> BROWSER["Subscriber's browser"]
-  BROWSER -. "live status: ?format=info" .-> host
+  BROWSER -. "live status (3X-UI): ?format=info" .-> host
 ```
 
 - **ملف واحد لكل تصميم.** يضمّن `tools/build.mjs` الشيفرة المشتركة والترجمات والخطوط ومولّد QR داخل تخطيط كل تصميم، ويرفض أي تخطيط ينقصه أيٌّ من نقاط الربط (hooks) التي تحتاجها الشيفرة. ثم يرفض `tools/verify.mjs` أي ملف يحمّل شيئًا من مصدر بعيد أو يحتوي على بنية محظورة.
@@ -151,7 +160,7 @@ flowchart TB
 
 > **نظام التشغيل المُوصى به: Ubuntu 24.04 LTS (x86_64).** قد تعمل توزيعات Linux الحديثة الأخرى لكنها لم تحظَ بالمستوى نفسه من تغطية التحقق.
 
-**المتطلبات:** خادم يشغّل 3X-UI **>= 3.6.0** أو PasarGuard أو Rebecca **1.x**؛ وصلاحية root عليه؛ و`curl` و`tar` و`sha256sum` (متوفرة على جميع أنظمة Linux تقريبًا). ويحتاج التفعيل التلقائي في 3X-UI وRebecca أيضًا إلى `sqlite3`.
+**المتطلبات:** خادم يشغّل 3X-UI **>= 3.6.0** أو PasarGuard **5.x** أو Rebecca **1.x** (تثبيتها الثنائي؛ صورة Docker بالإصدار 0.0.x غير مدعومة)؛ وصلاحية root عليه؛ و`curl` و`tar` و`sha256sum` (متوفرة على جميع أنظمة Linux تقريبًا). ويحتاج التفعيل التلقائي في 3X-UI وRebecca أيضًا إلى `sqlite3`.
 
 شغّل الأمر بصلاحية **root** على الخادم الذي يستضيف لوحتك:
 
@@ -174,11 +183,13 @@ bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/dow
 RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
 
-على خادم يشغّل أكثر من لوحة مدعومة، يسألك المثبّت عن اللوحة التي يخدمها؛ وفي سكربت، سمِّها عبر `RT_PANEL` (`3xui` أو `pasarguard` أو `rebecca`):
+على خادم يشغّل أكثر من لوحة مدعومة، يسألك المثبّت عن اللوحة التي يخدمها. أما التثبيت الجديد عبر سكربت (غير تفاعلي) على مثل هذا الخادم **فيجب** أن يسمّيها عبر `RT_PANEL` (`3xui` أو `pasarguard` أو `rebecca`)؛ ومن دونه يتوقف المثبّت قبل أن يغيّر أي شيء:
 
 ```bash
 RT_PANEL=pasarguard bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
+
+يجب أن يسمّي `RT_PANEL` لوحة مثبّتة على ذلك الخادم. وتحتفظ إعادة التشغيل أو التحديث باللوحة التي ثُبّت Row-Template لها.
 
 إن كنت تفضّل عدم تمرير السكربت مباشرة من الشبكة، فنزّل ملفات الإصدار الأربعة (`install.sh`، `manifest.txt`، `SHA256SUMS`، `row-template-<version>.tar.gz`) من [صفحة الإصدارات](https://github.com/frank0live/Row-Template/releases/latest) إلى مجلد واحد، وتحقق من المجموع الاختباري بنفسك كما يشرح [PROVENANCE.md](PROVENANCE.md)، ثم وجّه المثبّت إلى ذلك المجلد:
 
@@ -214,12 +225,12 @@ SUBSCRIPTION_PAGE_TEMPLATE = "row-template/index.html"
 
 تقرأ PasarGuard ملف `.env` عند الإقلاع، لذا تُعاد تشغيل اللوحة العاملة مرة واحدة. لا يُعدَّل أي سطر من أسطرك؛ ويزيل إلغاء التثبيت الكتلة ويعيد `.env` إلى بايتاته السابقة بدقة. يبقى للمشرف الذي له قالب اشتراك خاص، أو لإعداد **disable subscription template**، الأولوية — ويخبرك `row-template verify` إن انطبق أيٌّ منهما.
 
-يدعم Row-Template الإصدار **1.x** من Rebecca، أي إصدار Go الذي تنشره Rebecca لتثبيتها الثنائي (`rebecca-binary.sh`). أما صورة `rebeccapanel/rebecca` على Docker Hub فما زالت إصدار 0.0.x المكتوب بـ Python، الذي لا يستطيع عرض هذه الصفحة؛ لذا يرفضها المثبّت ولا يغيّر شيئًا، والأمر `rebecca migrate-binary` الخاص بـ Rebecca ينقل تثبيت Docker إلى 1.x.
-
 **Rebecca.** توضع الصفحة في `/var/lib/rebecca/templates/row-template/index.html` (أو داخل مجلد القوالب المخصّص الخاص بك)، وتُضبط إعدادات الاشتراك في Rebecca على `row-template/index.html`. تقرأ Rebecca هذه الإعدادات مع كل طلب، فلا حاجة إلى إعادة التشغيل.
 
 - **تلقائيًا** مع قاعدة بيانات SQLite الافتراضية وتثبيت `sqlite3`.
 - **يدويًا** مع MySQL/MariaDB (أو دون `sqlite3`): تبقى الصفحة موضوعة في مكانها؛ في لوحة تحكم Rebecca افتح **Settings → Subscription → Templates** واضبط **Subscription page template** على `row-template/index.html` و**Custom templates directory** على `/var/lib/rebecca/templates`.
+
+يدعم Row-Template الإصدار **1.x** من Rebecca، أي إصدار Go الذي تنشره Rebecca لتثبيتها الثنائي (`rebecca-binary.sh`). أما صورة `rebeccapanel/rebecca` على Docker Hub فما زالت إصدار 0.0.x المكتوب بـ Python، الذي لا يستطيع عرض هذه الصفحة؛ لذا يرفضها المثبّت ولا يغيّر شيئًا، والأمر `rebecca migrate-binary` الخاص بـ Rebecca ينقل تثبيت Docker إلى 1.x.
 
 ## الاستخدام
 
@@ -245,8 +256,8 @@ row-template
 
 - **العلامة التجارية** تُخزَّن كبيانات، ولا تُنفَّذ أبدًا، وتُحقن في الصفحة كنص. اترك أي حقل فارغًا للحصول على صفحة بلا علامة تجارية. لا يقبل رابط الدعم إلا البروتوكولات التي ينبغي للمتصفح فتحها، مثل `https://…` أو `tg://…` أو `mailto:…`.
 - **التحديثات** تأتي من قناة الإصدارات المستقرة العامة. يطبّق `row-template update` دائمًا أحدث إصدار مستقر، حتى لو كان هو الإصدار المثبّت لديك؛ أما خيار **Update** في المدير فيقارن الإصدارات أولًا ويسأل قبل أي تغيير. إذا تعذّر الوصول إلى مصدر الإصدارات، لا يتغيّر شيء ولا يُعامَل تثبيتك أبدًا على أنه تالف.
-- **التحديث من 1.1.0 أو 1.2.x** يكفيه تشغيل `row-template update` مرة واحدة. ينسخ مُحدِّث 1.1.0 نفسه جزءًا فقط من الإصدار الجديد، لذا فإن التشغيل التالي لـ`row-template` أو `row-template config` أو `row-template verify` بصلاحيات root ينزّل أولًا بقية الإصدار نفسه — كل التصاميم، مع التحقق من checksum. ويُحفَظ تصميمك وعلامتك التجارية وربط اللوحة.
-- **التراجع** يستعيد إصدارًا سابقًا من نسخة احتياطية جرى التحقق منها. تُلتقط لقطة (snapshot) للإصدار الحالي أولًا، بحيث يمكن التعافي من تراجع فاشل، وتُحفَظ علامتك التجارية. تسجّل النسخ الاحتياطية اللوحة التي أُنشئت عليها ولا تُستعاد أبدًا على لوحة أخرى؛ والنسخة الاحتياطية من إصدار أقدم لا تسجّل اسم تصميمها تُستعاد على أنها Row.
+- **التحديث من 1.1.0 أو 1.2.0** يكفيه تشغيل `row-template update` مرة واحدة. ينسخ مُحدِّث 1.1.0 نفسه جزءًا فقط من الإصدار الجديد، لذا فإن التشغيل التالي لـ`row-template` أو `row-template config` أو `row-template verify` بصلاحيات root ينزّل أولًا بقية الإصدار نفسه — كل التصاميم، مع التحقق من checksum. ويُحفَظ تصميمك وعلامتك التجارية وربط اللوحة. لم تكن الإصدارات السابقة تُثبَّت على PasarGuard أو Rebecca؛ فهناك شغّل المثبّت.
+- **التراجع** يستعيد إصدارًا سابقًا من نسخة احتياطية جرى التحقق منها. تُلتقط لقطة (snapshot) للإصدار الحالي أولًا، بحيث يمكن التعافي من تراجع فاشل، وتُحفَظ علامتك التجارية. تسجّل النسخ الاحتياطية اللوحة التي أُنشئت عليها ولا تُستعاد أبدًا على لوحة أخرى؛ والنسخة الاحتياطية من إصدار أقدم لا تسجّل اسم تصميمها تُستعاد على أنها Row. يستعيد التراجع الصفحة والإصدار الذي تسجّله النسخة الاحتياطية، لا مدير `row-template` نفسه: بعد التراجع إلى نسخة احتياطية من 1.1.0 يُبلغ `row-template version` عن 1.1.0 بينما يبقى مدير 1.3.0 في مكانه، ويعيدك `row-template update` التالي إلى 1.3.0. لا يُحتفظ إلا بأحدث نسختين احتياطيتين — فكل تحديث وتبديل تصميم وتراجع ينشئ واحدة.
 - **إلغاء التثبيت** يزيل ملفات Row-Template ويعيد اللوحة إلى الصفحة التي كانت لديها من قبل: في 3X-UI لا يمسح `subThemeDir` إلا إذا كان يشير إلى Row-Template؛ وفي PasarGuard يزيل كتلته من `.env` وصفحته؛ وفي Rebecca يستعيد إعدادَي الاشتراك اللذين غيّرهما (ويتركهما إن كنت قد اخترت صفحة أخرى منذ ذلك الحين). ولا يمسّ المستخدمين أو الواردات (inbounds) أو العملاء أو العُقد أو الشهادات.
 
 يغطي [التوثيق](https://iitzseridev.github.io/Row-Template/ar/) الإعداد والعلامة التجارية واستكشاف الأخطاء بمزيد من التفصيل.
@@ -277,7 +288,6 @@ npm run preview        # preview the fixture pages at http://127.0.0.1:8787
 
 توجّه، لا وعود:
 
-- **Row-Template 1.3.0** — دعم PasarGuard وRebecca، وتصميما Meter وNotebook، الموصوفة أعلاه.
 - **الحالة الحيّة في PasarGuard وRebecca** — تقدّمها كلتاهما على لاحقة مسار لا على `?format=info`؛ ويحتاج ربطها إلى تغيير صغير في الشيفرة، وقد أُرجئ هذا القرار. راجع [التوافق](https://iitzseridev.github.io/Row-Template/ar/compatibility/).
 - **القوالب المخصّصة** — مقترح لإضافة تصميمك الخاص: [`docs/design/CUSTOM-TEMPLATES-PROPOSAL.md`](docs/design/CUSTOM-TEMPLATES-PROPOSAL.md).
 

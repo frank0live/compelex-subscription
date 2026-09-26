@@ -8,11 +8,12 @@ Three steps. Each one tells you what you should see, and what to do if you do no
 ## Before you start
 
 - **A supported panel** on the server: **3X-UI 3.6.0 or newer** (check with `x-ui` or the
-  panel's own version display), **PasarGuard** or **Rebecca 1.x** (the Go edition, Rebecca's
-  binary install), installed the way their
+  panel's own version display), **PasarGuard 5.x** or **Rebecca 1.x** (the Go edition,
+  Rebecca's binary install — the 0.0.x Docker image is refused), installed the way their
   official installers lay them out. The installer detects which one is there. On a server
-  with more than one it asks, or reads `RT_PANEL` (`3xui`, `pasarguard` or `rebecca`) in a
-  script. See [Compatibility](/compatibility/).
+  with more than one it asks; a scripted (non-interactive) fresh install there **must** set
+  `RT_PANEL` (`3xui`, `pasarguard` or `rebecca`), or it stops before changing anything.
+  See [Compatibility](/compatibility/).
 - **Root access.** The install changes the system.
 - **A reachable GitHub.** The bootstrap downloads the release over HTTPS. For air-gapped
   or staged installs, see [Offline installation](#offline-installation).
@@ -38,6 +39,9 @@ optional.
 | `no supported panel was detected on this host: …` | Neither 3X-UI nor PasarGuard nor Rebecca was found. | Install the panel first, with its official installer, then re-run. |
 | `<panel> looks partly installed (only one of its files was found); it is not treated as present.` | Only one sign of the panel was found, so the installer will not guess. | Finish or repair the panel's installation, then re-run. |
 | `more than one panel is installed here (…); choose one with RT_PANEL=3xui\|pasarguard\|rebecca.` | A non-interactive install on a server with several panels. | Re-run with `RT_PANEL` set to the panel to serve. |
+| `RT_PANEL=<panel>, but <panel> was not detected on this host.` | `RT_PANEL` names a panel that is not installed on this server. | Set `RT_PANEL` to a panel that is installed here. |
+| `Row-Template is installed for <panel> at …; uninstall it before installing for <panel>.` | Row-Template already serves another panel on this server. | Run `row-template uninstall` first, then install for the other panel. |
+| `panel rebecca: this is Rebecca 0.0.x, the Python edition …` | This Rebecca is the Docker image, which is still 0.0.x and cannot render the page. Nothing was changed. | Move Rebecca to 1.x with `rebecca migrate-binary`, then re-run. See [Troubleshooting](/troubleshooting/). |
 | `an existing install was found at …; re-run interactively or set RT_ASSUME_YES=1 to repair` | Row-Template is already installed. | Run `row-template update`, or re-run with `RT_ASSUME_YES=1` to repair the existing install. |
 | A checksum refusal | The download was incomplete or came from somewhere other than the official release. | Re-download from the official releases page and re-run. **Do not bypass the check.** |
 | A network error | GitHub was unreachable. | Retry, or use [Offline installation](#offline-installation). |
@@ -103,6 +107,19 @@ release. It changes nothing else.
 
 **Expected:** every check reports OK. If a check fails it names what failed and what it
 found, and the installer's own messages tell you which command to run next.
+
+## Upgrading
+
+Already running Row-Template? Update it in place:
+
+```bash
+row-template update
+```
+
+Your design, branding and panel wiring are kept. From 1.1.0 or 1.2.0 one update is enough;
+earlier releases did not install on PasarGuard or Rebecca, so there you install as above.
+[Configuration](/configuration/) covers updating and rolling back in full, including what a
+rollback restores and how many backups are kept.
 
 ## Offline installation
 
