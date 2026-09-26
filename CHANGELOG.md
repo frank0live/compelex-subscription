@@ -90,7 +90,8 @@ own.
 - **A page change that cannot reach PasarGuard or Rebecca changes nothing.**
   Regenerating the page (a rebrand, a design switch, an update) replaced
   `sub.html` before copying it into the panel; if that copy failed, `sub.html`
-  was left newer than the page the panel serves. It is now put back.
+  was left newer than the page the panel serves. It is now put back, and on a
+  first activation, where there was no `sub.html` before, none is left behind.
 - **A valid page is never refused under load.** The structural check before
   every install, update and design switch read the page through
   `head | grep -q`. On a busy server `grep -q` could stop reading before `head`
