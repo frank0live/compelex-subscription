@@ -1118,6 +1118,44 @@ test('an Editorial backup rolls a Row install forward, and a legacy v1.1.0 backu
   assert.match(r.out, /live=row/);
 });
 
+/* Found rolling a real 3X-UI 3.8.5 host back to the backup its 1.1.0 install
+   left: the backup's page is 1.1.0's own build, byte-identical to no design in
+   the 1.3.0 store. The restore selected Row but kept those bytes, so verify
+   then failed ("canonical artifact does not match the selected template") and
+   the install could not be switched or updated cleanly. The selected design is
+   now restored FROM THE STORE, so selection, artifact and store agree; the
+   backup's VERSION and the admin's current branding are handled as before. */
+test('a backup whose page matches no installed design is restored from the store, consistently', () => {
+  const r = shRoot(
+    'rt_switch_template editorial\n' +
+    'legacy="$RT_BACKUPS/20260101T000000Z__1.1.0"\n' +
+    'mkdir -p "$legacy"\n' +
+    // a structurally valid page that is not byte-identical to any store design
+    'sed "s#<meta name=\\"robots\\"#<meta name=\\"generator\\" content=\\"1.1.0\\">&#" "$RT_TEMPLATE_STORE/row/template.html" > "$legacy/template.html"\n' +
+    'rt_sha256 "$legacy/template.html" > "$legacy/template.html.sha256"\n' +
+    'printf "1.1.0\\n" > "$legacy/VERSION"\n' +
+    'printf "version=1.1.0\\n" > "$legacy/meta"\n' +
+    '[ -z "$(rt_template_id_for_artifact "$legacy/template.html")" ] && echo "legacy-is-unknown"\n' +
+    'rt_restore_from_backup "$legacy" && rt_activate && echo RESTORED\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "id=%s\\n" "$(rt_template_id_for_artifact "$RT_DIST")"\n' +
+    'cmp -s "$RT_DIST" "$RT_TEMPLATE_STORE/row/template.html" && echo "canonical-is-store-row"\n' +
+    'printf "ver=%s\\n" "$(cat "$RT_VERSION_FILE")"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "live=not-row" || echo "live=row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /legacy-is-unknown/, 'the fixture really is a page no design matches');
+  assert.match(r.out, /RESTORED/);
+  assert.match(r.out, /tpl=row/, 'the selection is Row');
+  assert.match(r.out, /id=row/, 'and the canonical artifact is identified as Row');
+  assert.match(r.out, /canonical-is-store-row/, 'because it IS the installed Row design');
+  assert.match(r.out, /ver=1\.1\.0/, 'the backed-up VERSION is reinstated, as for any backup');
+  assert.match(r.out, /name=Test VPN/, 'the current branding is kept');
+  assert.match(r.out, /live=row/);
+});
+
 test('a corrupt or mismatched backup is refused before anything is restored', () => {
   const r = shRoot(
     'rt_switch_template editorial\n' +

@@ -56,8 +56,9 @@ own.
 
 - **Rolling back to a backup taken under 1.1.0 works.** 1.2.x refused it with
   "backup artifact matches no installed template". A backup that names its
-  design is restored as that design; one that does not (1.1.0's) is restored
-  as Row.
+  design is restored as that design; one whose page is none of this release's
+  designs (1.1.0's) is restored as this release's Row, so `verify`, design
+  switching and updates keep working afterwards.
 - **A successful rollback is reported as a success.** The transaction engine
   checked, after restoring the panel, that the panel was still pointing at
   Row-Template's directory — which is exactly the state a correct rollback has

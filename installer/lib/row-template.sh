@@ -2626,7 +2626,8 @@ rt_restore_from_backup() {
     rt_err "backup $(basename "$dir") was made for $(rt_panel_label "$bpanel"), not $(rt_panel_label "$(rt_panel_current)"); refusing to restore it."
     return 1
   fi
-  tpl_id="$(rt_template_id_for_artifact "$dir/template.html")"
+  local src="$dir/template.html"
+  tpl_id="$(rt_template_id_for_artifact "$src")"
   if [ -z "$tpl_id" ]; then
     tpl_id="$(rt_backup_meta template "$dir")"
     if [ -z "$tpl_id" ]; then
@@ -2636,8 +2637,19 @@ rt_restore_from_backup() {
       rt_warn "backup artifact recorded template '$tpl_id' is not installed; defaulting to Row."
       tpl_id="row"
     fi
+    # The backup's own page is not one of this release's designs (a 1.1.0
+    # backup restored under 1.3.0). Selecting Row while keeping those bytes left
+    # the install failing verify -- "canonical artifact does not match the
+    # selected template" -- and unable to be switched or updated cleanly, found
+    # rolling a real 3X-UI host back to its 1.1.0 backup. The selected design is
+    # restored from the installed store instead; the backup's VERSION and the
+    # admin's current branding are handled exactly as before.
+    if rt_template_store_has "$tpl_id"; then
+      src="$RT_TEMPLATE_STORE/$tpl_id/template.html"
+      rt_info "The backup's page is not one of this release's designs; restoring $(rt_template_display_name "$tpl_id") from the installed designs."
+    fi
   fi
-  rt_set_dist "$dir/template.html" || return 1
+  rt_set_dist "$src" || return 1
   if [ -f "$dir/VERSION" ]; then
     rt_atomic_install "$dir/VERSION" "$RT_VERSION_FILE" 644 \
       || rt_warn "could not restore VERSION from the backup."
