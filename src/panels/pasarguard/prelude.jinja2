@@ -1,0 +1,61 @@
+{#- ==========================================================================
+  Row-Template -> PasarGuard page context.
+
+  PasarGuard renders its subscription page with Jinja2 and hands the template
+  { user, links, announce, announce_url, apps }. The Row layouts read 3X-UI's
+  names instead (enabled, isOnline, downloadByte, expire, ...). This prelude
+  derives every one of those names from PasarGuard's own context, once, at the
+  top of the page, so the layout below it is the same document on every panel.
+
+  Rules (docs/design/PASARGUARD-ADAPTER-AUDIT.md, tools/adapters/pasarguard.mjs):
+    enabled       status != disabled; on_hold, limited and expired are enabled
+                  (the page derives "expired"/"limited" from the numbers)
+    isOnline      online_at within 120 s of now() -- an adapter window, not a
+                  panel fact; never inferred from traffic
+    downloadByte  used_traffic, the panel's single combined counter
+    uploadByte    0, exactly as PasarGuard's own subscription-userinfo header
+    totalByte     data_limit, None/0 = unlimited = 0
+    expire        epoch seconds; 0 = never; on_hold with a duration becomes the
+                  negative duration (the page's "starts on first connection");
+                  on_hold without one is outside the plausible range, which the
+                  page reads as unknown
+    lastOnline    online_at in epoch milliseconds, empty when never seen
+    subUrl        user.subscription_url; empty makes the page use its own URL,
+                  which on PasarGuard IS the subscription URL
+    support       the admin's support_url when the panel supplies one
+  The subscriber's address (user.ip) is never read.
+
+  Values are escaped on output by the autoescape block that follows this
+  prelude: PasarGuard's environment does NOT autoescape by itself.
+========================================================================== -#}
+{%- set rt_status = user.status.value if user.status.value is defined else (user.status ~ '') -%}
+{%- set enabled = rt_status != 'disabled' -%}
+{%- set rt_seen = user.online_at if user.online_at else none -%}
+{%- set rt_age = (now() - rt_seen).total_seconds() if rt_seen else -1 -%}
+{%- set isOnline = (rt_seen is not none) and rt_age >= 0 and rt_age <= 120 -%}
+{%- set lastOnline = ((rt_seen.timestamp() * 1000) | int) if rt_seen else '' -%}
+{%- set downloadByte = (user.used_traffic or 0) | int -%}
+{%- set uploadByte = 0 -%}
+{%- set totalByte = (user.data_limit or 0) | int -%}
+{%- if rt_status == 'on_hold' and user.on_hold_expire_duration -%}
+{%- set expire = 0 - (user.on_hold_expire_duration | int) -%}
+{%- elif rt_status == 'on_hold' -%}
+{%- set expire = 9999999999 -%}
+{%- elif user.expire is number -%}
+{%- set expire = user.expire | int -%}
+{%- elif user.expire -%}
+{%- set expire = user.expire.timestamp() | int -%}
+{%- else -%}
+{%- set expire = 0 -%}
+{%- endif -%}
+{%- set subUrl = user.subscription_url or '' -%}
+{%- set subJsonUrl = '' -%}
+{%- set subClashUrl = '' -%}
+{%- set subTitle = '' -%}
+{%- set subSupportUrl = (user.admin.support_url or '') if user.admin else '' -%}
+{%- set datepicker = 'gregorian' -%}
+{%- set announce = announce or '' -%}
+{%- set links = links or [] -%}
+{%- set used = downloadByte | bytesformat -%}
+{%- set total = totalByte | bytesformat -%}
+{%- set remained = ((totalByte - downloadByte) | bytesformat) if totalByte > downloadByte else '' -%}

@@ -58,6 +58,9 @@ The management layer under `installer/`, in the order the work was done.
 | [INSTALLER-PANEL-INTERFACE.md](INSTALLER-PANEL-INTERFACE.md) | P3: the frozen panel adapter interface. |
 | [INSTALLER-TRANSACTION-DESIGN.md](INSTALLER-TRANSACTION-DESIGN.md) | P4: the transaction engine that drives a panel adapter. |
 | [INSTALLER-PANEL-3XUI.md](INSTALLER-PANEL-3XUI.md) | P5A: the 3X-UI panel adapter and its validation boundary. |
+| [PASARGUARD-INSTALLER-AUDIT.md](PASARGUARD-INSTALLER-AUDIT.md) | 1.3.0: the PasarGuard panel adapter — `.env` managed block, placement, restart, backup, restore, uninstall — audited from source. |
+| [REBECCA-INSTALLER-AUDIT.md](REBECCA-INSTALLER-AUDIT.md) | 1.3.0: the Rebecca panel adapter — `subscription_settings` row, placement, manual activation, backup, restore, uninstall — audited from source. |
+| [PANEL-ON-HOLD-DECISION.md](PANEL-ON-HOLD-DECISION.md) | 1.3.0: how an `on_hold` user is shown on PasarGuard and Rebecca. |
 
 ## Documentation platform
 

@@ -65,6 +65,17 @@ test('json escape neutralises a </script> breakout without touching data', () =>
   assert.equal(sh('rt_json_escape "a & b > c"').out, 'a & b > c');
 });
 
+test('json escape leaves no brace, so branding can never form a template delimiter', () => {
+  /* The page is parsed as a template on every panel: Go on 3X-UI, Jinja2 on
+     PasarGuard (unsandboxed: a delimiter there is code execution), pongo2 on
+     Rebecca. Every { and } becomes a JavaScript escape of itself. */
+  for (const name of ['{{ config }}', '{% endautoescape %}{{ 7*7 }}', '{# c #}', '{{ .subTitle }}', '}}{{']) {
+    const out = sh(`rt_json_escape ${JSON.stringify(name)}`).out;
+    assert.equal(/[{}]/.test(out), false, `${name} -> ${out}`);
+    assert.equal(JSON.parse(`"${out}"`), name, 'and JavaScript reads back exactly the original text');
+  }
+});
+
 test('support URL validation accepts only frontend-renderable schemes', () => {
   for (const u of ['https://t.me/x', 'http://a.b', 'tg://resolve?domain=x', 'mailto:a@b.c']) {
     assert.ok(ok(`rt_validate_support_url ${JSON.stringify(u)}`), u);
@@ -238,6 +249,29 @@ test('generation escapes a </script> payload in the service name', () => {
   assert.match(r.out, /RAW=0/, 'no unescaped </script> inside the block');
 });
 
+/* Found running the suite on a loaded Linux host (1.3.0): the gate checked the
+   head of the page with `head -c 512 f | grep -qi '<!doctype html>'`. grep -q
+   exits on its first match; head, still writing, dies of SIGPIPE; pipefail
+   reports the MATCH as a failure. Measured at ~0.7% of calls under load, it
+   made install, update and design switching refuse a valid page. The doubles
+   make that interleaving certain: a grep that, reading a pipe, exits at once
+   (as grep -q does on a match), and a head that writes in two chunks. */
+test('the structural gate cannot be fooled into refusing a valid page by SIGPIPE', () => {
+  const r = sh(
+    GEN_SETUP +
+    'RG="$(command -v grep)"; RH="$(command -v head)"; RT="$(command -v tail)"; ' +
+    'B="$(dirname "$RT_ROOT")/bin"; mkdir -p "$B"; ' +
+    // grep reading a pipe (no file operand) leaves at once, like grep -q on a match
+    'printf \'#!/usr/bin/env bash\\nfor a in "$@"; do [ -f "$a" ] && exec "%s" "$@"; done\\nexit 0\\n\' "$RG" > "$B/grep"; ' +
+    // head of a file writes in two chunks, so its second write meets a closed pipe
+    'printf \'#!/usr/bin/env bash\\nset -o pipefail\\nf="${@: -1}"; n="${2:-512}"\\n"%s" -c 16 "$f"; sleep 0.3; "%s" -c +17 "$f" | "%s" -c $((n-16))\\n\' "$RH" "$RT" "$RH" > "$B/head"; ' +
+    'chmod +x "$B/grep" "$B/head"; PATH="$B:$PATH"; ' +
+    'rt_validate_template "$RT_DIST" && echo VALID',
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /VALID/, 'a valid page is valid however the pipe is scheduled');
+});
+
 test('the structural gate rejects a template it cannot trust', () => {
   assert.ok(!ok('printf "<html>tiny</html>" > "$RT_ROOT/t"; rt_validate_template "$RT_ROOT/t"'),
     'too small / not a full doc');
@@ -271,6 +305,32 @@ test('backup create captures a validatable snapshot', () => {
   assert.match(r.out, /HASSUM/);
   assert.match(r.out, /HASCFG/);
   assert.match(r.out, /HASVER/);
+});
+
+/* Found running the suite on Linux (1.3.0 validation): a design switch and an
+   immediate `rollback --auto` created their backups in the same second. The
+   names have one-second resolution and `mkdir -p` reused the directory, so the
+   rollback's own pre-rollback snapshot overwrote the backup it then restored --
+   and the "rollback" re-applied the state it was meant to undo. The `date`
+   double pins the clock to one second for the first two readings; the second
+   backup must wait for the next second rather than share the first's name. */
+test('two backups in the same second never share a directory', () => {
+  const r = sh(
+    GEN_SETUP +
+    'B="$(dirname "$RT_ROOT")/bin"; mkdir -p "$B"; C="$(dirname "$RT_ROOT")/clock"; ' +
+    'printf \'#!/usr/bin/env bash\\nn=$(cat "%s" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "%s"\\n' +
+    'if [ $n -le 2 ]; then echo 20260101T000000Z; else echo 20260101T000001Z; fi\\n\' "$C" "$C" > "$B/date"; ' +
+    'chmod +x "$B/date"; PATH="$B:$PATH"; ' +
+    'printf "1.3.0\\n" > "$RT_VERSION_FILE"; ' +
+    'printf "first" > "$RT_DIST"; A="$(rt_backup_create)"; ' +
+    'printf "second" > "$RT_DIST"; Z="$(rt_backup_create)"; ' +
+    'echo "A=${A##*/} Z=${Z##*/}"; echo "A holds: $(cat "$A/template.html")"; ' +
+    'echo "latest: $(basename "$(rt_backup_latest)")"',
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /A=20260101T000000Z__1\.3\.0 Z=20260101T000001Z__1\.3\.0/, 'the second backup gets the next second');
+  assert.match(r.out, /A holds: first/, 'the first backup is not overwritten');
+  assert.match(r.out, /latest: 20260101T000001Z__1\.3\.0/, 'and the newest is still the newest');
 });
 
 test('backup selection returns newest first and prune keeps the N newest', () => {
@@ -400,8 +460,8 @@ test('restore-from-backup reinstates artifact + VERSION but keeps current config
      admin's CURRENT branding — restoring stale config would silently undo a
      rename the admin made after the backup. The template identity is now
      re-derived from the artifact against the store, so a store entry for the
-     backed-up design is part of the fixture; with no matching entry the
-     restore refuses (see the next test). */
+     backed-up design is part of the fixture; without a matching entry the
+     restore falls back to the meta's template= or Row (see next test). */
   const r = sh(GEN_SETUP +
     'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
     'rt_set_dist "$RT_DIST" >/dev/null; ' +
@@ -418,18 +478,44 @@ test('restore-from-backup reinstates artifact + VERSION but keeps current config
   assert.match(r.out, /NAME=NewName/, 'the current admin config is preserved, not reverted');
 });
 
-test('restore-from-backup refuses an artifact the template store cannot identify', () => {
-  /* Without a store match the restored artifact and the stored selection could
-     disagree, which is the one state this system must never produce. */
+test('restore-from-backup falls back to Row when no store match and no meta template', () => {
+  /* A v1.1.0-generated backup has no template= in its meta and its artifact
+     may not match any entry in the current store. The restore must not refuse —
+     it defaults to Row so the artifact and the persisted selection always agree.
+     This is the path that previously hard-failed and blocked rollback from a
+     fresh install. */
   const r = sh(GEN_SETUP +
     'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
     'rt_set_dist "$RT_DIST" >/dev/null; ' +
     'B="$(rt_backup_create)"; ' +
     'printf "0.9.0\\n" > "$RT_VERSION_FILE"; rt_config_write "NewName" "https://t.me/x" "" ""; ' +
-    'if rt_restore_from_backup "$B" 2>/dev/null; then echo "NO-STORE-ACCEPTED"; else echo "refused"; fi; ' +
-    'printf "NAME=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"');
-  assert.match(r.out, /refused/, 'no store match, no restore');
-  assert.match(r.out, /NAME=NewName/, 'and the current config is untouched');
+    'rt_restore_from_backup "$B" >/dev/null && echo RESTORED; ' +
+    'printf "VER=%s\\n" "$(cat "$RT_VERSION_FILE")"; ' +
+    'printf "NAME=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"; ' +
+    'printf "TPL=%s\\n" "$(rt_config_get_raw TEMPLATE)"; ' +
+    'cmp -s "$RT_DIST" "$B/template.html" && echo "artifact-matches-source"');
+  assert.match(r.out, /RESTORED/, 'no store match falls back to Row');
+  assert.match(r.out, /VER=0\.8\.0/, 'the backed-up version is reinstated');
+  assert.match(r.out, /NAME=NewName/, 'the current admin config is preserved, not reverted');
+  assert.match(r.out, /TPL=row/, 'the selection defaults to Row');
+  assert.match(r.out, /artifact-matches-source/, 'the restored artifact is the backed-up bytes');
+});
+
+test('restore-from-backup ignores an unknown template= in meta and defaults to Row', () => {
+  /* If the backup's meta records a template id the current release does not
+     recognise (e.g. a design removed or renamed since the backup was taken),
+     restoring that id would produce a stale selection. The restore falls back
+     to Row instead, keeping the artifact and the selection in agreement. */
+  const r = sh(GEN_SETUP +
+    'printf "0.8.0\\n" > "$RT_VERSION_FILE"; rt_config_write "OldName" "" "" ""; ' +
+    'rt_set_dist "$RT_DIST" >/dev/null; ' +
+    'B="$(rt_backup_create)"; ' +
+    'printf "template=ghost\\n" >> "$B/meta"; ' +
+    'printf "0.9.0\\n" > "$RT_VERSION_FILE"; rt_config_write "NewName" "https://t.me/x" "" ""; ' +
+    'rt_restore_from_backup "$B" >/dev/null && echo RESTORED; ' +
+    'printf "TPL=%s\\n" "$(rt_config_get_raw TEMPLATE)"');
+  assert.match(r.out, /RESTORED/, 'unknown meta template does not block restore');
+  assert.match(r.out, /TPL=row/, 'an unknown recorded template falls back to Row');
 });
 
 test('archive extraction rejects a symlink member even when its name is clean',
@@ -505,6 +591,65 @@ test('render smoke classifies a large served page as pass, not a SIGPIPE miss',
     'f="$(mktemp)"; head -c 300000 /dev/zero | tr "\\0" x > "$f"; ' +
     'RT_SMOKE_URL="file://$f" rt_render_smoke; rm -f "$f"');
   assert.equal(miss.out, 'fallback', 'a large page missing the marker is a fallback');
+});
+
+/* Found on a real 3X-UI 3.8.5 host (1.3.0 validation): config, update and
+   rollback print the live check without having located the panel database, so
+   the check could not build its test URL and reported "skipped (no test URL
+   available without sqlite3)" on a host that had sqlite3 and a subscription.
+   The report now locates the database itself. The doubles stand in for sqlite3
+   and curl only; the library's own discovery and classification run. */
+test('the live check after config, update or rollback finds the panel database itself', () => {
+  const r = sh([
+    'B="$(dirname "$RT_ROOT")/bin"; D="$(dirname "$RT_ROOT")/db"; mkdir -p "$B" "$D"',
+    'printf "SQLite format 3\\0" > "$D/x-ui.db"',
+    'cat > "$B/sqlite3" <<\'EOF\'',
+    '#!/usr/bin/env bash',
+    'case "$2" in',
+    '  *subPort*) echo 2096 ;;',
+    '  *subPath*) echo /sub/ ;;',
+    '  *inbounds*) printf \'{"clients":[{"email":"a","subId":"abc123"}]}\\n\' ;;',
+    'esac',
+    'EOF',
+    'cat > "$B/curl" <<\'EOF\'',
+    '#!/usr/bin/env bash',
+    'for a in "$@"; do case "$a" in http://127.0.0.1:2096/sub/abc123) printf \'<html><div id="sub-data"></div></html>\'; exit 0 ;; esac; done',
+    'exit 7',
+    'EOF',
+    'chmod +x "$B/sqlite3" "$B/curl"; PATH="$B:$PATH"',
+    'RT_ACTIVE_PANEL=3xui; XUI_DB_FOLDER="$D"; unset RT_XUI_DB RT_SMOKE_URL',
+    'rt_render_report',
+  ].join('\n'));
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /Live check: a browser request renders Row-Template\./);
+  assert.doesNotMatch(r.out, /skipped/);
+});
+
+/* Found on the same host: activation restarts 3X-UI and its subscription server
+   binds a few seconds after the unit is active, so the check made right after a
+   fresh install warned "could not reach". The check now waits, but ONLY when the
+   unit really just started -- an endpoint that is simply down must still be
+   reported at once. */
+test('the live check waits for a just-restarted panel, and only for one', () => {
+  const fake = (since) => [
+    'B="$(dirname "$RT_ROOT")/bin"; mkdir -p "$B"',
+    'cat > "$B/systemctl" <<EOF',
+    '#!/usr/bin/env bash',
+    `[ "\\$1" = show ] && echo ${since}`,
+    'EOF',
+    'chmod +x "$B/systemctl"; PATH="$B:$PATH"',
+  ].join('\n');
+  const now = 'up=$(awk \'{ printf "%d", $1 * 1000000 }\' /proc/uptime)';
+  assert.equal(sh(`${now}; ${fake('$((up - 2000000))')}; rt_xui_just_started && echo yes || echo no`).out, 'yes',
+    'a unit that became active 2 s ago has just started');
+  assert.equal(sh(`${now}; ${fake('$((up - 120000000))')}; rt_xui_just_started && echo yes || echo no`).out, 'no',
+    'a unit active for two minutes has not');
+  assert.equal(sh(`${fake('0')}; rt_xui_just_started && echo yes || echo no`).out, 'no',
+    'an inactive unit (timestamp 0) has not');
+  const t0 = Date.now();
+  const r = sh(`${fake('0')}; RT_SMOKE_URL="http://127.0.0.1:9/sub/x" rt_render_smoke`);
+  assert.equal(r.out, 'error', 'an unreachable endpoint is reported');
+  assert.ok(Date.now() - t0 < 15000, 'without waiting when the panel did not just start');
 });
 
 test('systemd unit detection survives pipefail when the unit list is long',
@@ -675,14 +820,18 @@ function writeArtifact(dir, html, sha) {
 }
 
 /* Run a snippet against a Node-prepared install root. `prepare` receives the
-   POSIX-style root path before bash starts. */
+   POSIX-style root path before bash starts. No release source is reachable:
+   the manager, config and verify complete an incomplete install by
+   downloading, and a test must never reach the network. A test that needs a
+   payload redefines rt_fetch_release in its body. */
 function shRoot(body, { input, prepare, env } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'row-t-')).replace(/\\/g, '/');
   try {
     if (prepare) prepare(root);
     const r = spawnSync(
       'bash',
-      ['-c', 'set -Eeuo pipefail\nexport RT_ROOT="' + root + '"\nsource installer/lib/row-template.sh\n' + body],
+      ['-c', 'set -Eeuo pipefail\nexport RT_ROOT="' + root + '"\nsource installer/lib/row-template.sh\n' +
+        'rt_fetch_release(){ return 1; }\n' + body],
       { cwd: ROOT, encoding: 'utf8', input, env: env ? { ...process.env, ...env } : undefined },
     );
     if (r.error) throw r.error;
@@ -743,11 +892,16 @@ function writePayload(root, { withStore = true } = {}) {
   }
 }
 
+/* No release source is reachable unless a test provides one: verify, config
+   and the manager complete an incomplete install by downloading, and a test
+   must never reach the network. A test that needs a payload redefines
+   rt_fetch_release after these stubs. */
 const FLOW_STUBS = [
   'rt_require_root(){ :; }',
   'rt_detect_xui(){ return 1; }',
   'rt_detect_xui_version(){ return 1; }',
   'rt_detect_xui_db(){ return 1; }',
+  'rt_fetch_release(){ return 1; }',
   '',
 ].join('\n');
 
@@ -984,6 +1138,44 @@ test('an Editorial backup rolls a Row install forward, and a legacy v1.1.0 backu
   assert.match(r.out, /edi-back=editorial/, 'an editorial backup restores the editorial selection');
   assert.match(r.out, /live=editorial/);
   assert.match(r.out, /legacy-back=row/, 'a pre-store backup artifact is identified as Row by its bytes');
+  assert.match(r.out, /live=row/);
+});
+
+/* Found rolling a real 3X-UI 3.8.5 host back to the backup its 1.1.0 install
+   left: the backup's page is 1.1.0's own build, byte-identical to no design in
+   the 1.3.0 store. The restore selected Row but kept those bytes, so verify
+   then failed ("canonical artifact does not match the selected template") and
+   the install could not be switched or updated cleanly. The selected design is
+   now restored FROM THE STORE, so selection, artifact and store agree; the
+   backup's VERSION and the admin's current branding are handled as before. */
+test('a backup whose page matches no installed design is restored from the store, consistently', () => {
+  const r = shRoot(
+    'rt_switch_template editorial\n' +
+    'legacy="$RT_BACKUPS/20260101T000000Z__1.1.0"\n' +
+    'mkdir -p "$legacy"\n' +
+    // a structurally valid page that is not byte-identical to any store design
+    'sed "s#<meta name=\\"robots\\"#<meta name=\\"generator\\" content=\\"1.1.0\\">&#" "$RT_TEMPLATE_STORE/row/template.html" > "$legacy/template.html"\n' +
+    'rt_sha256 "$legacy/template.html" > "$legacy/template.html.sha256"\n' +
+    'printf "1.1.0\\n" > "$legacy/VERSION"\n' +
+    'printf "version=1.1.0\\n" > "$legacy/meta"\n' +
+    '[ -z "$(rt_template_id_for_artifact "$legacy/template.html")" ] && echo "legacy-is-unknown"\n' +
+    'rt_restore_from_backup "$legacy" && rt_activate && echo RESTORED\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'printf "id=%s\\n" "$(rt_template_id_for_artifact "$RT_DIST")"\n' +
+    'cmp -s "$RT_DIST" "$RT_TEMPLATE_STORE/row/template.html" && echo "canonical-is-store-row"\n' +
+    'printf "ver=%s\\n" "$(cat "$RT_VERSION_FILE")"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'grep -q "data-template" "$RT_LIVE" && echo "live=not-row" || echo "live=row"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /legacy-is-unknown/, 'the fixture really is a page no design matches');
+  assert.match(r.out, /RESTORED/);
+  assert.match(r.out, /tpl=row/, 'the selection is Row');
+  assert.match(r.out, /id=row/, 'and the canonical artifact is identified as Row');
+  assert.match(r.out, /canonical-is-store-row/, 'because it IS the installed Row design');
+  assert.match(r.out, /ver=1\.1\.0/, 'the backed-up VERSION is reinstated, as for any backup');
+  assert.match(r.out, /name=Test VPN/, 'the current branding is kept');
   assert.match(r.out, /live=row/);
 });
 

@@ -1,7 +1,7 @@
 {
   "panel": "rebecca",
   "case": "08-on-hold",
-  "note": "on_hold has no slot in the contract — recorded, expectation deferred",
+  "note": "on_hold: enabled (Rebecca renders it as active); the hold duration is not in the page context, so the expiry is unknown (null)",
   "source": {
     "route": "GET /{token}/info",
     "version": "master",
@@ -37,6 +37,23 @@
     }
   },
   "expected": {
-    "model": null
+    "model": {
+      "enabled": true,
+      "online": true,
+      "download": 42949672960,
+      "upload": 0,
+      "used": 42949672960,
+      "total": 107374182400,
+      "expire": null,
+      "lastOnline": 1789732710000,
+      "subUrl": "https://sub.example.com/sub/e3b0c44298fc1c14",
+      "subJsonUrl": "",
+      "subClashUrl": "https://sub.example.com/sub/e3b0c44298fc1c14/clash-meta",
+      "title": "Premium 100 GB",
+      "supportUrl": "https://t.me/example_support",
+      "announce": "",
+      "jalali": false,
+      "links": []
+    }
   }
 }

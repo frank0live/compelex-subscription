@@ -250,6 +250,39 @@ export const TEMPLATES = {
       ['src/templates/arcadenova/rtl.css', 'templates/arcadenova/rtl.css'],
     ],
   },
+  /* 1.3.0: two designs contributed by the project's author, ported onto the
+     shared runtime. They began as standalone pages named Pulse and Sketch;
+     those ids were taken, so each is named for its defining structure. */
+  meter: {
+    id: 'meter',
+    name: 'Meter',
+    order: 16,
+    available: true,
+    emitDataTemplate: true,
+    layout: true,
+    styles: [
+      ['src/templates/meter/tokens.css', 'templates/meter/tokens.css'],
+      ['src/templates/meter/base.css', 'templates/meter/base.css'],
+      ['src/templates/meter/layout.css', 'templates/meter/layout.css'],
+      ['src/templates/meter/components.css', 'templates/meter/components.css'],
+      ['src/templates/meter/rtl.css', 'templates/meter/rtl.css'],
+    ],
+  },
+  notebook: {
+    id: 'notebook',
+    name: 'Notebook',
+    order: 17,
+    available: true,
+    emitDataTemplate: true,
+    layout: true,
+    styles: [
+      ['src/templates/notebook/tokens.css', 'templates/notebook/tokens.css'],
+      ['src/templates/notebook/base.css', 'templates/notebook/base.css'],
+      ['src/templates/notebook/layout.css', 'templates/notebook/layout.css'],
+      ['src/templates/notebook/components.css', 'templates/notebook/components.css'],
+      ['src/templates/notebook/rtl.css', 'templates/notebook/rtl.css'],
+    ],
+  },
 };
 
 /* Tier defaults.
@@ -259,7 +292,7 @@ export const TEMPLATES = {
  * difference between the tiers is the lock, not the build: both are held to the
  * same hook and runtime contract.
  *
- * The fields are applied here rather than written into all fifteen entries, so
+ * The fields are applied here rather than written into all seventeen entries, so
  * adding a core template stays a one-line change and a custom template only has
  * to declare `tier: 'custom'`. An entry may override `locked` explicitly, which
  * is how a core design still in development would opt out of its lock.

@@ -46,11 +46,25 @@ If a step fails, the installer stops and leaves your existing setup untouched.
 
 ## No panel source patching
 
-Row-Template **does not modify 3X-UI**. No panel source file is patched.
+Row-Template **does not modify your panel**. No panel source file is patched.
 
-The integration is a single setting — the panel's *Sub Theme Directory* — pointed at a
-directory Row-Template creates. Uninstalling reverts that setting and removes its own
-files. Your database, inbounds, clients and certificates are never touched.
+- **3X-UI:** a single setting — the panel's *Sub Theme Directory* — pointed at a directory
+  Row-Template creates.
+- **PasarGuard:** one page file in the templates directory, and one marked block appended to
+  `.env`. Your own lines are never edited. `.env` holds your secrets, so it is read only for
+  the two page keys, never printed, and never copied into a backup.
+- **Rebecca:** one page file, and the page and directory fields of the newest
+  `subscription_settings` row. Only SQLite is written, only through `sqlite3`; a MySQL
+  password is never asked for, read or printed.
+
+Every change is snapshotted first and restored exactly if activation fails; uninstalling
+reverts it and removes Row-Template's own files. Your users, inbounds, clients, nodes and
+certificates are never touched.
+
+On PasarGuard and Rebecca the page is a Jinja2 or pongo2 template. Every value it prints is
+inside an explicit autoescape block — PasarGuard's Jinja2 does not escape by default — and
+your branding enters the page with `{` and `}` escaped, so it can never open a template
+tag.
 
 ## Template verification gates
 

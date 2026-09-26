@@ -9,35 +9,39 @@ my server* before you run anything.
 ## What it actually is
 
 A **subscription page** — the page a subscriber opens when they visit their subscription
-link. 3X-UI serves a built-in page there; Row-Template replaces it with its own.
+link. 3X-UI, PasarGuard and Rebecca each serve a built-in page there; Row-Template
+replaces it with its own.
 
 It is not a panel, not a theme for the panel's admin interface, and not a client. It
 only changes what the subscriber sees.
 
 ## What it is not
 
-- **It does not modify 3X-UI.** No panel source is patched. The installer points the
-  panel's *Sub Theme Directory* setting at a directory it creates, and that is the whole
-  integration.
-- **It does not touch your database.** Inbounds, clients, certificates and settings are
-  left exactly as they are. Uninstalling reverts the panel to its built-in page.
+- **It does not modify your panel.** No panel source is patched. On 3X-UI the installer
+  points the *Sub Theme Directory* setting at a directory it creates; on PasarGuard it adds
+  one marked block to `.env`; on Rebecca it sets the page and directory fields of its
+  subscription settings. That is the whole integration, and each change is undone exactly
+  on uninstall.
+- **It does not touch your data.** Users, inbounds, clients, nodes, certificates and every
+  other setting are left exactly as they are.
 - **It does not phone home.** The page makes no third-party requests.
 
 ## What you need
 
 | | |
 |---|---|
-| **3X-UI** | **3.6.0 or newer.** The installer refuses to proceed below this and tells you the detected version. |
+| **A supported panel** | **3X-UI 3.6.0 or newer**, **PasarGuard** or **Rebecca**. The installer detects which one is installed; see [Compatibility](/compatibility/). |
 | **A Linux server** | Any distribution with `bash`, `coreutils`, `curl`, `tar` and `sha256sum`. These are present on virtually every Linux system. |
-| **Root access** | Required for the commands that change the system: `config`, `update`, `rollback`, `uninstall`. `verify` and `version` are read-only. |
+| **Root access** | Required for the commands that change the system: `config`, `update`, `rollback`, `uninstall`. `verify` and `version` run without it. |
 
 You do **not** need Node.js, Python, a database, or any runtime on the server.
 
 ## What happens during installation
 
 1. The bootstrap script downloads the release and **verifies its checksum**.
-2. It extracts the archive safely and installs to
-   `/etc/3x-ui/sub_templates/row-template`.
+2. It detects your panel, extracts the archive safely and installs to
+   `/etc/3x-ui/sub_templates/row-template` (3X-UI) or `/etc/row-template` (PasarGuard,
+   Rebecca).
 3. It prompts for your branding — service name, support link and logo. **All three are
    optional**; leave them blank for an unbranded, white-label page.
 4. It generates the served page and, where possible, activates it in the panel
@@ -52,12 +56,15 @@ leaves your existing setup untouched.
 /etc/3x-ui/sub_templates/row-template
 ```
 
-That path is the panel's *Sub Theme Directory*. The installer sets it for you when
+On 3X-UI that path is the panel's *Sub Theme Directory*. The installer sets it for you when
 `sqlite3` is available; otherwise you set it once by hand — see
 [Installation](/installation/#activate-it).
+
+On PasarGuard and Rebecca the install lives in `/etc/row-template`, and the page the panel
+serves is placed in the panel's own templates directory, under `row-template/index.html`.
 
 ## Next
 
 - [Installation](/installation/) — the actual commands
 - [Configuration](/configuration/) — changing things after installation
-- [Template Gallery](/templates/) — the fifteen designs
+- [Template Gallery](/templates/) — the seventeen designs

@@ -17,9 +17,9 @@ row-template
 | `row-template config` | Change the service name, support URL or logo, then regenerate | Yes — root |
 | `row-template update` | Download, verify and activate a newer release (checksum enforced) | Yes — root |
 | `row-template rollback` | Restore a previous version (`--auto` or `--to <backup-dir>`) | Yes — root |
-| `row-template verify` | Check the install, panel wiring and live render | **No** — read-only |
-| `row-template version` | Show installed, minimum-supported and detected 3X-UI versions | **No** — read-only |
-| `row-template uninstall` | Remove Row-Template and revert the panel to its built-in page | Yes — root |
+| `row-template verify` | Check the install, panel wiring and live render | **No** — as root it only repairs the template store |
+| `row-template version` | Show the installed version and the panel it serves (on 3X-UI, also the minimum-supported and detected versions) | **No** — read-only |
+| `row-template uninstall` | Remove Row-Template and return the panel to the page it had before | Yes — root |
 | `row-template menu` | Open the interactive manager explicitly | — |
 | `row-template help` | Show usage | — |
 
@@ -37,15 +37,18 @@ for input. `RT_ASSUME_NONINTERACTIVE` forces that behaviour explicitly.
 row-template version
 ```
 
-Prints the installed version, the minimum supported 3X-UI version, and the 3X-UI version
-detected on the server. Useful before reporting a problem.
+Prints the installed version and the panel it serves; on 3X-UI, also the minimum
+supported version and the version detected on the server. Useful before reporting a
+problem.
 
 ```bash
 row-template verify
 ```
 
-Checks the installed artifact, the panel wiring and the live render. Read-only, so it is
-always safe to run.
+Checks the installed artifact, the panel wiring and the live render, and is always safe to
+run. As root it also repairs the template store — it moves designs left outside
+`dist/templates` back into place and downloads any the installed version is missing — and
+changes nothing else.
 
 ## Updating
 
@@ -53,12 +56,21 @@ always safe to run.
 row-template update
 ```
 
-Checks the public stable release channel, shows the installed and available versions, and
-updates **only when a newer stable version exists**. If the network or the release source
-is unreachable it reports that it could not check — your installation is never treated as
-damaged.
+Downloads the latest release from the public stable channel, verifies it, and applies
+it — even when it is the version you already run, which makes it a quick repair. The
+manager's **Update** compares versions first and asks before changing anything. If the
+network or the release source is unreachable nothing is changed, and your installation is
+never treated as damaged.
 
-**Your branding configuration is preserved across updates.**
+**Your branding, your selected design and your panel wiring are preserved across
+updates.** On PasarGuard and Rebecca the placed page is replaced in place; the panel's
+selection is not touched, and nothing is restarted.
+
+**Updating from 1.1.0 or 1.2.x takes one `row-template update`.** 1.1.0's own updater copies only part
+of the new release. The next time you open `row-template`, or run `row-template config` or
+`row-template verify` as root, it downloads the rest of that same release — every design,
+checksum-verified — before doing anything else. It never downloads a newer version, and it
+leaves your page, branding, selected design and backups as they are.
 
 ## Rolling back
 
@@ -67,7 +79,15 @@ row-template rollback
 ```
 
 Restores the previous version from a validated backup. The current version is
-snapshotted first, so a failed rollback can itself be recovered.
+snapshotted first, so a failed rollback can itself be recovered. Every backup records the
+panel it was made on and is never restored onto another panel; a backup from a release
+that did not record its design restores as Row.
+
+A rollback restores the page and the recorded version, not the manager itself: after
+rolling back to a backup taken under 1.1.0, `row-template version` reports 1.1.0 while the
+1.3.0 manager stays in place, and the next `row-template update` returns to 1.3.0. **Only the
+two newest backups are kept** — each update, design switch and rollback makes one — so the
+backup an update took of the previous version is replaced after two further changes.
 
 ```bash
 row-template rollback --to <backup-dir>
@@ -81,8 +101,16 @@ Rolls back to a specific backup instead of the previous one.
 row-template uninstall
 ```
 
-Removes Row-Template and its files, and reverts the panel to its built-in page. It does
-**not** touch 3X-UI, its database, your inbounds, clients, or certificates.
+Removes Row-Template and its files, and returns the panel to the page it had before:
+
+- **3X-UI:** clears `subThemeDir`, only if it points at Row-Template.
+- **PasarGuard:** removes its block from `.env` — the file returns to its exact previous
+  bytes — and its page, then restarts a running panel once.
+- **Rebecca:** restores the two subscription settings it changed, exactly as they were;
+  if you have since chosen another page, your choice is left alone.
+
+It does **not** touch your users, inbounds, clients, nodes, certificates or any other
+panel setting.
 
 Non-interactive uninstall requires `RT_ASSUME_YES=1`.
 

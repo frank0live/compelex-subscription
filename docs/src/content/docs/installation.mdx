@@ -1,14 +1,18 @@
 ---
 title: Installation
-description: Install Row-Template on 3X-UI in one command, then verify it.
+description: Install Row-Template on 3X-UI, PasarGuard or Rebecca in one command, then verify it.
 ---
 
 Three steps. Each one tells you what you should see, and what to do if you do not.
 
 ## Before you start
 
-- **3X-UI 3.6.0 or newer.** Check with `x-ui` or from the panel's own version display.
-  The installer refuses to proceed below this and tells you what it detected.
+- **A supported panel** on the server: **3X-UI 3.6.0 or newer** (check with `x-ui` or the
+  panel's own version display), **PasarGuard** or **Rebecca 1.x** (the Go edition, Rebecca's
+  binary install), installed the way their
+  official installers lay them out. The installer detects which one is there. On a server
+  with more than one it asks, or reads `RT_PANEL` (`3xui`, `pasarguard` or `rebecca`) in a
+  script. See [Compatibility](/compatibility/).
 - **Root access.** The install changes the system.
 - **A reachable GitHub.** The bootstrap downloads the release over HTTPS. For air-gapped
   or staged installs, see [Offline installation](#offline-installation).
@@ -31,14 +35,22 @@ optional.
 | Message | What it means | What to do |
 |---|---|---|
 | `3x-ui <version> is below the required minimum 3.6.0; not installing` | Your panel is older than the supported minimum. | Update 3X-UI first, then re-run. |
+| `no supported panel was detected on this host: …` | Neither 3X-UI nor PasarGuard nor Rebecca was found. | Install the panel first, with its official installer, then re-run. |
+| `<panel> looks partly installed (only one of its files was found); it is not treated as present.` | Only one sign of the panel was found, so the installer will not guess. | Finish or repair the panel's installation, then re-run. |
+| `more than one panel is installed here (…); choose one with RT_PANEL=3xui\|pasarguard\|rebecca.` | A non-interactive install on a server with several panels. | Re-run with `RT_PANEL` set to the panel to serve. |
 | `an existing install was found at …; re-run interactively or set RT_ASSUME_YES=1 to repair` | Row-Template is already installed. | Run `row-template update`, or re-run with `RT_ASSUME_YES=1` to repair the existing install. |
 | A checksum refusal | The download was incomplete or came from somewhere other than the official release. | Re-download from the official releases page and re-run. **Do not bypass the check.** |
 | A network error | GitHub was unreachable. | Retry, or use [Offline installation](#offline-installation). |
 
 ## Step 2 — Activate it
 
-The installer tries to do this for you. It succeeds when `sqlite3` is available on the
-server.
+The installer does this for you where it can, after showing what will change and asking.
+On PasarGuard and Rebecca activation is a transaction: the panel's state is snapshotted,
+changed and verified, and restored exactly if any step fails.
+
+### 3X-UI
+
+Automatic when `sqlite3` is available on the server.
 
 **If it did not activate automatically**, set it once in the panel:
 
@@ -50,8 +62,31 @@ Enter exactly:
 /etc/3x-ui/sub_templates/row-template
 ```
 
-**Expected:** opening your subscription link shows the Row-Template page instead of the
-panel's built-in one.
+### PasarGuard
+
+Always automatic. The page is placed at
+`/var/lib/pasarguard/templates/row-template/index.html` (or inside your own
+`CUSTOM_TEMPLATES_DIRECTORY`), a marked block selecting it is appended to
+`/opt/pasarguard/.env`, and a running panel is restarted once. None of your own lines is
+edited.
+
+### Rebecca
+
+Automatic with the default SQLite database and `sqlite3` installed: the page is placed at
+`/var/lib/rebecca/templates/row-template/index.html` and selected in Rebecca's
+subscription settings. Rebecca reads them on every request, so nothing is restarted.
+
+**With MySQL/MariaDB, or without `sqlite3`,** the page is still placed and the installer
+prints the one manual step. In the Rebecca dashboard open **Settings → Subscription →
+Templates** and set:
+
+```
+Subscription page template:   row-template/index.html
+Custom templates directory:   /var/lib/rebecca/templates
+```
+
+**Expected:** opening your subscription link in a browser shows the Row-Template page
+instead of the panel's built-in one.
 
 ## Step 3 — Verify
 
@@ -59,7 +94,12 @@ panel's built-in one.
 row-template verify
 ```
 
-This is read-only. It checks the installed artifact, the panel wiring and the live render.
+It checks the installed artifact, the panel wiring and, on 3X-UI, the live render. On
+PasarGuard and Rebecca it also reports panel settings that still take precedence over the
+page, such as an admin's own subscription template. Run as root, it first
+puts the template store right: designs left outside `dist/templates` are moved back, and
+designs the installed version ships but the server lacks are downloaded from that same
+release. It changes nothing else.
 
 **Expected:** every check reports OK. If a check fails it names what failed and what it
 found, and the installer's own messages tell you which command to run next.

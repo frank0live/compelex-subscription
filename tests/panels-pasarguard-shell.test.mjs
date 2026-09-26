@@ -11,7 +11,11 @@
  * receive carries exactly the figures the panel reported.
  *
  * The renderer is tools/render-jinja.mjs — a test-only stand-in for the panel's
- * own Jinja2. It handles only the closed vocabulary the transpiler emits.
+ * own Jinja2. It handles only the closed vocabulary the transpiler emits, so it
+ * renders the shell's BODY: the transpiled layout, fed the island context
+ * directly. The shipped document adds a prelude that derives that context from
+ * PasarGuard's own page context, and an autoescape block; that whole document
+ * is rendered by real Jinja2 in tests/panels-engines.test.mjs.
  */
 
 import test from 'node:test';
@@ -49,7 +53,7 @@ const byCase = (name) => FIXTURES.find((f) => f.doc.case === name);
 function renderPanel(doc, templateId = 'row', { autoescape = true } = {}) {
   const model = pasarguardIsland({ ...doc.native, now: doc.source.clock * 1000 });
   const shell = assembleShell('pasarguard', templateId);
-  return { model, shell, html: renderJinja(shell.html, toIslandContext(model), { autoescape }) };
+  return { model, shell, html: renderJinja(shell.body, toIslandContext(model), { autoescape }) };
 }
 
 /* --- the shell assembles ------------------------------------------------- */
@@ -198,7 +202,7 @@ test('a hostile title is escaped by an autoescaping engine', () => {
   const doc = byCase('15-hostile-title').doc;
   const model = pasarguardIsland({ ...doc.native, now: doc.source.clock * 1000 });
   const shell = assembleShell('pasarguard', 'row');
-  const html = renderJinja(shell.html, toIslandContext(model), { autoescape: true });
+  const html = renderJinja(shell.body, toIslandContext(model), { autoescape: true });
 
   /* The raw HTML carries the escaped form, so the attribute cannot terminate
      early. */
@@ -213,20 +217,30 @@ test('a hostile title is escaped by an autoescaping engine', () => {
   assert.deepEqual(validateIsland(extractIsland(html)), [], 'and the island still validates');
 });
 
-test('WITHOUT autoescape the title breaks out of its attribute — a real deployment gap', () => {
-  /* This is not a test of our shell: it is a test of the finding. The same
-     shell, rendered by an engine that does not escape, produces an attribute
-     the parser terminates early — so the island loses its remaining attributes.
-     PasarGuard's Jinja2 environment is `Environment(loader=...)` with no
-     autoescape, so a PasarGuard deployment MUST enable it (or the shell must
-     escape) before this is safe. Recorded here so the gap cannot be forgotten. */
+test('WITHOUT autoescape the layout body breaks out, so the shipped shell wraps it in an autoescape block', () => {
+  /* The finding, and its fix. The layout BODY, rendered by an engine that does
+     not escape, produces an attribute the parser terminates early -- the island
+     loses its remaining attributes. PasarGuard's Jinja2 environment is
+     `Environment(loader=...)` with no autoescape, so the body alone is unsafe
+     there. The SHIPPED shell therefore puts the body inside an explicit
+     `{% autoescape true %}` block; tests/panels-engines.test.mjs renders that
+     document with real Jinja2 and hostile data and proves nothing breaks out. */
   const doc = byCase('15-hostile-title').doc;
   const model = pasarguardIsland({ ...doc.native, now: doc.source.clock * 1000 });
-  const html = renderJinja(assembleShell('pasarguard', 'row').html, toIslandContext(model));
+  const shell = assembleShell('pasarguard', 'row');
+  const html = renderJinja(shell.body, toIslandContext(model));
 
   const errors = validateIsland(extractIsland(html));
   assert.ok(errors.length > 0, 'an unescaped attribute must visibly damage the island');
   assert.ok(errors.some((e) => /missing attribute/.test(e)), 'attributes are lost after the break');
+
+  const open = shell.html.indexOf('{%- autoescape true -%}');
+  const close = shell.html.lastIndexOf('{%- endautoescape %}');
+  const island = shell.html.indexOf('id="sub-data"');
+  assert.ok(open > 0 && open < island && island < close, 'the shipped shell escapes the whole body');
+  const inner = shell.body.slice(shell.body.indexOf('\n') + 1, shell.body.lastIndexOf('</html>'));
+  assert.equal(shell.html.includes(inner), true,
+    'and the body inside the block is exactly the rendered-and-tested body');
 });
 
 /* --- 5. unsupported fields are not invented ------------------------------ */
@@ -263,14 +277,21 @@ test('no field outside the contract is rendered into the island', () => {
   }
 });
 
-test('on_hold is refused before anything is rendered', () => {
+test('on_hold renders enabled, with the hold duration as a pending expiry', () => {
+  /* Decided for 1.3.0 (docs/design/PANEL-ON-HOLD-DECISION.md): the clock of
+     an on_hold subscription starts on the first connection, which is exactly
+     Row's negative-expire encoding. */
   const doc = byCase('08-on-hold').doc;
-  assert.throws(() => renderPanel(doc), /unsupported on_hold state/);
+  const { html } = renderPanel(doc);
+  const island = extractIsland(html);
+  assert.deepEqual(validateIsland(island), []);
+  assert.equal(island.attributes['data-enabled'], '1');
+  assert.equal(island.attributes['data-expire'], String(-doc.native.info.on_hold_expire_duration));
 });
 
 /* --- the 3X-UI artifacts are untouched ----------------------------------- */
 
-test('the 15 frozen 3X-UI artifacts are byte-identical to their locks', async () => {
+test('the 17 frozen 3X-UI artifacts are byte-identical to their locks', async () => {
   const { build } = await import('../tools/build.mjs');
   const source = readFileSync(join(ROOT, 'tests', 'build.test.mjs'), 'utf8');
   const locked = {};
@@ -279,7 +300,7 @@ test('the 15 frozen 3X-UI artifacts are byte-identical to their locks', async ()
     const id = m[2] === 'Row' ? 'row' : m[2] === 'Pulse Nova' ? 'pulsenova' : m[2].toLowerCase();
     locked[id] = +m[1];
   }
-  assert.equal(Object.keys(locked).length, 15);
+  assert.equal(Object.keys(locked).length, 17);
   for (const id of templateIds()) {
     assert.equal(Buffer.byteLength(build(true, id).html, 'utf8'), locked[id], id + ' must not move');
   }

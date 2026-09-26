@@ -22,8 +22,15 @@
  *
  * Rebecca has five statuses. Only `disabled` means off — `limited` and
  * `expired` stay ENABLED, because Row's `health()` derives those two labels
- * from `expire` / `used` / `total` and needs the facts intact. `on_hold` is
- * refused, not guessed, and so is anything outside the table.
+ * from `expire` / `used` / `total` and needs the facts intact. Anything
+ * outside the table is refused, not guessed.
+ *
+ * ON_HOLD (decided for 1.3.0, docs/design/PANEL-ON-HOLD-DECISION.md). Rebecca
+ * itself treats on_hold as active (its template status class maps it so), and
+ * the subscription is enabled. Its clock has not started, and Rebecca does not
+ * put the hold duration in the page context, so the expiry is unknown (null):
+ * never "never expires", never an invented duration. The shipped page applies
+ * the same rule in src/panels/rebecca/prelude.pongo2.
  */
 
 import { assertModel, MODEL_FIELDS } from '../contract.mjs';
@@ -37,6 +44,7 @@ const STATUS_ENABLED = {
   active: true,
   limited: true,
   expired: true,
+  on_hold: true,
   disabled: false,
 };
 
@@ -99,10 +107,6 @@ export function island(native) {
 
   const status = info.status;
 
-  /* The deliberate refusal. Not expired, not disabled, not active — refused. */
-  if (status === 'on_hold') {
-    throw new Error('unsupported on_hold state');
-  }
   /* Anything outside the table is refused too. An `else` branch here would
      silently absorb a sixth state a future version might add. */
   if (!Object.prototype.hasOwnProperty.call(STATUS_ENABLED, status)) {
@@ -123,7 +127,9 @@ export function island(native) {
   /* Expiry. Rebecca's `expire` is ALREADY epoch seconds — no conversion. A
      null or non-positive value means never, which Row encodes as 0. */
   const rawExpire = asCount(info.expire);
-  const expire = rawExpire === null || rawExpire <= 0 ? 0 : rawExpire;
+  const expire = status === 'on_hold'
+    ? null
+    : (rawExpire === null || rawExpire <= 0 ? 0 : rawExpire);
 
   /* Online. Only ever true on a reported timestamp inside the window — AND
      only while the subscription is enabled. A disabled account whose last

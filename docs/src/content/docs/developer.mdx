@@ -57,7 +57,7 @@ A built artifact must satisfy all of these:
 `src/templates/<id>/layout.html` when that file exists, and falls back to
 `src/index.html` otherwise.
 
-**All fifteen core templates own a `layout.html`, so the fallback is unreachable and
+**All seventeen core templates own a `layout.html`, so the fallback is unreachable and
 `src/index.html` is dead code.** The shared-shell model is retired.
 
 ## The registry
@@ -80,7 +80,7 @@ An unknown or unavailable id fails loudly rather than silently falling back to R
 - **Byte locks** — every core template pinned to an exact size and SHA-256.
 - **Determinism** — building twice produces identical bytes.
 - **Structural validation** — the hook and script contract, enforced at build time.
-- **A fifteen-way byte comparison** — the check that a change did not move any frozen
+- **A seventeen-way byte comparison** — the check that a change did not move any frozen
   artifact.
 
 ## Contributing

@@ -8,7 +8,7 @@
  *      renders a different date on a different day;
  *   2. the page derives its expiry caption from the *reader's* clock, so even a
  *      fixture pinned to a fixed instant renders one day less on a later day;
- *   3. the preview server serves fourteen of the fifteen designs out of
+ *   3. the preview server serves sixteen of the seventeen designs out of
  *      dist/templates/**, which `npm run build` does not write, so a capture
  *      could photograph stale artifacts and still report success.
  *
@@ -232,9 +232,9 @@ test('the pinned instant reproduces the baseline caption as well as the date', (
 
 /* --- the freshness invariant, executed ----------------------------------- */
 
-test('an all-template build produces fifteen fresh artifacts', () => {
+test('an all-template build produces seventeen fresh artifacts', () => {
   const ids = read('tools', 'templates.mjs').match(/^\s{2}(\w+):\s*\{/gm) || [];
-  assert.ok(ids.length >= 15, 'expected at least 15 templates in the registry');
+  assert.ok(ids.length >= 17, 'expected at least 17 templates in the registry');
 
   const r = spawnSync('node', [join('tools', 'build.mjs'), '--all', '--quiet'], {
     cwd: ROOT, encoding: 'utf8',
@@ -260,7 +260,7 @@ test('an all-template build produces fifteen fresh artifacts', () => {
       .map((e) => join(ROOT, 'dist', 'templates', e.name, 'template.html')),
   ];
 
-  assert.equal(served.length, 15, `the preview server should see 15 artifacts, saw ${served.length}`);
+  assert.equal(served.length, 17, `the preview server should see 17 artifacts, saw ${served.length}`);
   for (const p of served) {
     assert.ok(existsSync(p), `${p} should exist after an --all build`);
     assert.ok(statSync(p).mtimeMs >= srcNewest,
@@ -313,7 +313,7 @@ const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 const entryName = (e) => `${e.id}-${e.mode}.webp`;
 
 /* The registry is the source of truth for which ids exist; the manifest has to
-   cover exactly it, not merely a plausible-looking 30 files. */
+   cover exactly it, not merely a plausible-looking 34 files. */
 const { templateIds } = await import(pathToFileURL(join(ROOT, 'tools', 'templates.mjs')).href);
 const REGISTRY = templateIds();
 
@@ -325,11 +325,11 @@ const ON_DISK = new Map(
 );
 
 test('the preview registry and the manifest agree on size', () => {
-  assert.equal(REGISTRY.length, 15,
-    `the registry should list exactly 15 templates, listed ${REGISTRY.length}`);
-  assert.equal(MANIFEST.total, 30, `manifest.total should be 30, is ${MANIFEST.total}`);
-  assert.equal(MANIFEST.entries.length, 30,
-    `the manifest should carry 30 entries, carries ${MANIFEST.entries.length}`);
+  assert.equal(REGISTRY.length, 17,
+    `the registry should list exactly 17 templates, listed ${REGISTRY.length}`);
+  assert.equal(MANIFEST.total, 34, `manifest.total should be 34, is ${MANIFEST.total}`);
+  assert.equal(MANIFEST.entries.length, 34,
+    `the manifest should carry 34 entries, carries ${MANIFEST.entries.length}`);
 
   /* Exactly desktop + mobile for every id, and no pair described twice. */
   const pairs = MANIFEST.entries.map(entryName);
@@ -353,7 +353,7 @@ test('every manifest entry has a file, and no preview is orphaned', () => {
   assert.deepEqual([...ON_DISK.keys()].filter((f) => !claimed.includes(f)), [],
     'preview files exist that the manifest does not describe');
 
-  assert.equal(ON_DISK.size, 30, `expected 30 preview files on disk, found ${ON_DISK.size}`);
+  assert.equal(ON_DISK.size, 34, `expected 34 preview files on disk, found ${ON_DISK.size}`);
 });
 
 test('every manifest entry matches its file byte for byte', () => {
@@ -385,10 +385,10 @@ test('the manifest totals are the real totals', () => {
   const unique = new Set(MANIFEST.entries.map((e) => e.sha256)).size;
   assert.equal(MANIFEST.uniqueHashes, unique,
     `uniqueHashes ${MANIFEST.uniqueHashes} is not the real count, ${unique}`);
-  assert.equal(unique, 30, `30 previews should be 30 distinct images, found ${unique}`);
+  assert.equal(unique, 34, `34 previews should be 34 distinct images, found ${unique}`);
 
   /* And distinct on disk, not just distinct as the manifest repeats them: a
      duplicated capture would otherwise still satisfy every count above. */
-  assert.equal(new Set(ON_DISK.values()).size, 30,
-    'the preview files on disk are not 30 distinct images');
+  assert.equal(new Set(ON_DISK.values()).size, 34,
+    'the preview files on disk are not 34 distinct images');
 });

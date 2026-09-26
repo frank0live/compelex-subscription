@@ -95,6 +95,87 @@ files are not readable.
 
 Then reload the subscription link.
 
+---
+
+### PasarGuard still shows its own page
+
+**What it means.** The Row-Template block in `/opt/pasarguard/.env` is not in effect, or
+something in the panel takes precedence over it.
+
+**Fix.** Run `row-template verify` as root. It names the cause:
+
+- *the running panel does not use the Row-Template page yet (restart it)* — the panel was
+  not restarted after activation. Run `pasarguard restart`.
+- *N admin(s) set their own subscription page (sub_template)* — those admins' users keep
+  that page. Clear the admin's subscription template in PasarGuard if you want them on
+  Row-Template.
+- *the panel's 'disable subscription template' setting is on* — PasarGuard serves the raw
+  subscription to browsers. Turn the setting off in the panel.
+
+---
+
+### `panel pasarguard: <dir> is outside /var/lib/pasarguard, the directory the container shares with the host`
+
+**What it means.** Your `CUSTOM_TEMPLATES_DIRECTORY` points outside the directory the
+PasarGuard container can see, so a page placed there could never be served. Nothing was
+changed.
+
+**Fix.** Move your custom templates under `/var/lib/pasarguard`, update
+`CUSTOM_TEMPLATES_DIRECTORY`, and re-run.
+
+---
+
+### `the Row-Template block in .env is damaged`
+
+**What it means.** Only one of the block's two marker lines is in `/opt/pasarguard/.env`,
+so the installer cannot tell where its block ends. It refuses rather than guess.
+
+**Fix.** Remove the remaining `# >>> row-template` or `# <<< row-template <<<` line (and the
+two keys between them, if any) by hand, then re-run.
+
+---
+
+### Rebecca: *One manual step remains*
+
+**What it means.** Rebecca uses MySQL/MariaDB, or `sqlite3` is not installed, so the
+installer placed the page but could not select it.
+
+**Fix.** Install `sqlite3` and run `row-template` → **Activate**, or select it yourself in
+**Settings → Subscription → Templates**: *Subscription page template*
+`row-template/index.html`, *Custom templates directory* `/var/lib/rebecca/templates`.
+
+---
+
+### `panel rebecca: this is Rebecca 0.0.x, the Python edition …`
+
+**What it means.** This Rebecca runs Docker Hub's `rebeccapanel/rebecca` image, which is
+still the 0.0.x Python edition. It cannot render Row-Template's Rebecca page, so the
+installer refused before changing anything.
+
+**Fix.** Move to Rebecca 1.x, the Go edition, with Rebecca's own `rebecca migrate-binary`
+(or install it with `rebecca-binary.sh`), then re-run the installer.
+
+---
+
+### Some Rebecca users still see another page
+
+**What it means.** `row-template verify` reports *N admin(s) override the subscription page
+for their own users*. Rebecca lets an admin choose a page for their own users; those users
+keep it.
+
+**Fix.** Clear that admin's subscription template settings in Rebecca if you want their
+users on Row-Template.
+
+---
+
+### `<path> exists and is not Row-Template's; it was left untouched`
+
+**What it means.** A file that Row-Template did not write is at the path it places its page
+(`…/templates/row-template/index.html`). It is never overwritten, and the activation was
+rolled back.
+
+**Fix.** Move that file elsewhere, then re-run.
+
 ## Live status
 
 ### `Live check could not reach the subscription endpoint.`
@@ -106,6 +187,14 @@ from the server itself.
 
 **Fix.** This is a **warning, not a failure**. The server-rendered values still work. Check
 that the panel answers locally, then re-run `row-template verify`.
+
+---
+
+### The figures do not refresh on PasarGuard or Rebecca
+
+**What it means.** This is expected. Both panels serve live status on a path suffix rather
+than `?format=info`, so the page shows the values as of when it was opened. Reload the page
+to update them. See [Compatibility](/compatibility/#known-limits).
 
 ## Build and verification
 
@@ -119,6 +208,38 @@ that the panel answers locally, then re-run `row-template verify`.
 revert the change. **A lock update is a reviewed event, not a formality.**
 
 ## Update and rollback
+
+### `No templates are installed` (Reconfigure branding → Template)
+
+**What it means.** The manager found no designs in the template store, `dist/templates/`
+under the install root.
+
+**Causes.** An update from 1.1.0: 1.1.0's own updater copies only part of the new release.
+Since 1.2.1 the manager downloads the missing designs itself when it opens, so this appears
+only when that download failed; the message above it says why.
+
+**Fix.** Make sure the server can reach the release source, then open the menu again, or run
+`row-template update`.
+
+---
+
+### `template store is incomplete (<n> of <total> designs); missing: …`
+
+**What it means.** `row-template verify` found designs missing from the store. Every
+installed design still works; the missing ones are not offered in the manager.
+
+**Fix.** Run `row-template verify` as root with the release source reachable, or run
+`row-template update`.
+
+---
+
+### `Template store: moved <n> design(s) from …/templates to …/dist/templates`
+
+**What it means.** Designs were found in a `templates/` folder at the install root — where a
+copied or extracted release leaves them — instead of in `dist/templates/`. Each one passed
+its checksum and was moved into place. There is nothing to do.
+
+---
 
 ### `refusing to roll back from a path outside the backups tree`
 
@@ -136,7 +257,8 @@ created.
 own.
 
 **Fix.** This is a guard against deleting the wrong directory. Confirm the install root is
-`/etc/3x-ui/sub_templates/row-template`, then re-run.
+`/etc/3x-ui/sub_templates/row-template` (3X-UI) or `/etc/row-template` (PasarGuard,
+Rebecca), then re-run.
 
 ## Browser and display
 
@@ -159,5 +281,5 @@ row-template verify
 Include both outputs when you open an issue.
 
 > **Do not include secrets.** Never paste subscription URLs, `subId` values, client UUIDs,
-> panel credentials, cookies, tokens, the panel `webBasePath`, TLS keys, or real server
-> addresses. Redact logs before sharing them.
+> panel credentials, cookies, tokens, the panel `webBasePath`, the contents of `.env`,
+> database URLs, TLS keys, or real server addresses. Redact logs before sharing them.

@@ -8,7 +8,8 @@
  *   node tools/build.mjs [--no-font] [--out path] [--quiet]
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { writeIfChanged } from './write-if-changed.mjs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -366,7 +367,7 @@ function buildOne(withFont, templateId, outPath, quiet) {
   const status = budgetStatus(total);
 
   mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, result.html);
+  writeIfChanged(outPath, result.html);
 
   if (!quiet) {
     const label = withFont ? 'with embedded font' : 'system fonts only';

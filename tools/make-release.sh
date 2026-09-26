@@ -20,7 +20,7 @@
 #                                       # against, so it must stay Row
 #   templates/<id>/template.html        # every selectable design of this
 #   templates/<id>/template.html.sha256 # release, each with its checksum
-#   shells/<panel>/<id>/shell.html      # the assembled shell for each supported
+#   shells/<panel>/<id>/shell.html      # the assembled shell for each buildable
 #   shells/<panel>/<id>/shell.html.sha256  # panel, in that panel's own dialect
 #   VERSION  install.sh  lib/row-template.sh  bin/row-template
 #   lib/transaction.sh  panels/*.sh     # the library's companions: it sources
@@ -28,10 +28,10 @@
 #                                       # install with it (RT_INSTALLER_COMPANIONS)
 #   SHA256SUMS                          # inner checksums of the payload files
 #
-# The shells are PACKAGED, not installed. Nothing here places them on a target
-# host or configures a panel to use them — that is the installer's business and
-# it is deliberately untouched. Shipping them makes the release honest: the
-# product builds three panels' shells, so it should carry them.
+# The shells are what the installer places on PasarGuard and Rebecca (1.3.0):
+# it copies the selected design's shell into the panel's templates directory,
+# after checking it against its .sha256 and refusing one built for another
+# panel. Nothing in this script touches a host; it only builds and packages.
 
 set -Eeuo pipefail
 
@@ -39,7 +39,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/release}"
 
 die() { printf 'make-release: %s\n' "$1" >&2; exit 1; }
-sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
+# Always the coreutils TEXT form, "<hex>  <name>". sha256sum on Windows (Git
+# Bash, Cygwin) writes the binary-mode form "<hex> *<name>" instead, which would
+# make a release built there differ byte for byte from one built on Linux. The
+# installer reads both forms; the release is normalized so it has only one.
+sha() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi \
+    | sed 's/^\([0-9a-fA-F]\{64\}\) \*/\1  /'
+}
 
 VERSION="$(tr -d ' \t\r\n' < "$ROOT/VERSION")"
 [ -n "$VERSION" ] || die "VERSION file is empty."

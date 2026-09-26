@@ -128,6 +128,18 @@ backups/20260921T081500Z__1.1.0/
       ...
 ```
 
+> **1.3.0 amendment — the optional `aux` record.** A panel directory may also hold
+> `aux`: `key=value` lines, the value base64-encoded, keys `[a-z_]{1,32}` and unique,
+> sorted (`rt_backup_panel_aux_set` / `rt_backup_panel_aux` / `rt_backup_panel_aux_check`
+> in `installer/lib/row-template.sh`). It carries the few facts a restore needs that
+> `selection` cannot hold — PasarGuard's `block`, `dir`, `root`, `root_created`;
+> Rebecca's `dir_state` (`null` / `empty` / `present`), `dir`, `root`, `root_created`.
+> It is **optional**: 3X-UI writes none, a snapshot without one is read exactly as
+> before, and a malformed record (a symlink, a bad key, a non-base64 value, a repeated
+> key) makes the snapshot invalid rather than being partly read. It never holds a
+> secret: each adapter writes named keys only, from values it has already validated
+> (see PASARGUARD-INSTALLER-AUDIT.md §6 and REBECCA-INSTALLER-AUDIT.md §6).
+
 ### Why `format` is not optional
 
 An older library must not mis-read a newer snapshot. Without a format marker, an old `row-template`
