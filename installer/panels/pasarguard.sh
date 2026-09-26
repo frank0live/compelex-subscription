@@ -142,8 +142,9 @@ rt_panel_pasarguard_block_state() {
   if [ "${n_open:-0}" = "0" ] && [ "${n_close:-0}" = "0" ]; then printf 'absent'; return 0; fi
   if [ "$n_open" = "1" ] && [ "$n_close" = "1" ]; then
     local lo lc
-    lo="$(LC_ALL=C grep -Fn "$RT_PG_BLOCK_OPEN" "$env" | head -n1 | cut -d: -f1)"
-    lc="$(LC_ALL=C grep -Fxn "$RT_PG_BLOCK_CLOSE" "$env" | head -n1 | cut -d: -f1)"
+    # grep -m1 stops at the first match itself: no pipe into head to be cut short
+    lo="$(LC_ALL=C grep -Fn -m1 "$RT_PG_BLOCK_OPEN" "$env" | cut -d: -f1)"
+    lc="$(LC_ALL=C grep -Fxn -m1 "$RT_PG_BLOCK_CLOSE" "$env" | cut -d: -f1)"
     if [ -n "$lo" ] && [ -n "$lc" ] && [ "$lo" -lt "$lc" ]; then printf 'present'; return 0; fi
   fi
   printf 'malformed'

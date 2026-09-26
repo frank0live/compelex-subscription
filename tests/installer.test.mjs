@@ -249,6 +249,29 @@ test('generation escapes a </script> payload in the service name', () => {
   assert.match(r.out, /RAW=0/, 'no unescaped </script> inside the block');
 });
 
+/* Found running the suite on a loaded Linux host (1.3.0): the gate checked the
+   head of the page with `head -c 512 f | grep -qi '<!doctype html>'`. grep -q
+   exits on its first match; head, still writing, dies of SIGPIPE; pipefail
+   reports the MATCH as a failure. Measured at ~0.7% of calls under load, it
+   made install, update and design switching refuse a valid page. The doubles
+   make that interleaving certain: a grep that, reading a pipe, exits at once
+   (as grep -q does on a match), and a head that writes in two chunks. */
+test('the structural gate cannot be fooled into refusing a valid page by SIGPIPE', () => {
+  const r = sh(
+    GEN_SETUP +
+    'RG="$(command -v grep)"; RH="$(command -v head)"; RT="$(command -v tail)"; ' +
+    'B="$(dirname "$RT_ROOT")/bin"; mkdir -p "$B"; ' +
+    // grep reading a pipe (no file operand) leaves at once, like grep -q on a match
+    'printf \'#!/usr/bin/env bash\\nfor a in "$@"; do [ -f "$a" ] && exec "%s" "$@"; done\\nexit 0\\n\' "$RG" > "$B/grep"; ' +
+    // head of a file writes in two chunks, so its second write meets a closed pipe
+    'printf \'#!/usr/bin/env bash\\nset -o pipefail\\nf="${@: -1}"; n="${2:-512}"\\n"%s" -c 16 "$f"; sleep 0.3; "%s" -c +17 "$f" | "%s" -c $((n-16))\\n\' "$RH" "$RT" "$RH" > "$B/head"; ' +
+    'chmod +x "$B/grep" "$B/head"; PATH="$B:$PATH"; ' +
+    'rt_validate_template "$RT_DIST" && echo VALID',
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /VALID/, 'a valid page is valid however the pipe is scheduled');
+});
+
 test('the structural gate rejects a template it cannot trust', () => {
   assert.ok(!ok('printf "<html>tiny</html>" > "$RT_ROOT/t"; rt_validate_template "$RT_ROOT/t"'),
     'too small / not a full doc');

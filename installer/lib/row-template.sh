@@ -137,9 +137,12 @@ rt_trim() {
 rt_has_control_chars() {
   # true (0) when the argument contains a C0/C1-range control byte. Used to
   # reject newlines/NUL-ish input before it reaches the template or config.
-  # grep -z makes the input one NUL-terminated record so an embedded newline is
-  # matched as content rather than silently swallowed as a line separator.
-  printf '%s' "$1" | LC_ALL=C grep -qz '[[:cntrl:]]'
+  # A bash pattern, not `printf | grep -q`: under pipefail, grep -q exiting on
+  # its first match can kill the writer with SIGPIPE and turn a match into a
+  # failure (measured on a loaded host, 1.3.0). An embedded newline is content
+  # here, and [[:cntrl:]] matches it, exactly as grep -z did.
+  local LC_ALL=C
+  [[ "$1" == *[[:cntrl:]]* ]]
 }
 
 rt_b64_encode() { base64 | tr -d '\n'; }        # stdin -> single-line base64
@@ -858,9 +861,17 @@ rt_validate_template() {
   size="$(rt_file_size "$f")" || { rt_err "cannot size generated template"; return 1; }
   [ "$size" -ge $((40 * 1024)) ] \
     || { rt_err "generated template implausibly small (${size} bytes)"; return 1; }
-  LC_ALL=C head -c 512 "$f" | LC_ALL=C grep -qi '<!doctype html>' \
+  # No `head | grep -q` here. Under pipefail, grep -q exits on its first match,
+  # head can die of SIGPIPE writing the rest, and pipefail reports the match as
+  # a failure: measured on a loaded Linux host (1.3.0) at ~0.7% of calls, which
+  # made install, update and design switching refuse a perfectly valid page.
+  # tr reads its whole input, so nothing in these pipelines can be cut short.
+  local lead trail
+  lead="$(LC_ALL=C head -c 512 "$f" 2>/dev/null | LC_ALL=C tr -d '\000' | LC_ALL=C tr '[:upper:]' '[:lower:]')"
+  [[ "$lead" == *'<!doctype html>'* ]] \
     || { rt_err "generated template does not begin with <!doctype html>"; return 1; }
-  LC_ALL=C tail -c 64 "$f" | LC_ALL=C grep -q '</html>' \
+  trail="$(LC_ALL=C tail -c 64 "$f" 2>/dev/null | LC_ALL=C tr -d '\000')"
+  [[ "$trail" == *'</html>'* ]] \
     || { rt_err "generated template does not end with </html>"; return 1; }
   nopen="$(LC_ALL=C grep -Fc '/* row:branding */' "$f" || true)"
   nclose="$(LC_ALL=C grep -Fc '/* row:branding end */' "$f" || true)"
@@ -1107,7 +1118,7 @@ rt_backups_list() {
   done | LC_ALL=C sort -r
 }
 
-rt_backup_latest() { rt_backups_list | head -n1; }
+rt_backup_latest() { rt_backups_list | LC_ALL=C sed -n 1p; }   # sed reads it all: no SIGPIPE
 
 rt_backups_prune() {
   # keep the KEEP newest valid backups (KEEP>=2 enforced by callers); delete the
@@ -2009,7 +2020,7 @@ rt_smoke_derive_url() {
   [ -n "$port" ] || port=2096
   [ -n "$path" ] || path="/sub/"
   sid="$(sqlite3 "$RT_XUI_DB" "SELECT settings FROM inbounds LIMIT 200;" 2>/dev/null \
-        | LC_ALL=C grep -oE '"subId"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 \
+        | LC_ALL=C grep -oE '"subId"[[:space:]]*:[[:space:]]*"[^"]+"' | LC_ALL=C sed -n 1p \
         | LC_ALL=C sed -E 's/.*"([^"]+)"$/\1/' || true)"
   [ -n "$sid" ] || return 1
   case "$path" in /*) : ;; *) path="/$path" ;; esac
@@ -2102,7 +2113,7 @@ rt_payload_companions() {
   local lib="$1/lib/row-template.sh" list rel
   local -a rels=()
   [ -f "$lib" ] || return 0
-  list="$(LC_ALL=C sed -n 's/^RT_INSTALLER_COMPANIONS="\(.*\)"$/\1/p' "$lib" | head -n 1)"
+  list="$(LC_ALL=C sed -n 's/^RT_INSTALLER_COMPANIONS="\(.*\)"$/\1/p' "$lib" | LC_ALL=C sed -n 1p)"
   # split with read, never an unquoted expansion: the declaration is payload
   # data, and a word like panels/*.sh must reach the check below as written
   # rather than be glob-expanded first.
@@ -3337,7 +3348,7 @@ rt_cmd_verify() {
     [ -r "$RT_CONFIG" ] && rt_ok "Config present and readable." \
       || { rt_warn "config present but not readable."; warns=$((warns + 1)); }
     perm="$(stat -c '%a' "$RT_CONFIG" 2>/dev/null || true)"
-    if [ -n "$perm" ] && printf '%s' "$perm" | LC_ALL=C grep -qE '[2367]$'; then
+    if [ -n "$perm" ] && [[ "$perm" =~ [2367]$ ]]; then
       rt_warn "config.env is other-writable (mode $perm); tighten to 640."; warns=$((warns + 1))
     fi
   else rt_info "No config.env (white-label defaults)."; fi
