@@ -2995,8 +2995,12 @@ rt_cmd_install() {
   rt_panel_choose || rt_die "nothing was changed."
   panel="$RT_ACTIVE_PANEL"
   # A panel can be present and still unable to serve this release's page
-  # (Rebecca's 0.0.x Python edition); refuse before anything is written.
-  rt_panel_preflight "$panel" || rt_die "nothing was changed."
+  # (Rebecca's 0.0.x Python edition); refuse before anything is written. 3X-UI
+  # has no such check, and a 3X-UI install can run from the library alone
+  # (the panel adapters are companions it may not have yet).
+  if [ "$panel" != "3xui" ]; then
+    rt_panel_preflight "$panel" || rt_die "nothing was changed."
+  fi
 
   # environment discovery + hard version gate (fail closed). 3X-UI only: the
   # other panels are identified by their adapter, and their activation does not
