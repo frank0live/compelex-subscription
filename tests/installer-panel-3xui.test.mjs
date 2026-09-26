@@ -907,25 +907,75 @@ test('a post-mutation failure rolls back once, restoring the selection and the s
     assert.equal(r.code, 0, r.err);
     const got = new Map(r.out.split('\n').filter(Boolean).map((l) => l.split('|')));
     assert.equal(got.get('rc'), '1', 'the transaction must fail');
-    /* The engine reports FAILED, not ROLLED_BACK, and that is the CONSERVATIVE,
-     * contract-correct outcome rather than a defect: it claims ROLLED_BACK only
-     * after its post-restore static check passes, and for a selection-based
-     * panel that check asks the INSTALL question ("does the panel serve
-     * Row-Template?"), to which the honest answer after a rollback is no. The
-     * engine therefore declines to claim a clean rollback it cannot confirm --
-     * it never over-reports. The limitation is recorded in
-     * INSTALLER-PANEL-3XUI.md; what matters here is what the rollback DID. */
-    assert.equal(got.get('state'), 'FAILED',
-      'the engine must not claim a clean rollback it cannot confirm');
+    /* ROLLED_BACK, and this assertion was CORRECTED in 1.3.0. The engine used to
+     * report FAILED here, and that was a real defect rather than the
+     * conservative behaviour it was documented as: the engine ran the FORWARD
+     * static check after the restore -- "does this panel serve Row-Template?" --
+     * and a rollback takes Option A, restoring the panel's PREVIOUS selection,
+     * so the honest answer is no BY DESIGN. The check therefore failed on every
+     * correct rollback and a clean rollback was recorded as a failed one.
+     *
+     * The engine no longer asks a forward question after a rollback. The
+     * obligation to verify a restore belongs to the layer that owns the state
+     * model, and interface.sh already says a panel returns SUCCESS only when
+     * "the operation completed AND its required verification passed" -- so the
+     * adapter reads the state back and compares it with the record, and the
+     * engine trusts that status. The assertions below pin both halves: the
+     * engine must now CLAIM the clean rollback, and the panel must actually be
+     * back in its recorded state. */
+    assert.equal(got.get('state'), 'ROLLED_BACK',
+      'a verified rollback must be recorded as ROLLED_BACK, not FAILED');
     assert.equal(got.get('rollback'), '1', 'rollback is attempted exactly once');
-    assert.equal(got.get('rollbackfail'), '1',
-      'and the engine reports the post-restore check it could not satisfy');
+    assert.equal(got.get('rollbackfail'), '0',
+      'a rollback whose restore landed must not be reported as a failed rollback');
 
     const map = new Map(dbRows(fx));
     assert.equal(map.get('subThemeDir'), '/original',
       'the ORIGINAL selection must be back, exactly');
     assert.equal(map.get('subPort'), '2096', 'unrelated rows must survive the rollback too');
     assert.equal(svcState(fx), 'active', 'and the service must be back in its original state');
+  } finally {
+    rmSync(fx.base, { recursive: true, force: true });
+  }
+});
+
+test('a rollback whose restore does not land is reported as a failed rollback', () => {
+  /* The other half of the correction: dropping the engine's forward check must
+   * not make the engine blind. A restore that reports FAILURE is still a failed
+   * rollback, and the engine must say so rather than claiming a clean one.
+   *
+   * Both writes must fail, so the injected failure is made to REPEAT. The shim
+   * only fires while its mark file does not exist; pointing the mark at a path
+   * inside a directory that does not exist keeps it permanently absent, so
+   * every UPDATE fails -- the install's (which triggers the rollback) and the
+   * restore's (which is the failure under test). Matching on UPDATE rather than
+   * on the value leaves every SELECT alone, so capture and the read-backs still
+   * see a working database. */
+  const fx = makeFixture({ rows: [['subThemeDir', '/original'], ['subPort', '2096']], service: 'active' });
+  try {
+    const r = sh(`
+      RT_3XUI_SQL_FAIL_ONCE='UPDATE' ; export RT_3XUI_SQL_FAIL_ONCE
+      RT_3XUI_SQL_FAIL_MARK="$D_WORK/absent-dir/mark" ; export RT_3XUI_SQL_FAIL_MARK
+      rc=0
+      rt_transaction_run 3xui "$RT_ROOT/dist/template.html" >/dev/null 2>"$D_WORK/txn.log" || rc=$?
+      printf 'rc|%s\\n' "$rc"
+      printf 'state|%s\\n' "$RT_TXN_STATE"
+      printf 'rollback|%s\\n' "$(LC_ALL=C grep -cE 'transaction:rollback$' "$D_WORK/txn.log" || true)"
+      printf 'rollbackfail|%s\\n' "$(LC_ALL=C grep -c 'transaction:rollback-failed' "$D_WORK/txn.log" || true)"
+      exit 0
+    `, { fx });
+    assert.equal(r.code, 0, r.err);
+    const got = new Map(r.out.split('\n').filter(Boolean).map((l) => l.split('|')));
+    assert.equal(got.get('rc'), '1', 'the transaction must fail');
+    assert.equal(got.get('state'), 'FAILED',
+      'a restore that did not land is a failed rollback, and must be reported as one');
+    assert.equal(got.get('rollback'), '1', 'rollback is still attempted exactly once');
+    assert.equal(got.get('rollbackfail'), '1',
+      'and the engine must report it, so the two outcomes stay distinguishable');
+    /* No second recovery, and no invented claim: the panel is left as the failed
+     * attempt left it, and the unrelated row is still untouched. */
+    const map = new Map(dbRows(fx));
+    assert.equal(map.get('subPort'), '2096', 'unrelated rows are never touched by a failed rollback');
   } finally {
     rmSync(fx.base, { recursive: true, force: true });
   }

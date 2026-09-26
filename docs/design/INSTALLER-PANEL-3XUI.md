@@ -344,15 +344,40 @@ afterwards.
 
 ---
 
-## 13. Known limitation — P4's post-restore check is uninformative for this panel
+## 13. Resolved in 1.3.0 — the rollback's post-restore check asked the wrong question
 
-Recorded here rather than worked around, because it belongs to a frozen surface this phase must not change.
+Found as a limitation during P5A, recorded rather than worked around, and **fixed in 1.3.0**. It is kept here
+because the shape of the mistake is worth remembering: it was a real defect that had been documented as
+deliberate conservative behaviour, and the test suite agreed with the documentation.
 
-**What happens.** After a rollback, P4 calls `rt_panel_verify PANEL static` as its "did the restore work?" check, and for 3X-UI that check asserts `settings.subThemeDir == RT_ROOT`. A rollback restores the **original** selection, which is by design *not* `RT_ROOT`, so the check fails and the engine ends the transaction in `FAILED` rather than `ROLLED_BACK` — even though the selection and the service were both restored correctly.
+**What happened.** After a rollback, P4 called `rt_panel_verify PANEL static` as its "did the restore work?"
+check. For 3X-UI that check asserts `settings.subThemeDir == RT_ROOT`. A rollback restores the **original**
+selection, which is by design *not* `RT_ROOT`, so the check failed and the engine ended the transaction in
+`FAILED` rather than `ROLLED_BACK` — even though the selection and the service had both been restored
+correctly. Because the engine only claims `ROLLED_BACK` after that check passes, the defect looked like
+caution rather than a bug.
 
-**Why it is safe.** The engine only claims `ROLLED_BACK` after that check passes, so it never over-reports: it declines to assert a clean rollback it cannot confirm. The failure mode is a less informative outcome, not a wrong one. A caller can still tell what happened from the event stream and from the panel's actual state.
+**Why it was still a bug.** It was not merely "a less informative outcome". A caller that cannot distinguish
+"rolled back cleanly" from "left half-mutated" cannot decide whether to retry, escalate, or do nothing — and
+the reported `FAILED` was wrong about the panel's actual state. A rollback that worked was being reported as
+a rollback that did not.
 
-**Why it is not fixed here.** `rt_panel_verify PANEL MODE` carries no snapshot, so it cannot express *"verify against the state you just restored"* — it can only ask the **install** question. P4's rollback wants the **restore** question. Those are different questions for any panel whose post-install and post-restore correct states differ, which will include PasarGuard and Rebecca. Fixing it means either giving P4's rollback its own post-restore verification notion (a P3 + P4 change, and a change to `INSTALLER-TRANSACTION-DESIGN.md`), or dropping the `== RT_ROOT` clause from static verification (which would weaken a P5A requirement). Neither is a P5A-scoped change, so it is reported rather than resolved.
+**The fix.** The obligation to verify a restore belongs to the layer that owns the state model, and
+`interface.sh` already placed it there: a panel's `restore_state` returns SUCCESS only when the operation
+completed **and its required verification passed**. So the fix does not add a P3 verb, does not touch the
+frozen seven-name surface, and does not weaken static verification:
+
+1. Each adapter's `restore_state` now **reads the state back** and compares it with the record, so its
+   SUCCESS means what the contract always said it meant. `3xui` re-reads `subThemeDir` and, for `present`,
+   its value; PasarGuard re-reads the `.env` block and the effective page value; Rebecca re-reads both
+   subscription-settings columns.
+2. P4's rollback no longer re-runs the forward check. It treats `restore_state`'s status as the rollback's
+   verification — which is exactly the "restore question" the old design could not express — and still runs
+   live verification afterwards as evidence, never as a gate.
+
+Both directions are now tested: a rollback that lands is reported `ROLLED_BACK`, and a restore that reports
+FAILURE **or UNAVAILABLE** is reported as a failed rollback. `tests/installer-transaction.test.mjs` asserts
+the call sequence directly, so the forward check cannot be reintroduced after a rollback without failing.
 
 ---
 
