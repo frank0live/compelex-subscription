@@ -1118,8 +1118,10 @@ rt_backups_list() {
   done | LC_ALL=C sort -r
 }
 
-# sed reads its whole input, so the list cannot be cut short by SIGPIPE
-rt_backup_latest() { rt_backups_list | LC_ALL=C sed -n 1p; }
+rt_backup_latest() {
+  # sed reads its whole input, so the list cannot be cut short by SIGPIPE
+  rt_backups_list | LC_ALL=C sed -n 1p
+}
 
 rt_backups_prune() {
   # keep the KEEP newest valid backups (KEEP>=2 enforced by callers); delete the
