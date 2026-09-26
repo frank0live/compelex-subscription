@@ -384,6 +384,31 @@ test('a backup made for another panel is never restored onto Rebecca', () => {
   });
 });
 
+/* rt_activate swaps sub.html and then refreshes the panel's copy. Raised in
+   review (PR #6): when that refresh failed it returned an error with sub.html
+   already replaced, contradicting its own contract, so a caller reporting
+   "nothing was changed" was wrong. The previous sub.html is now put back. */
+test('a failed panel refresh leaves sub.html and the placed page exactly as they were', () => {
+  withHost({}, ({ host, run }) => {
+    run([SETUP, 'rt_transaction_run rebecca "$RT_LIVE" 2>/dev/null']);
+    const placed = page(join(host.dataDir, 'templates'));
+    const beforePlaced = readFileSync(placed);
+    const r = run([
+      'RT_ACTIVE_PANEL=rebecca',
+      'before="$(rt_sha256 "$RT_LIVE")"',
+      'rt_config_write "Changed Name" "" "" ""',
+      'rt_panel_refresh_page() { return 1; }',
+      'rc=0; rt_activate 2>/dev/null || rc=$?; echo "rc=$rc"',
+      '[ "$(rt_sha256 "$RT_LIVE")" = "$before" ] && echo "live-unchanged"',
+      'ls "$(dirname "$RT_LIVE")" | grep -c "^\\.prev\\." || true',
+    ]);
+    assert.match(r.out, /rc=1/, 'the failure is reported');
+    assert.match(r.out, /live-unchanged/, 'sub.html is back to its previous bytes');
+    assert.match(r.out, /^0$/m, 'no temporary copy is left behind');
+    assert.ok(readFileSync(placed).equals(beforePlaced), 'the page Rebecca serves never changed');
+  });
+});
+
 /* --- manual activation --------------------------------------------------------- */
 
 test('without sqlite3, activation places the page and says exactly what to set', () => {

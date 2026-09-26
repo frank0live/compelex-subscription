@@ -2196,20 +2196,39 @@ rt_activate() {
   # own template directory; when one is placed it is replaced here too, so the
   # panel never serves a page older than the one just generated. The panel's
   # selection is not touched: that is activation's job (rt_panel_activate).
-  local staged dir panel rc=0
+  #
+  # The panel copy is refreshed AFTER sub.html is swapped, so a refresh that
+  # fails puts the previous sub.html back before returning: the contract above
+  # holds for every panel, and a caller that reports "nothing was changed" is
+  # telling the truth.
+  local staged dir panel prev="" rc=0
   dir="$(dirname "$RT_LIVE")"
-  staged="$(mktemp "$dir/.live.XXXXXX")" || return 1
-  if ! rt_generate "$RT_DIST" "$staged"; then rm -f "$staged"; return 1; fi
-  rt_atomic_install "$staged" "$RT_LIVE" 644 || { rm -f "$staged"; return 1; }
-  rm -f "$staged"
   panel="$(rt_panel_current)"
   if [ "$panel" != "3xui" ]; then
     rt_installer_complete || { rt_err "the installer's panel components are missing; run 'row-template update'."; return 1; }
+  fi
+  staged="$(mktemp "$dir/.live.XXXXXX")" || return 1
+  if ! rt_generate "$RT_DIST" "$staged"; then rm -f "$staged"; return 1; fi
+  if [ "$panel" != "3xui" ] && [ -f "$RT_LIVE" ]; then
+    prev="$(mktemp "$dir/.prev.XXXXXX")" || { rm -f "$staged"; return 1; }
+    cp -- "$RT_LIVE" "$prev" || { rm -f "$staged" "$prev"; return 1; }
+  fi
+  rt_atomic_install "$staged" "$RT_LIVE" 644 || { rm -f "$staged" "$prev"; return 1; }
+  rm -f "$staged"
+  if [ "$panel" != "3xui" ]; then
     rt_panel_refresh_page "$panel" "$RT_LIVE" || rc=$?
     case "$rc" in
       0|3) : ;;
-      *) rt_err "could not update the page in $(rt_panel_label "$panel")'s template directory."; return 1 ;;
+      *)
+        if [ -n "$prev" ]; then
+          rt_atomic_install "$prev" "$RT_LIVE" 644 \
+            || rt_err "could not put the previous page back at $RT_LIVE."
+        fi
+        rm -f "$prev"
+        rt_err "could not update the page in $(rt_panel_label "$panel")'s template directory."
+        return 1 ;;
     esac
+    rm -f "$prev"
   fi
   return 0
 }
