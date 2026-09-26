@@ -167,10 +167,24 @@ case "\${1:-}" in
       test) shift; test "$@" ;;
       *) exit 1 ;;
     esac ;;
+  image)
+    # image inspect: the image's recorded config (entrypoint, cmd, workdir), or
+    # "no such image" when the host has none recorded.
+    [ "\${2:-}" = inspect ] && [ -f "$st/inspect" ] || { echo "Error: No such image" >&2; exit 1; }
+    cat "$st/inspect" ;;
   version) echo "Docker version 99 (test double)" ;;
   *) exit 0 ;;
 esac
 `;
+
+/* The image configs `docker image inspect` reports for the two Rebecca
+   editions, in the adapter's format (entrypoint, cmd, workdir). Rebecca 1.x
+   (Go) runs rebecca-server; the 0.0.x Python edition -- still what Docker
+   Hub's rebeccapanel/rebecca:latest is -- runs a script under /code. */
+export const REBECCA_IMAGE = {
+  go: '["rebecca-server"] null /app',
+  python: '["/code/scripts/entrypoint.sh"] null /code',
+};
 
 const SQLITE_SHIM = `#!/usr/bin/env bash
 # Test double for the sqlite3 CLI: runs the statement with Python's real
@@ -311,7 +325,7 @@ export function pasarguardHost(base, { running = true, env = PG_ENV, compose = t
 /* --- Rebecca -------------------------------------------------------------------- */
 
 export function rebeccaHost(base, { running = true, sqlite = true, url, customDir = null, pageTemplate = 'subscription/index.html',
-  rows = 1, admins = [], compose = true, cli = true } = {}) {
+  rows = 1, admins = [], compose = true, cli = true, edition = 'go' } = {}) {
   const app = join(base, 'opt', 'rebecca');
   const dataDir = join(base, 'var', 'lib', 'rebecca');
   const cliPath = join(base, 'usr', 'local', 'bin', 'rebecca');
@@ -338,6 +352,7 @@ export function rebeccaHost(base, { running = true, sqlite = true, url, customDi
     chmodSync(cliPath, 0o755);
   }
   writeFileSync(join(docker, 'image'), 'rebeccapanel/rebecca:latest');
+  if (edition) writeFileSync(join(docker, 'inspect'), `${REBECCA_IMAGE[edition]}\n`);
   writeFileSync(join(docker, 'name'), 'rebecca-rebecca-1');
   if (running) writeFileSync(join(docker, 'running'), '');
   // Rebecca's own schema for the two tables the adapter reads, plus the

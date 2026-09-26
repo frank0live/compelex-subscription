@@ -100,6 +100,73 @@ test('only a sqlite: database inside the shared data directory is ever used', ()
   });
 });
 
+/* --- which Rebecca --------------------------------------------------------------
+   Found on a real host during 1.3.0 validation: Docker Hub's
+   rebeccapanel/rebecca:latest -- what Rebecca's Docker installer pulls -- is the
+   0.0.x Python edition, not the 1.x Go edition this page is built for. There the
+   selection is written and accepted, the page cannot render, and Rebecca serves
+   its own page instead: an install that reported success and changed nothing a
+   subscriber saw. The edition is now established first. */
+
+test('the Rebecca edition is told apart: 1.x (Go) from 0.0.x (Python), unknown fails closed', () => {
+  const cases = [[{ edition: 'go' }, 'go'], [{ edition: 'python' }, 'python'], [{ edition: null }, 'unknown']];
+  for (const [opts, want] of cases) {
+    withHost(opts, ({ run }) => {
+      const r = run('rt_panel_rebecca_edition; echo; rc=0; rt_panel_rebecca_edition_ok 2>/dev/null || rc=$?; echo "ok=$rc"');
+      assert.match(r.out, new RegExp(`^${want}$`, 'm'), `${JSON.stringify(opts)}\n${r.err}`);
+      assert.match(r.out, want === 'go' ? /ok=0/ : /ok=1/);
+    });
+  }
+  withHost({ edition: null }, ({ run }) => {
+    const r = run('rt_panel_rebecca_mode() { printf binary; }; rt_panel_rebecca_edition');
+    assert.equal(r.out, 'go', 'a binary install is 1.x: the Python edition has none');
+  });
+});
+
+test('on the 0.0.x Python edition, install is refused before anything is written', () => {
+  withHost({ edition: 'python' }, ({ host, rt, run }) => {
+    const before = last(host);
+    const r = run(['export RT_ASSUME_NONINTERACTIVE=1 RT_SERVICE_NAME="X"', 'rt_cmd_install "$PAYLOAD" </dev/null']);
+    assert.notEqual(r.code, 0, 'refused');
+    assert.match(r.err, /Rebecca 0\.0\.x, the Python edition/);
+    assert.match(r.err, /rebecca migrate-binary/, 'and the way forward is named');
+    assert.match(r.err, /nothing was changed/);
+    assert.equal(existsSync(rt), false, 'no install root was created');
+    assert.equal(existsSync(join(host.dataDir, 'templates')), false, 'no page was placed');
+    assert.deepEqual(last(host), before, 'the settings row is untouched');
+  });
+  withHost({ edition: null }, ({ host, run }) => {
+    const before = last(host);
+    const r = run(['export RT_ASSUME_NONINTERACTIVE=1', 'rt_cmd_install "$PAYLOAD" </dev/null']);
+    assert.notEqual(r.code, 0, 'an edition that cannot be identified is refused too');
+    assert.match(r.err, /cannot tell which Rebecca edition/);
+    assert.deepEqual(last(host), before);
+  });
+});
+
+test('the adapter itself refuses the Python edition, and verify reports it', () => {
+  withHost({}, ({ host, run }) => {
+    const before = last(host);
+    run(SETUP);
+    // the image changes under an existing install (a re-pull of :latest)
+    writeFileSync(join(host.docker, 'inspect'), '["/code/scripts/entrypoint.sh"] null /code\n');
+    const r = run('rc=0; rt_transaction_run rebecca "$RT_LIVE" || rc=$?; echo "txn=$rc"');
+    assert.match(r.out, /txn=1/, 'the transaction stops at capture, before any change');
+    assert.match(r.err, /Python edition/);
+    assert.deepEqual(last(host), before);
+    assert.equal(existsSync(join(host.dataDir, 'templates')), false, 'no page was placed');
+    const f = run('rc=0; rt_panel_refresh_page rebecca "$RT_LIVE" || rc=$?; echo "refresh=$rc"');
+    assert.match(f.out, /refresh=1/, 'and a refresh refuses it as well');
+  });
+  withHost({}, ({ host, run }) => {
+    run([SETUP, 'rt_transaction_run rebecca "$RT_LIVE" 2>/dev/null']);
+    writeFileSync(join(host.docker, 'inspect'), '["/code/scripts/entrypoint.sh"] null /code\n');
+    const r = run('rc=0; rt_panel_verify rebecca static || rc=$?; echo "rc=$rc"');
+    assert.match(r.out, /rc=1/, 'a page Rebecca cannot render is not a passing install');
+    assert.match(r.err, /Python edition/);
+  });
+});
+
 /* --- activation, rollback, uninstall ------------------------------------- */
 
 test('activation sets two columns of the newest row and nothing else, with no restart', () => {

@@ -204,6 +204,19 @@ rt_panel_refresh_page() {
   esac
 }
 
+# Before an install or an activation changes anything: can this panel, as it is
+# installed here, serve the page this release builds for it? 0 yes; 1 no, and
+# the adapter has said why. (Rebecca's 0.0.x Python edition cannot.)
+rt_panel_preflight() {
+  local panel="${1:-}" impl
+  rt_panel_id_ok "$panel" || return "$RT_PANEL_FAIL"
+  impl="$(rt_panel_impl_for "$panel")"
+  case "$impl" in
+    rebecca) rt_panel_rebecca_edition_ok ;;
+    *)       return 0 ;;
+  esac
+}
+
 rt_panel_status() {
   local panel="${1:-}" impl
   rt_panel_id_ok "$panel" || return "$RT_PANEL_FAIL"
