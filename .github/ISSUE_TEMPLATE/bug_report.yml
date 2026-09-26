@@ -45,14 +45,15 @@ body:
     attributes:
       label: Row-Template version
       description: Output of `row-template version`.
-      placeholder: "1.0.0"
+      placeholder: "1.3.0"
     validations:
       required: true
   - type: input
     id: xui-version
     attributes:
-      label: 3X-UI (panel) version
-      placeholder: "3.7.0"
+      label: Panel and version
+      description: 3X-UI, PasarGuard or Rebecca, and its version.
+      placeholder: "3X-UI 3.8.5"
     validations:
       required: true
   - type: input
