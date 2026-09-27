@@ -42,6 +42,7 @@ is the only supported panel; PasarGuard and Rebecca are research targets.
 | [REBECCA-ADAPTER-AUDIT.md](REBECCA-ADAPTER-AUDIT.md) | Mapping Rebecca to the page's data contract, from source. |
 | [REBECCA-ADAPTER-DECISIONS.md](REBECCA-ADAPTER-DECISIONS.md) | Decision record for Rebecca's time and status values. |
 | [LIVE-POLLING-AUDIT.md](LIVE-POLLING-AUDIT.md) | Audit of the live status refresh contract across panels. |
+| [PGCLOCK-AUDIT.md](PGCLOCK-AUDIT.md) | 1.3.0: read-only audit of the third-party PGClock template as a secondary reference. Nothing derived; `PROVENANCE.md` unchanged. |
 | [MULTIPANEL-CHECKPOINT-PLAN.md](MULTIPANEL-CHECKPOINT-PLAN.md) | Repository-state audit and commit plan for the multi-panel work. |
 
 ## Installer

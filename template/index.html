@@ -2658,6 +2658,8 @@ function paintFlag(badge, flag) {
   badge.style.color = 'transparent';
 }
 
+const CODE = /(?:^|[^A-Z])([A-Z]{2})(?![A-Z])/;
+
 function isIndicator(cp) {
   return cp >= RI_FIRST && cp <= RI_LAST;
 }
@@ -2667,7 +2669,8 @@ function letter(cp) {
 }
 
 function flagOf(text) {
-  const points = Array.from(String(text === null || text === undefined ? '' : text), (ch) => ch.codePointAt(0));
+  const s = String(text ?? '');
+  const points = Array.from(s, (ch) => ch.codePointAt(0));
   let i = 0;
   while (i < points.length) {
     if (isIndicator(points[i]) && i + 1 < points.length && isIndicator(points[i + 1])) {
@@ -2678,7 +2681,10 @@ function flagOf(text) {
     }
     i += 1;
   }
-  return '';
+  const m = CODE.exec(s);
+  return m && CODES.has(m[1])
+    ? String.fromCodePoint(RI_FIRST - 65 + m[1].charCodeAt(0), RI_FIRST - 65 + m[1].charCodeAt(1))
+    : '';
 }
 
 function cleanName(text) {

@@ -24,7 +24,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { assembleShell, wrapForPanel, TEMPLATE_DELIMITER } from '../tools/shell.mjs';
-import { extractIsland, toModel } from '../tools/contract.mjs';
+import { extractIsland, toModel, validateIsland } from '../tools/contract.mjs';
 import { templateIds } from '../tools/templates.mjs';
 import {
   renderPasarGuard, renderRebecca, pasarguardContext, rebeccaContext,
@@ -58,11 +58,24 @@ const HOSTILE = '"><script>alert(1)</script><img src=x onerror=alert(2)>{{ 7*7 }
 function pgExpected(doc, links) {
   return {
     ...doc.expected.model,
-    title: '',          // not in PasarGuard's page context
+    title: pgPageTitle(doc),
     subUrl: '',         // not a database column: the page uses its own URL
     subClashUrl: '',
     links,
   };
+}
+
+/* The page's title, as the shipped prelude derives it
+   (src/panels/pasarguard/prelude.jinja2): the admin's configured profile title
+   when there is one, otherwise the subscriber's own name. A profile title that
+   still carries a `{` is refused, because PasarGuard formats those against
+   variables the page cannot resolve, and a literal "{DATA_LIMIT}" on the page
+   is worse than the subscriber's name. */
+function pgPageTitle(doc) {
+  const admin = doc.native.admin || null;
+  const brand = admin && admin.profile_title ? String(admin.profile_title).trim() : '';
+  if (brand !== '' && !brand.includes('{')) return brand;
+  return String(doc.native.info.username ?? '').trim();
 }
 
 function rbExpected(doc, links) {
@@ -329,3 +342,125 @@ test('the shipped PasarGuard shell escapes for itself: the body sits in an autoe
     assert.equal(html.slice(close).includes('{{'), false, `${id}: nothing is interpolated after the block closes`);
   }
 });
+
+/* --- the subscriber and the service name ------------------------------------
+   The page context carries the subscriber (user.username) and the admin's own
+   columns (user.admin.profile_title, user.admin.support_url). It does NOT carry
+   the panel-wide subscription settings, so those cannot reach the page at all.
+   The prelude resolves the page's name in the panel's own order — the admin's
+   configured profile title, then the subscriber — and refuses a profile title
+   that still carries one of the panel's format placeholders. Every case below
+   runs through the SHIPPED prelude on the real Jinja2. */
+
+/* The page context a real install builds for one subscriber, with the two
+   values this section is about supplied explicitly. */
+function pgPage({ username, profileTitle = null, supportUrl = null, withAdmin = true }) {
+  const doc = PG.find((d) => d.case === '01-active-online');
+  const context = pasarguardContext(doc);
+  context.user.username = username;
+  context.user.admin = withAdmin
+    ? { support_url: supportUrl, profile_title: profileTitle }
+    : null;
+  const [html] = renderPasarGuard([{ html: SHELL.pasarguard, context }]);
+  return { html, model: toModel(extractIsland(html)) };
+}
+
+test('PasarGuard: with no configured profile title the page names the subscriber', () => {
+  /* The reported defect: the page titled itself with the generic word. */
+  const { html, model } = pgPage({ username: 'alice' });
+  assert.equal(model.title, 'alice', 'the subscriber reaches the page model');
+  assert.ok(html.includes('<title>alice</title>'), 'and names the browser title');
+  assert.equal(html.includes('<title>Subscription</title>'), false, 'never the generic word');
+});
+
+test('PasarGuard: the admin\'s configured profile title names the page, over the subscriber', () => {
+  const { html, model } = pgPage({ username: 'alice', profileTitle: 'Premium 100 GB' });
+  assert.equal(model.title, 'Premium 100 GB', 'the configured service name wins');
+  assert.ok(html.includes('Premium 100 GB'), 'and reaches the page');
+});
+
+test('PasarGuard: a profile title carrying a format placeholder is refused, not shown literally', () => {
+  /* PasarGuard formats these against variables the page cannot resolve
+     (setup_format_variables). A literal "{DATA_LIMIT}" on the page would be a
+     worse defect than the subscriber's own name. */
+  const titles = ['MyNet {USERNAME}', '{DATA_LIMIT} left', '{EXPIRE_DATE}', '{SERVER_IP}'];
+  const pages = renderPasarGuard(titles.map((t) => {
+    const doc = PG.find((d) => d.case === '01-active-online');
+    const context = pasarguardContext(doc);
+    context.user.username = 'alice';
+    context.user.admin = { support_url: null, profile_title: t };
+    return { html: SHELL.pasarguard, context };
+  }));
+  pages.forEach((html, i) => {
+    assert.equal(toModel(extractIsland(html)).title, 'alice', `${titles[i]}: falls through to the subscriber`);
+    assert.equal(html.includes(titles[i]), false, `${titles[i]}: never reaches the page`);
+    /* The placeholder must not survive in any form: the island's title is the
+       subscriber, and no rendered attribute carries a brace pair. */
+    assert.equal(html.includes('data-sub-title="alice"'), true, `${titles[i]}: the island names the subscriber`);
+    assert.equal(/data-sub-title="[^"]*\{/.test(html), false, `${titles[i]}: no placeholder in the island title`);
+    for (const v of ['{USERNAME}', '{DATA_LIMIT}', '{EXPIRE_DATE}', '{SERVER_IP}']) {
+      assert.equal(html.includes(v), false, `${titles[i]}: ${v} is not on the page`);
+    }
+  });
+});
+
+test('PasarGuard: a missing subscriber name keeps the generic fallback', () => {
+  for (const value of [null, undefined, '', '   ']) {
+    const { html, model } = pgPage({ username: value });
+    const label = JSON.stringify(value);
+    assert.equal(model.title, '', `${label}: no name is invented`);
+    assert.ok(html.includes('<title>Subscription</title>'), `${label}: the generic fallback stands`);
+  }
+});
+
+test('PasarGuard: a subscriber with no admin at all is still named', () => {
+  const { model } = pgPage({ username: 'alice', withAdmin: false });
+  assert.equal(model.title, 'alice');
+});
+
+test('PasarGuard: the subscriber name is escaped and never becomes markup', () => {
+  const { html, model } = pgPage({ username: HOSTILE, profileTitle: HOSTILE });
+  assert.equal(model.title, HOSTILE, 'the name arrives whole, as text');
+  assert.equal(html.includes(HOSTILE), false, 'and never appears unescaped');
+  assert.equal(html.includes('"><script>'), false, 'no attribute value is broken out of');
+  assert.equal(html.includes('<img src=x onerror'), false, 'no element is injected');
+  const scripts = (text) => (text.match(/<script/gi) || []).length;
+  assert.equal(scripts(html), scripts(SHELL.pasarguard), 'no script element is added');
+  assert.equal(html.includes('>49<') || html.includes('"49"'), false, '{{ 7*7 }} is not evaluated');
+});
+
+test('PasarGuard: a non-Latin subscriber name is carried as text', () => {
+  /* PasarGuard's own validator restricts usernames to [a-zA-Z0-9-_@.], 3..128
+     characters (app/models/validators.py UserValidator.validate_username), so
+     this is a value the panel cannot produce today. The page must still carry
+     it as text rather than corrupt it, which is what makes the boundary safe
+     if that rule ever widens. */
+  const name = '\u06a9\u0627\u0631\u0628\u0631-\u0622\u0632\u0645\u0627\u06cc\u0634\u06cc';
+  const { html, model } = pgPage({ username: name });
+  assert.equal(model.title, name, 'the name survives intact');
+  assert.ok(html.includes(name), 'and is written as text');
+});
+
+test('PasarGuard: a long subscriber name is carried whole, not truncated', () => {
+  /* 128 characters is the panel's own ceiling for a username. */
+  const name = 'a'.repeat(128);
+  const { html, model } = pgPage({ username: name });
+  assert.equal(model.title, name);
+  assert.equal(html.includes(`data-sub-title="${name}"`), true);
+});
+
+test('PasarGuard: the panel-wide subscription settings are not in the page context', () => {
+  /* The page context is exactly {user, links, announce, announce_url, apps}
+     (_build_subscription_body_payload), and the Jinja2 environment adds only
+     now(). A shell that reached for the panel-wide settings would render an
+     empty value on the panel and never say so, so the page must not depend on
+     them: a context WITHOUT them still renders a whole document. */
+  const doc = PG.find((d) => d.case === '00-showcase');
+  const context = pasarguardContext(doc);
+  assert.deepEqual(Object.keys(context).sort(), ['announce', 'announce_url', 'links', 'now', 'user']);
+  assert.equal(Object.prototype.hasOwnProperty.call(context, 'sub_settings'), false);
+  const [html] = renderPasarGuard([{ html: SHELL.pasarguard, context }]);
+  assert.ok(html.startsWith('<!doctype html>'));
+  assert.deepEqual(validateIsland(extractIsland(html)), []);
+});
+
