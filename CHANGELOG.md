@@ -5,11 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.1] - Unreleased
 
-Fixes found while hardening 1.3.0 against the panels' own source. Nothing changes
-for an existing 3X-UI install, and no adapter or panel-behaviour change is
-involved.
+A hotfix release: everything fixed after v1.3.0 was published, packaged as one
+small upgrade. The PasarGuard and Rebecca pages now name themselves after the
+subscriber instead of the generic word "Subscription", a node name that carries
+an ISO 3166-1 alpha-2 code now draws that country's flag, and the release
+validation is reproducible and fully green on Linux. No installer adapter
+changes behaviour, and nothing changes for an existing 3X-UI install.
 
 ### Fixed
 
@@ -82,6 +85,29 @@ involved.
   and the pongo2 harness), **Python 3 with Jinja2** (the PasarGuard harness) and
   **ShellCheck**. Each command reports its own result even when an earlier one
   fails, because the point of the job is the four results.
+- **The panel life-cycle tests are offline, and no longer validate a published
+  release.** Both installer panel suites built a two-design payload while the
+  release registry names seventeen, so `rt_complete_install` always judged the
+  install short of what its own version ships and downloaded the release pinned
+  to that version — the published v1.3.0 tarball. On a host with network the
+  download succeeded, the template store was rebuilt from that release, and
+  `verify` then compared it against the working tree: `FAIL canonical artifact
+  does not match the selected template (row)`. The payload is now the complete
+  release, so the download is never reached, and `curl` and `wget` are denied in
+  every fake host and record the attempt, so a regression fails the suite loudly
+  instead of quietly reaching the internet.
+- **`sqlite: false` now means sqlite3 is *unavailable*, not merely
+  unimplemented.** The adapters gate on `command -v sqlite3`, and `ubuntu-latest`
+  ships a real one, so the manual-activation test read `outcome=auto` where it
+  expected `manual`. Every directory holding a sqlite3 is now removed from the
+  child's `PATH`, replaced by a mirror of itself so nothing else on the host
+  stops resolving; a new test plants a real-looking sqlite3 and proves it cannot
+  reach the child.
+- **The release validation is reproducible and fully green.** With both leaks
+  closed, the four release commands pass on `ubuntu-latest` — `npm test` with no
+  failures, `npm run verify` all checks passed, `npm run lint:sh` 12 scripts
+  clean, `npm run build:panels` 51 shells — and the result no longer depends on
+  whether the host has network or happens to ship a `sqlite3`.
 
 ## [1.3.0] - 2026-09-26
 
@@ -481,6 +507,7 @@ First stable release.
 - Requires 3X-UI (MHSanaei) **>= 3.6.0**; validated against stock 3.7.0.
 - Recommended operating system: Ubuntu 24.04 LTS (x86_64).
 
+[1.3.1]: https://github.com/frank0live/Row-Template/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.3.0
 [1.2.1]: https://github.com/frank0live/Row-Template/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.2.0
