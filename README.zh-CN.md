@@ -2,7 +2,10 @@
      与各翻译版 README 逐字节完全一致。 -->
 
 <p align="center">
-  <img src="docs/assets/row-template-banner.png" alt="Row-Template" width="900">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/branding/row-template-logo.png">
+    <img src="docs/assets/branding/row-template-wordmark-en.png" alt="Row-Template" height="140">
+  </picture>
 </p>
 
 <p align="center">
