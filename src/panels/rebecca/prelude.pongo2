@@ -27,7 +27,28 @@
                   A value with a non-UTC offset is left unknown, never guessed.
     subUrl        user.subscription_url, and Clash Meta at its /clash-meta suffix
     support       support_url
-  Rebecca has no announcement and no page title in its template context.
+    subTitle      user.username, the one identity the page context carries. A
+                  value with no word in it at all -- absent, empty or only
+                  whitespace -- is not a name, and the page keeps its generic
+                  fallback; the value itself is never rewritten. pongo2 has no
+                  trim filter (and no string filter), so the test is wordcount,
+                  which is 0 for every one of those forms and never errors
+  Rebecca has no announcement in its template context.
+
+  THE PAGE TITLE. Rebecca's panel-wide subscription_profile_title does NOT
+  reach the page. subscriptionHeaders() puts it in the /info `profile-title`
+  HEADER (base64, internal/app/user/subscription.go), and the page path --
+  renderSubscriptionHTML() -> renderSubscriptionPageTemplate() -- passes the
+  render context only user, links, links_text, usage_url, support_url, token,
+  current_timestamp and remaining_days. There is no profile title in it, no
+  admin object and no service brand. The one identity it does carry is
+  user.username, so that names the page: the same fallback the PasarGuard
+  prelude takes when no profile title is configured. Rebecca's own validator
+  restricts a username to [A-Za-z0-9._@-] of 3 to 32 characters
+  (internal/app/user/validation.go), so it is plain text by construction -- and
+  it is escaped on output like every other value, which is what keeps the page
+  safe if that rule ever widens. No brace guard is needed here, unlike
+  PasarGuard: Rebecca never runs a title through str.format_map.
 
   Every value is escaped on output: pongo2 autoescapes by default, and the
   explicit autoescape block after this prelude keeps it so.
@@ -75,6 +96,7 @@
 {%- set subClashUrl = "" -%}
 {%- if subUrl -%}{%- set subClashUrl = subUrl|add:"/clash-meta" -%}{%- endif -%}
 {%- set subTitle = "" -%}
+{%- if user.username|wordcount > 0 -%}{%- set subTitle = user.username -%}{%- endif -%}
 {%- set subSupportUrl = support_url -%}
 {%- set datepicker = "gregorian" -%}
 {%- set announce = "" -%}
