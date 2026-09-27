@@ -32,6 +32,11 @@ on:
       - "template/**"
       - "package.json"
       - "VERSION"
+      # Not in the release tarball, but it is the file a release-facing pull
+      # request usually ends on. Leaving it out means the head commit of such a
+      # pull request carries no check result at all, which reads as "unverified"
+      # rather than "unaffected".
+      - "CHANGELOG.md"
       - ".github/workflows/release-validation.yml"
   push:
     branches: [main]
