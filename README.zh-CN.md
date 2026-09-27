@@ -50,7 +50,7 @@
 
 ## 设计
 
-Row-Template 1.3.0 提供十七种设计，默认设计为 Row。
+Row-Template 1.3.1 提供十七种设计，默认设计为 Row。
 
 <table>
   <tr>
@@ -117,13 +117,14 @@ Row-Template 1.3.0 提供十七种设计，默认设计为 Row。
 
 三个面板使用三种不同的模板引擎 —— Go `html/template`、Jinja2 和 pongo2 —— 因此每种设计都会为每个面板分别构建，并用该面板真实的引擎渲染来测试每个版本。安装程序会检测服务器上是哪一个面板；如果有多个，它会询问你（或读取 `RT_PANEL`）。**支持**意味着该面板具备全部七项能力 —— 检测、安装、激活、校验、备份、还原和卸载 —— 并且每一项都由测试套件覆盖。各面板的详细信息见[兼容性](https://iitzseridev.github.io/Row-Template/compatibility/)。
 
-**1.3.0 的限制：**
+**1.3.1 的限制：**
 
 - **实时刷新仅限 3X-UI。** 在 PasarGuard 和 Rebecca 上，页面显示的是打开时的用量和到期时间。
 - **Rebecca 的 Docker 镜像会被拒绝。** 它仍是 0.0.x，即 Python 版本；Rebecca 自带的 `rebecca migrate-binary` 可以把 Docker 安装迁移到 1.x。
 - **无法自动激活时需手动设置一项：** 没有 `sqlite3` 的 3X-UI，以及使用 MySQL/MariaDB 或没有 `sqlite3` 的 Rebecca。
 - **面板设置仍然优先**（PasarGuard 和 Rebecca）：管理员自己的订阅模板，以及 PasarGuard 的 **disable subscription template** 设置。`row-template verify` 会报告这两种情况。
-- **PasarGuard 的页面标题**（`subTitle`）和 **Clash 模板**不会生成；只生成订阅页面。
+- **Clash 模板**不会生成；只生成订阅页面。
+- **旗帜来自国家代码或旗帜表情，而不是名称。** 节点名中的 ISO 3166-1 alpha-2 代码（`TR | Istanbul`、`RU-01`、`GB-LON-1`、`DE`）会绘制该国旗帜，旗帜表情同样如此。国家**名称**和城市**名称**（`Turkey - Istanbul`、`Finland Helsinki`）**不会**被推断，仍显示首字母徽章。
 - **每台服务器一个面板。** 一次安装只为安装时所选的面板提供页面；若要改为另一个面板，请先运行 `row-template uninstall`。
 
 ## 架构
