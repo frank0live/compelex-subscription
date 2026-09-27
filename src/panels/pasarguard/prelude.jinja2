@@ -22,8 +22,50 @@
     lastOnline    online_at in epoch milliseconds, empty when never seen
     subUrl        user.subscription_url; empty makes the page use its own URL,
                   which on PasarGuard IS the subscription URL
+    subTitle      the name the page is identified by, from the two values the
+                  panel puts in the page context:
+                    user.admin.profile_title  the operator's configured
+                                              subscription profile title
+                    user.username             the subscriber, when no profile
+                                              title is configured
+                  See "THE PAGE TITLE" below for why these share one slot and
+                  why the panel-wide SUB_PROFILE_TITLE cannot be read here.
     support       the admin's support_url when the panel supplies one
   The subscriber's address (user.ip) is never read.
+
+  THE PAGE TITLE
+
+  PasarGuard's own subscription page titles itself with the subscriber
+  (templates/subscription/index.html: `<title>{{ user.username }} - Subscription
+  Information</title>`), and the current official template
+  (PasarGuard/subscription-template, src/App.tsx) does the same:
+  `document.title = effectiveData.username`. Row's heading is the service name
+  instead (brand.js displayName: configured service name, then the panel's
+  title, then the localised word), so the panel's title is what has to carry
+  both meanings, and it carries them in this order:
+
+    user.admin.profile_title  ->  user.username  ->  (the localised word)
+
+  which is the panel's OWN order for a title it resolves itself
+  (app/operation/subscription.py _format_profile_title: the admin's
+  profile_title, then the panel-wide one), with the subscriber substituted for
+  the panel-wide default that the page context does not carry.
+
+  WHY ONE SLOT. A separate subscriber field would be a fourteenth data-*
+  attribute, and the artifact it would live in has 274 bytes of headroom
+  against a 204,800-byte ceiling that may not be raised (tools/build.mjs).
+  Measured, that attribute plus its model and render paths costs ~157 B, and
+  the flag fix in this same change costs 179 B, so the two do not fit together.
+  The alternative — reading a missing Go map key — would also print the literal
+  "<no value>" into every 3X-UI page, whose view model has no such field and
+  which this change must not alter.
+
+  A profile title is REFUSED when it still contains a `{`, because PasarGuard
+  formats those against variables the page cannot resolve
+  (app/subscription/share.py setup_format_variables: {USERNAME}, {DATA_LIMIT},
+  {EXPIRE_DATE}, ...). Showing the operator a literal "{DATA_LIMIT}" is worse
+  than showing the subscriber's own name, so the placeholder form falls through
+  to the username.
 
   Values are escaped on output by the autoescape block that follows this
   prelude: PasarGuard's environment does NOT autoescape by itself.
@@ -48,11 +90,15 @@
 {%- else -%}
 {%- set expire = 0 -%}
 {%- endif -%}
+{%- set rt_admin = user.admin if user.admin else none -%}
+{%- set rt_user = (user.username | string | trim) if user.username else '' -%}
+{%- set rt_brand = (rt_admin.profile_title | string | trim) if rt_admin and rt_admin.profile_title else '' -%}
+{%- if '{' in rt_brand -%}{%- set rt_brand = '' -%}{%- endif -%}
 {%- set subUrl = user.subscription_url or '' -%}
 {%- set subJsonUrl = '' -%}
 {%- set subClashUrl = '' -%}
-{%- set subTitle = '' -%}
-{%- set subSupportUrl = (user.admin.support_url or '') if user.admin else '' -%}
+{%- set subTitle = rt_brand or rt_user -%}
+{%- set subSupportUrl = (rt_admin.support_url | string | trim) if rt_admin and rt_admin.support_url else '' -%}
 {%- set datepicker = 'gregorian' -%}
 {%- set announce = announce or '' -%}
 {%- set links = links or [] -%}

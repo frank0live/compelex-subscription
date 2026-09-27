@@ -220,4 +220,59 @@ Everything else is DIRECT, ADAPTER, DERIVED, or a clean omission.
 
 ---
 
-PASARGUARD ADAPTER AUDIT COMPLETE — NO ADAPTER CREATED — AWAITING REVIEW BEFORE PHASE 3B
+## 8. 1.3.0 hardening addendum — the page context is not the /info payload
+
+*Added 2026-09-27, while hardening 1.3.0. This section corrects nothing above; it
+records a distinction §4 did not need, because §4 is about the **adapter** and
+this is about the **page**.*
+
+### 8.1 Two different PasarGuard surfaces
+
+The adapter and the page read **different** PasarGuard surfaces, and the same
+field name can mean different things on each:
+
+| Surface | Where it comes from | What it holds |
+|---|---|---|
+| the `/info` **headers** | `create_response_headers()` in `app/operation/subscription.py` | the values the panel **resolved**: `support-url` = `admin.support_url or sub_settings.support_url`; `profile-title` = `encode_title(formatted_title)`, where `formatted_title` is the **admin's** `profile_title` or the panel-wide `Subscription.profile_title` (`"Subscription"` by default) |
+| the **page context** | `_build_subscription_body_payload()` | `{user, links, announce, announce_url, apps}` — and **nothing else**. The Jinja2 environment adds only `now` (`app/templates/__init__.py`) |
+
+So §4's row for `title` (`profile-title` header, base64, DERIVED) is correct **for
+the adapter**, and it is *not* what the page reads. The page cannot read a header
+at all, and it cannot reach the panel-wide `Subscription` settings: they are not
+in the context. What the page *can* read is the admin's own columns, because
+`user.admin` is `AdminContactInfo` — `{id, username, telegram_id,
+discord_webhook, sub_domain, profile_title, support_url, custom_variables,
+notification_enable}`.
+
+### 8.2 The three fields this hardening needed
+
+| Needed | Page context source | Notes |
+|---|---|---|
+| subscriber name | `user.username` | The only deterministic subscriber identifier in the context. `email` does not exist on the model; `id`, `note`, `subscription_url` and `auto_delete_in_days` are `exclude=True`. `UserValidator.validate_username` bounds it to 3–128 characters of `[a-zA-Z0-9-_@.]`, so it is Latin and HTML-safe by the panel's own rule. |
+| service / brand name | `user.admin.profile_title` | The admin's configured title — the same value that becomes the `profile-title` header when the admin's is the one chosen. The panel-wide `Subscription.profile_title` is **not reachable**, so the page's fallback is the subscriber's own name, which is the panel's own behaviour when nothing is configured. |
+| support URL | `user.admin.support_url` | Already implemented and unchanged; the page reads the admin's column directly, which agrees with the header the panel resolves from it. |
+
+### 8.3 A profile title can carry format placeholders
+
+`setup_format_variables()` (§3) exists because a `profile_title` is
+`str.format`-ed against those 13 variables before it is used. A page that shows
+`user.admin.profile_title` verbatim can therefore render a literal
+`{DATA_LIMIT}` or `{EXPIRE_DATE}`. The page cannot resolve them — the values are
+in the panel's response, not the page context — so a title containing `{` is
+refused and falls through to the subscriber's name. Showing the subscriber their
+own name is better than showing them an unresolved placeholder.
+
+### 8.4 What this addendum does not change
+
+- The adapter's mapping in §4 is unchanged. **No adapter file is touched by the
+  1.3.0 hardening**, and no PasarGuard field is newly consumed.
+- §5's `Live polling via ?format=info` row stands as written: the page's poller
+  still uses 3X-UI's `?format=info` query, PasarGuard's endpoint is a path
+  suffix, and the failure is fail-safe (`unsupported`; the server-rendered
+  figures stand). It remains **deferred and out of scope**, as §5 and R7 say.
+- R4 (`ip` must not be carried) is unchanged and still enforced: the page reads
+  `user.ip` nowhere.
+
+---
+
+PASARGUARD ADAPTER AUDIT COMPLETE — ADAPTER WRITTEN IN 1.3.0 — §8 ADDED DURING 1.3.0 HARDENING

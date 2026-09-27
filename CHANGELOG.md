@@ -5,6 +5,53 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Fixes found while hardening 1.3.0 against the panels' own source. Nothing changes
+for an existing 3X-UI install, and no adapter or panel-behaviour change is
+involved.
+
+### Fixed
+
+- **PasarGuard: the page no longer titles itself "Subscription".** PasarGuard's
+  page context carries the subscriber (`user.username`) and the admin's own
+  columns, but **not** the panel-wide subscription settings, so the template had
+  nothing to read and every page fell back to the generic word. The page is now
+  named by the admin's configured profile title when there is one, and by the
+  subscriber otherwise — the order PasarGuard itself resolves a title in. A
+  profile title that still carries a PasarGuard format placeholder
+  (`{DATA_LIMIT}`, `{EXPIRE_DATE}`, `{USERNAME}`, …) is refused rather than
+  printed literally, because the page cannot resolve those variables and a
+  literal placeholder is worse than the subscriber's own name. The subscriber's
+  address (`user.ip`) is still never read.
+- **Country flags: a node name that carries an ISO alpha-2 code now gets that
+  country's flag.** `TR | Istanbul`, `RU-01`, `GB-LON-1`, `FI-01`, `DE` and the
+  rest previously found no regional-indicator pair and fell to the monogram
+  (`T-I`, `R-U`, `G-B`, `F-I`) — which on any platform reads as the code, which
+  is why the badge appeared to show `TR`/`RU`/`GB`/`FI` instead of a flag. A
+  two-letter token is read as a country only when it is uppercase, stands alone
+  between non-letters, and names a real country in the **same 258-code registry
+  the emoji path already uses**; `LON` out of `GB-LON-1`, `USA`, `A1B`, `ZZ-01`
+  and lowercase English words (`no`, `it`, `us`, `in`) are all still refused. An
+  explicit flag emoji still wins over a code in the same name, and the displayed
+  name is never rewritten. Country *names* and *city names* — `Turkey -
+  Istanbul`, `Türkiye`, `Turkiye`, `Finland Helsinki` — still draw the monogram:
+  a name table does not fit the frozen artifact budget, and guessing from an
+  ambiguous name is worse than a monogram. All 15 artifacts were re-baselined
+  (+179 B each; `pulsenova` is 204,705 B with 95 B of headroom).
+
+### Documentation
+
+- `docs/design/PGCLOCK-AUDIT.md` — a read-only audit of the third-party PGClock
+  template as a secondary reference. It confirms `user.username` as the exposed
+  subscriber identity, has no service-name, support-URL or flag logic, and is
+  unlicensed, so nothing was derived from it and `PROVENANCE.md` is unchanged.
+- `docs/design/PASARGUARD-ADAPTER-AUDIT.md` §8 — the page context is not the
+  `/info` payload: the headers carry the values the panel *resolved*, the page
+  context carries the admin's own columns and nothing else.
+- `docs/design/FLAG-RENDERER-AUDIT.md` §17 — the alpha-2 path is an **input**
+  extension; the return shape, `CODES` and every fallback are unchanged.
+
 ## [1.3.0] - 2026-09-26
 
 Row-Template now installs on **PasarGuard** and **Rebecca** as well as 3X-UI,

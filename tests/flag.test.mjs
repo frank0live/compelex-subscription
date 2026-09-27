@@ -60,6 +60,129 @@ test('a name with no flag is left as it is', () => {
   assert.equal(cleanName(null), '');
 });
 
+/* --- ISO alpha-2 codes -----------------------------------------------------
+   A node name often carries the country as a code rather than a flag emoji.
+   The badge is the same badge the emoji path draws: the pair is built from the
+   code, and membership is the same 258-code registry, so a code is accepted
+   only when it names a real country. The label is never rewritten — two
+   uppercase letters can be an operator's own wording, and only an emoji
+   unambiguously means a flag. */
+
+/* The two regional indicators for an alpha-2 code, built from the block
+   offset, so the expectation is not a hand-copied emoji. */
+const pair = (code) => String.fromCodePoint(
+  0x1f1e6 + code.charCodeAt(0) - 65,
+  0x1f1e6 + code.charCodeAt(1) - 65,
+);
+
+test('a node name carrying an ISO alpha-2 code gets that country flag', () => {
+  const cases = [
+    ['TR | Istanbul', 'TR'],
+    ['TR-01', 'TR'],
+    ['TR_01', 'TR'],
+    ['RU-01', 'RU'],
+    ['GB-LON-1', 'GB'],
+    /* "UK" is the exceptionally reserved code the registry already carries
+       beside GB, because its flag is widely rendered (see src/scripts/flag.js).
+       The code path therefore accepts it, and "UK London" and "GB-LON-1"
+       resolve to the two different-but-both-real UK flag emoji. */
+    ['UK London', 'UK'],
+    ['FI-01', 'FI'],
+    ['DE', 'DE'],
+    ['NL | Amsterdam', 'NL'],
+    ['US East', 'US'],
+    ['FR-Paris-2', 'FR'],
+    ['AE Dubai', 'AE'],
+    ['IR Tehran', 'IR'],
+    ['CA Toronto', 'CA'],
+    ['JP Tokyo', 'JP'],
+    ['SG', 'SG'],
+    ['CH Zurich', 'CH'],
+    ['SE Stockholm', 'SE'],
+    ['NO Oslo', 'NO'],
+    ['ES Madrid', 'ES'],
+    ['IT Milano', 'IT'],
+    ['PL Warsaw', 'PL'],
+  ];
+  for (const [raw, code] of cases) {
+    assert.equal(flagOf(raw), pair(code), `${raw} -> ${code}`);
+  }
+});
+
+test('every assigned code resolves through the code path, and no other pair does', () => {
+  /* The whole registry, so the code path can never be narrower than the emoji
+     path it stands beside. */
+  const assigned = new Set(EXPECTED_CODES);
+  let found = 0;
+  for (let a = 0; a < 26; a += 1) {
+    for (let b = 0; b < 26; b += 1) {
+      const code = String.fromCharCode(65 + a) + String.fromCharCode(65 + b);
+      const got = flagOf(`Node ${code}`);
+      assert.equal(got, assigned.has(code) ? pair(code) : '', code);
+      if (got) found += 1;
+    }
+  }
+  assert.equal(found, 258, 'exactly the assigned codes');
+});
+
+test('a code is read only when it is uppercase and stands alone', () => {
+  /* The ambiguous cases. A lowercase run is never a code, so the English words
+     that happen to be assigned codes cannot be read as countries. */
+  for (const raw of [
+    'no flag here', 'it support', 'us east', 'in the cloud', 'my server',
+    'amsterdam', 'is it up', 'at the edge', 'do not use', 'so slow', 'be quick',
+  ]) {
+    assert.equal(flagOf(raw), '', `${raw} must not be read as a country`);
+  }
+  /* Three or more letters are not a code, and neither is a code inside a word. */
+  assert.equal(flagOf('LON'), '', 'a three-letter run is not a code');
+  assert.equal(flagOf('GB-LON-1'), pair('GB'), 'and does not stop the real code being found');
+  assert.equal(flagOf('USA'), '', 'a code inside a longer word is not read');
+  assert.equal(flagOf('A1B'), '', 'a letter either side disqualifies it');
+  assert.equal(flagOf('ZZ-01'), '', 'an unassigned pair is refused, exactly as in the emoji path');
+  assert.equal(flagOf('QQ'), '');
+  assert.equal(flagOf('XX'), '');
+});
+
+test('a flag emoji still wins over a code in the same name', () => {
+  assert.equal(flagOf('\u{1F1E9}\u{1F1EA} TR-01'), '\u{1F1E9}\u{1F1EA}', 'the emoji is the more explicit claim');
+  assert.equal(flagOf('TR \u{1F1E9}\u{1F1EA}'), '\u{1F1E9}\u{1F1EA}');
+});
+
+test('the code path changes no existing answer', () => {
+  /* The whole previous behaviour, re-asserted through the same entry point. */
+  assert.equal(flagOf('No flag here'), '');
+  assert.equal(flagOf('\u{1F525} Fast'), '');
+  assert.equal(flagOf('\u{1F3F3}\u{FE0F} white'), '');
+  assert.equal(flagOf(''), '');
+  assert.equal(flagOf(null), '');
+  assert.equal(flagOf(undefined), '');
+  assert.equal(flagOf(42), '');
+  assert.equal(flagOf('\u{1F1FF}\u{1F1FF}\u{1F1FA}\u{1F1F8}'), '\u{1F1FA}\u{1F1F8}');
+});
+
+test('the label is left exactly as the operator wrote it', () => {
+  /* A code is not stripped from the name: only an emoji unambiguously means a
+     flag, and "TR" may be part of a name rather than a country. */
+  assert.equal(cleanName('TR | Istanbul'), 'TR | Istanbul');
+  assert.equal(cleanName('GB-LON-1'), 'GB-LON-1');
+  assert.equal(cleanName('DE'), 'DE');
+  assert.equal(cleanName('Node TR'), 'Node TR');
+});
+
+test('a country name that is not a code is still refused, not guessed', () => {
+  /* Reported real-world names that carry neither an emoji nor a code. The
+     monogram fallback is the honest answer for these until a country-name
+     table exists; this test records the boundary rather than pretending to
+     cross it. */
+  for (const raw of [
+    'Turkey - Istanbul', 'T\u00FCrkiye', 'Turkiye', 'Russia Moscow',
+    'United Kingdom London', 'Finland Helsinki',
+  ]) {
+    assert.equal(flagOf(raw), '', `${raw}: no code, no flag`);
+  }
+});
+
 /* The full slate of names the refinement calls out: a flag leads, trails or
    sits mid-name; the label is Latin, Persian, Turkish, Chinese, Cyrillic; and
    the generic emoji that are not countries draw no badge and are left in place. */

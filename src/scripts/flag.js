@@ -84,6 +84,19 @@ export function paintFlag(badge, flag) {
   badge.style.color = 'transparent';
 }
 
+/* A node name often carries the country as an ISO 3166-1 alpha-2 code instead
+   of a flag emoji — "TR | Istanbul", "GB-LON-1", "DE". A two-letter run is read
+   as a code only when it is UPPERCASE and stands alone between non-letters, so
+   "LON" is not read as a code out of "GB-LON-1" and a lowercase English word
+   ("in", "no", "it") never matches at all. Membership is the SAME registry the
+   emoji path uses, so a code is accepted only when it names a real country, and
+   an unassigned pair is refused exactly as it is there.
+
+   The token is only ever read, never removed from the label: a flag emoji means
+   a flag and nothing else, but two uppercase letters can be part of an
+   operator's own wording, so the name is left as written. */
+const CODE = /(?:^|[^A-Z])([A-Z]{2})(?![A-Z])/;
+
 function isIndicator(cp) {
   return cp >= RI_FIRST && cp <= RI_LAST;
 }
@@ -98,7 +111,8 @@ function letter(cp) {
    spurious code — "🇿🇿🇺🇸" reads past the tofu pair and finds US, it does not
    read the middle two as ZU. A lone trailing indicator matches nothing. */
 export function flagOf(text) {
-  const points = Array.from(String(text === null || text === undefined ? '' : text), (ch) => ch.codePointAt(0));
+  const s = String(text ?? '');
+  const points = Array.from(s, (ch) => ch.codePointAt(0));
   let i = 0;
   while (i < points.length) {
     if (isIndicator(points[i]) && i + 1 < points.length && isIndicator(points[i + 1])) {
@@ -109,7 +123,10 @@ export function flagOf(text) {
     }
     i += 1;
   }
-  return '';
+  const m = CODE.exec(s);
+  return m && CODES.has(m[1])
+    ? String.fromCodePoint(RI_FIRST - 65 + m[1].charCodeAt(0), RI_FIRST - 65 + m[1].charCodeAt(1))
+    : '';
 }
 
 /* The same name with every regional indicator removed, so the flag is shown

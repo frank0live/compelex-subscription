@@ -976,3 +976,122 @@ See the **Phase 1 status** block at the head of this document for the shipped fi
 for the one gate that is *not* satisfied on exit: the §10 ≥ 1 KB headroom floor.
 
 FLAG RENDERER IMPLEMENTED — COMMITTED AT `4a95cbc` — PREVIEWS REFRESHED AT `a012108`
+
+---
+
+## 17. Input-side alpha-2 support — 1.3.0 hardening (added 2026-09-27)
+
+**Status: IMPLEMENTED.** `flagOf` gained an **input** form. Its **return shape,
+its registry and its fallbacks are unchanged.**
+
+### 17.1 The defect
+
+Operators name nodes with the country as an **ISO 3166-1 alpha-2 code**, not as a
+flag emoji: `TR | Istanbul`, `RU-01`, `GB-LON-1`, `FI-01`, `DE`. `flagOf` only
+ever looked for a **regional-indicator pair** (`U+1F1E6`–`U+1F1FF`), so all of
+these returned `''` and the row fell to the **monogram** — `T-I`, `R-U`, `G-B`,
+`F-I`. On Windows, where the emoji path itself already degrades to letters (§2),
+the two states look alike, which is why the defect read as "the badge shows
+`TR`/`RU`/`GB`/`FI` instead of a flag".
+
+### 17.2 Why this does not contradict Correction B
+
+Correction B in the Phase 0.6 table above reads *"`flagOf()` keeps returning the
+**regional-indicator pair** — no alpha-2 change"*, and §5 rule 2 expands it:
+*"`flagOf` keeps its public shape. It returns the **regional-indicator pair**,
+not an alpha-2 code. `cfg.flag` stays `'🇩🇪'`."*
+
+That rule is about the **output**: the function must not start returning `'DE'`
+instead of `'🇩🇪'`, because `cfg.flag` is the key into `FLAGS` and the text of the
+badge. It is preserved exactly:
+
+| Contract | Before | After |
+|---|---|---|
+| return value | a regional-indicator pair, or `''` | **unchanged** |
+| `cfg.flag` | `'🇩🇪'` | **unchanged** |
+| `CODES` | the validity source, 258 assigned codes | **unchanged** |
+| the monogram fallback | `flagOf(name) === ''` | **unchanged** |
+| `cleanName` | strips indicators, tidies separators | **unchanged** |
+| existing tests | 10 in `tests/flag.test.mjs` | **all pass verbatim** |
+
+What changed is the **input** vocabulary: a bare uppercase two-letter token is now
+read as a code *in addition to* the emoji scan. §8's `flagOf()` **unchanged** row
+belongs to the gradient workstream, which never had cause to touch the input side;
+it is not a freeze on the function's input contract.
+
+### 17.3 The rule, and why it is narrow
+
+A two-letter run is read as a code only when it is **uppercase** and **stands
+alone between non-letters**:
+
+```js
+const CODE = /(?:^|[^A-Z])([A-Z]{2})(?![A-Z])/;
+```
+
+- **Uppercase only.** A case-insensitive match would make `no`, `it`, `us`, `in`,
+  `at`, `be`, `so` and `do` — all assigned codes — match inside ordinary English
+  node names (`no flag here`, `it support`, `us east`). Every one of those is
+  pinned as a refusal in the tests.
+- **Bounded on both sides.** `LON` out of `GB-LON-1` is not a code, `USA` is not
+  a code, and `A1B` is not a code. `_` counts as a separator, so `TR_01` works.
+- **Membership is `CODES`.** An unassigned pair (`ZZ`, `QQ`, `XX`) is refused
+  exactly as it is on the emoji path — the same 258-code registry, so the two
+  paths can never disagree about what a real country is. `UK` is accepted because
+  the registry already carries it as exceptionally reserved; `UK London` therefore
+  resolves to the UK flag emoji while `GB-LON-1` resolves to the GB one. Both are
+  real, and that is the registry's own doctrine, not a new decision.
+- **The emoji wins.** An explicit flag emoji is the more specific claim, so it is
+  still preferred when both appear in one name.
+- **The label is never rewritten.** An emoji means a flag and nothing else, but
+  two uppercase letters can be an operator's own wording, so the code is read and
+  **not** stripped from the displayed name.
+
+### 17.4 Measured cost, and what did not fit
+
+| Artifact | Before | After | Headroom |
+|---|---|---|---|
+| `pulsenova` | 204,526 | **204,705** | 274 → **95** |
+| `editorial` | 204,107 | **204,286** | 693 → **514** |
+| `signature` | 203,938 | **204,117** | 862 → **683** |
+| `notebook` | 203,764 | **203,943** | 1,036 → **857** |
+
+**+179 B**, on every artifact, because `flag.js` is in the shared app script (§9).
+The ceiling was **not** raised; every artifact is inside 204,800 B. `pulsenova`
+is the tightest at **95 B**, below the 258 B the Phase 1 block records and below
+§10's ≥ 1 KB floor, which was already unmet on entry.
+
+### 17.5 The boundary that was NOT crossed
+
+Country **names**, **city names** and **transliterations** are not resolved, and
+this is a deliberate stop rather than an oversight:
+
+1. **A country-name table does not fit.** `Turkey`/`Türkiye`/`Turkiye`,
+   `Russia`, `Finland` and ~250 others, in the spellings operators actually use,
+   is a table of well over 1 KB — an order of magnitude more than the 95 B of
+   headroom that remains. It cannot be added without removing bytes from
+   somewhere else or raising the ceiling, and both are out of scope for this
+   change.
+2. **A city table is worse.** `Istanbul → TR` is deterministic; `London → GB or
+   UK` already is not; and the table grows without a natural bound.
+3. **The rule for ambiguity is "refuse".** The task's own instruction — *do not
+   infer from ambiguous names* — and §5's fidelity rule both point the same way.
+   A wrong flag is a factual error; the monogram is merely plain.
+
+So `Turkey - Istanbul`, `Türkiye`, `Turkiye`, `Russia Moscow`, `United Kingdom
+London` and `Finland Helsinki` still draw the monogram, and the tests **assert
+that they do** — recording the boundary rather than pretending to cross it. Names
+that carry an alpha-2 code or an emoji — including every reported real-world case
+that had a code — now draw a flag.
+
+### 17.6 Locks and tests
+
+All **15** byte-locks were re-baselined (`tests/build.test.mjs`: the 4 individual
+locks and the 13-row `FROZEN_ARTIFACTS` table), because `flag.js` is shared.
+`tests/flag.test.mjs` gained six tests: the reported cases; **all 676 letter
+pairs** against the 258-code registry; the uppercase/bounded/assigned refusals;
+emoji-beats-code; a re-assertion that no previous answer moved; and the
+country-name boundary. The previous 10 tests pass verbatim.
+
+---
+
+ALPHA-2 INPUT PATH ADDED — RETURN SHAPE, `CODES` AND FALLBACKS UNCHANGED — 15 LOCKS RE-BASELINED
