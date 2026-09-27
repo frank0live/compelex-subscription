@@ -5,6 +5,84 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Fixes found while hardening 1.3.0 against the panels' own source. Nothing changes
+for an existing 3X-UI install, and no adapter or panel-behaviour change is
+involved.
+
+### Fixed
+
+- **PasarGuard: the page no longer titles itself "Subscription".** PasarGuard's
+  page context carries the subscriber (`user.username`) and the admin's own
+  columns, but **not** the panel-wide subscription settings, so the template had
+  nothing to read and every page fell back to the generic word. The page is now
+  named by the admin's configured profile title when there is one, and by the
+  subscriber otherwise — the order PasarGuard itself resolves a title in. A
+  profile title that still carries a PasarGuard format placeholder
+  (`{DATA_LIMIT}`, `{EXPIRE_DATE}`, `{USERNAME}`, …) is refused rather than
+  printed literally, because the page cannot resolve those variables and a
+  literal placeholder is worse than the subscriber's own name. The subscriber's
+  address (`user.ip`) is still never read.
+- **Rebecca: the page no longer titles itself "Subscription" either.** Rebecca's
+  page context carries **no profile title at all**: the panel-wide
+  `subscription_profile_title` is written into the `/info` `profile-title`
+  **header** (`subscriptionHeaders`) and the page render path
+  (`renderSubscriptionHTML` → `renderSubscriptionPageTemplate`) never passes it,
+  so the title the adapter reads from that header is invisible to the page. The
+  one identity the page does receive is `user.username`, so that now names the
+  page — the same fallback PasarGuard takes when no profile title is
+  configured. A value with no word in it at all (absent, empty,
+  whitespace-only) is not a name and the page keeps its generic fallback; the
+  value is never rewritten. No `{` guard is needed here, unlike PasarGuard:
+  Rebecca never runs a title through `str.format_map`. The subscriber's token
+  and address are still never read, and nothing changes for an existing 3X-UI
+  or PasarGuard install.
+- **Country flags: a node name that carries an ISO alpha-2 code now gets that
+  country's flag.** `TR | Istanbul`, `RU-01`, `GB-LON-1`, `FI-01`, `DE` and the
+  rest previously found no regional-indicator pair and fell to the monogram
+  (`T-I`, `R-U`, `G-B`, `F-I`) — which on any platform reads as the code, which
+  is why the badge appeared to show `TR`/`RU`/`GB`/`FI` instead of a flag. A
+  two-letter token is read as a country only when it is uppercase, stands alone
+  between non-letters, and names a real country in the **same 258-code registry
+  the emoji path already uses**; `LON` out of `GB-LON-1`, `USA`, `A1B`, `ZZ-01`
+  and lowercase English words (`no`, `it`, `us`, `in`) are all still refused. An
+  explicit flag emoji still wins over a code in the same name, and the displayed
+  name is never rewritten. Country *names* and *city names* — `Turkey -
+  Istanbul`, `Türkiye`, `Turkiye`, `Finland Helsinki` — still draw the monogram:
+  a name table does not fit the frozen artifact budget, and guessing from an
+  ambiguous name is worse than a monogram. All 15 artifacts were re-baselined
+  (+179 B each; `pulsenova` is 204,705 B with 95 B of headroom).
+
+### Documentation
+
+- `docs/design/PGCLOCK-AUDIT.md` — a read-only audit of the third-party PGClock
+  template as a secondary reference. It confirms `user.username` as the exposed
+  subscriber identity, has no service-name, support-URL or flag logic, and is
+  unlicensed, so nothing was derived from it and `PROVENANCE.md` is unchanged.
+- `docs/design/PASARGUARD-ADAPTER-AUDIT.md` §8 — the page context is not the
+  `/info` payload: the headers carry the values the panel *resolved*, the page
+  context carries the admin's own columns and nothing else.
+- `docs/design/REBECCA-ADAPTER-AUDIT.md` §2 — the same distinction for Rebecca,
+  stated against `subscriptionHeaders` and `subscriptionTemplateContext`: the
+  page context carries no profile title at all, so the page's title and the
+  adapter's header-derived `title` field can legitimately differ.
+- `docs/design/FLAG-RENDERER-AUDIT.md` §17 — the alpha-2 path is an **input**
+  extension; the return shape, `CODES` and every fallback are unchanged.
+
+### Development
+
+- **The release validation now runs on Linux, in CI.** The repository's only
+  workflow was `Docs`, which builds the documentation site and never ran the
+  suite — so a green check on a pull request said nothing about whether the page
+  still rendered. `.github/workflows/release-validation.yml` runs the four
+  release commands (`npm test`, `npm run verify`, `npm run lint:sh`,
+  `npm run build:panels`) on `ubuntu-latest`, installing the three tools the
+  suite needs and a Node runtime does not provide: **Go** (the fixture renderer
+  and the pongo2 harness), **Python 3 with Jinja2** (the PasarGuard harness) and
+  **ShellCheck**. Each command reports its own result even when an earlier one
+  fails, because the point of the job is the four results.
+
 ## [1.3.0] - 2026-09-26
 
 Row-Template now installs on **PasarGuard** and **Rebecca** as well as 3X-UI,

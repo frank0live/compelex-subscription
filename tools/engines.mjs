@@ -115,7 +115,19 @@ export function renderRebecca(jobs, env) {
 /* The page context each panel builds for a subscriber, from a fixture's
    native /info record. These mirror what the panels pass to their templates
    (see the file headers of the two harnesses), so a fixture can be rendered
-   the way the panel would render it. */
+   the way the panel would render it.
+
+   THE PAGE CONTEXT IS NOT THE /info PAYLOAD. For PasarGuard the two differ in
+   one way that matters here: /info's headers carry the values the panel
+   RESOLVED (the admin's own, else the panel-wide setting), while the page
+   context carries the admin's own columns and nothing else — the panel-wide
+   `subscription.profile_title` and `subscription.support_url` are never in it
+   (app/operation/subscription.py `_build_subscription_body_payload` returns
+   exactly {user, links, announce, announce_url, apps}). A fixture therefore
+   states the admin's columns under `native.admin`. The header fallback keeps
+   fixtures recorded before that field existed meaningful, and is an
+   over-approximation for exactly the case the field exists to express: a
+   panel-wide value with no admin value behind it. */
 
 export function pasarguardContext(doc, { links = [], now } = {}) {
   const info = doc.native.info;
@@ -123,6 +135,8 @@ export function pasarguardContext(doc, { links = [], now } = {}) {
   const b64 = (v) => (typeof v === 'string' && v.startsWith('base64:')
     ? Buffer.from(v.slice(7), 'base64').toString('utf8') : (v || ''));
   const clock = now ?? doc.source.clock;
+  const admin = doc.native.admin
+    || (headers['support-url'] ? { support_url: headers['support-url'] } : null);
   return {
     now: new Date(clock * 1000).toISOString(),
     user: {
@@ -136,7 +150,9 @@ export function pasarguardContext(doc, { links = [], now } = {}) {
       on_hold_timeout: info.on_hold_timeout ?? null,
       // not a database column: the page context always carries the default
       subscription_url: '',
-      admin: headers['support-url'] ? { support_url: headers['support-url'] } : null,
+      admin: admin
+        ? { support_url: admin.support_url ?? null, profile_title: admin.profile_title ?? null }
+        : null,
       ip: info.ip ?? null,
     },
     links,
