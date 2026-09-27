@@ -19,16 +19,23 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 
 import {
-  bashRun, makePayload, rebeccaHost, rebeccaRow, HOST_PREAMBLE, posix,
+  bashRun, makePayload, rebeccaHost, rebeccaRow, HOST_PREAMBLE, posix, netAttempts, pathWithoutSqlite,
 } from './helpers/panel-hosts.mjs';
+import { availableTemplateIds } from '../tools/templates.mjs';
 
+/* A COMPLETE payload -- every design the release registry names, not a sample.
+   A payload short of them makes `rt_complete_install` fetch the release pinned
+   to the INSTALLED version, and on a runner with network that pulled the
+   PUBLISHED release into the store, which was then compared against this
+   working tree's artifact. The host denies the network and records any attempt
+   (tests/helpers/panel-hosts.mjs); the life-cycle test asserts it never tried. */
 const PAYLOAD_DIR = mkdtempSync(join(tmpdir(), 'row-rb-payload-'));
-const PAYLOAD = makePayload(PAYLOAD_DIR, { ids: ['row', 'editorial'] });
+const PAYLOAD = makePayload(PAYLOAD_DIR, { ids: availableTemplateIds() });
 process.on('exit', () => rmSync(PAYLOAD_DIR, { recursive: true, force: true }));
 
 const SETUP = [
@@ -46,7 +53,8 @@ function withHost(opts, fn) {
     const host = rebeccaHost(base, opts);
     const rt = join(base, 'rt');
     const run = (lines, env = {}) => bashRun([HOST_PREAMBLE, ...[].concat(lines)],
-      { paths: { ...host.paths, RT_ROOT: rt, RT_BIN: join(base, 'row-template'), PAYLOAD }, env });
+      { paths: { ...host.paths, RT_ROOT: rt, RT_BIN: join(base, 'row-template'), PAYLOAD },
+        env: { ...host.env, ...env } });
     return fn({ base, host, rt, run });
   } finally {
     rmSync(base, { recursive: true, force: true });
@@ -422,6 +430,47 @@ test('a failed panel refresh leaves sub.html and the placed page exactly as they
 
 /* --- manual activation --------------------------------------------------------- */
 
+/* The runner's own sqlite3 must not leak into `sqlite: false`. The adapters
+   gate on `command -v sqlite3`, so a sqlite3 that merely fails would still open
+   the automatic path -- and that is exactly what happened: ubuntu-latest ships
+   a real sqlite3, so activation reported "auto" on the runner while this
+   authoring host, which has none, reported "manual". */
+test('sqlite: false takes every sqlite3 off PATH, a real one included', () => {
+  const planted = mkdtempSync(join(tmpdir(), 'row-fake-sqlite-'));
+  try {
+    /* A stand-in for a runner that ships sqlite3, plus a second tool so the
+       substituted directory still has to carry everything else it held. */
+    for (const name of ['sqlite3', 'rowmarker']) {
+      writeFileSync(join(planted, name), `#!/bin/sh\necho "${name} on the host"\n`);
+      chmodSync(join(planted, name), 0o755);
+    }
+    const scrubbed = pathWithoutSqlite([planted, process.env.PATH].join(delimiter));
+    assert.equal(scrubbed.split(delimiter).includes(planted), false,
+      'a directory holding a sqlite3 is not on the child PATH');
+
+    /* `rc=0; … || rc=$?` rather than `… ; echo $?`, because bashRun runs under
+       `set -e` and a bare failing command would end the script before the echo. */
+    const seen = bashRun([
+      's=0; command -v sqlite3 >/dev/null 2>&1 || s=$?; echo "sqlite3=$s"',
+      'm=0; command -v rowmarker >/dev/null 2>&1 || m=$?; echo "rowmarker=$m"',
+    ].join('\n'), { env: { PATH: scrubbed } });
+    assert.match(seen.out, /sqlite3=1/, 'command -v sqlite3 fails -- the gate the adapters ask');
+    assert.match(seen.out, /rowmarker=0/, 'and the rest of the host still resolves');
+
+    // And through the host the suite actually builds.
+    withHost({ sqlite: false }, ({ run }) => {
+      const g = run([
+        's=0; command -v sqlite3 >/dev/null 2>&1 || s=$?; echo "found=$s"',
+        'rc=0; rt_panel_rebecca_db_ready || rc=$?; echo "db_ready=$rc"',
+      ].join('\n'));
+      assert.match(g.out, /found=1/, 'the fake host offers no sqlite3 at all');
+      assert.match(g.out, /db_ready=1/, 'so the panel selection cannot be read here');
+    });
+  } finally {
+    rmSync(planted, { recursive: true, force: true });
+  }
+});
+
 test('without sqlite3, activation places the page and says exactly what to set', () => {
   withHost({ sqlite: false }, ({ host, run }) => {
     const before = last(host);
@@ -473,5 +522,11 @@ test('install, verify, rebrand, switch design, roll back and uninstall on a Rebe
     assert.equal(existsSync(rt), false);
     assert.equal(existsSync(join(base, 'row-template')), false);
     assert.ok(readdirSync(host.dataDir).includes('db.sqlite3'), 'the database is still there');
+
+    /* The whole life cycle ran offline. curl and wget are denied in this host
+       and every attempt is recorded, so this is a measurement, not a promise:
+       the payload is complete, rt_complete_install never fires, and nothing the
+       suite does may depend on a published release. */
+    assert.equal(netAttempts(base), '', 'the life cycle must not touch the network');
   });
 });
