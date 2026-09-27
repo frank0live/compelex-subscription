@@ -15,8 +15,7 @@
 # A developer's machine may have all three; a fresh checkout may not. The point
 # of running here is that "the suite passes" stops depending on whose machine it
 # ran on, and that the four commands below are the same four the release
-# checklist names, in the same order, failing on the first one that does not
-# pass.
+# checklist names, in the same order, each reporting its own result.
 #
 # NOT the Docs workflow. That one builds and publishes docs/ and never runs the
 # suite; a green "build" check on a pull request says nothing about this.
@@ -74,11 +73,18 @@ jobs:
       - name: npm test
         run: npm test
 
+      # Every command runs even when an earlier one failed: the point of this
+      # job is the four results, not the first one. The job still fails if any
+      # step did, because a failed step fails the job whatever the later ones
+      # report. Without this, a red `npm test` would hide the other three.
       - name: npm run verify
+        if: ${{ !cancelled() }}
         run: npm run verify
 
       - name: npm run lint:sh
+        if: ${{ !cancelled() }}
         run: npm run lint:sh
 
       - name: npm run build:panels
+        if: ${{ !cancelled() }}
         run: npm run build:panels
