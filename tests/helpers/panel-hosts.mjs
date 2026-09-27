@@ -64,9 +64,14 @@ export const PYTHON = workingProgram(process.platform === 'win32' ? ['python', '
 export function bashRun(lines, { paths = {}, env = {} } = {}) {
   const head = Object.entries(paths).map(([k, v]) =>
     `${k}="$(cygpath -u ${sq(v)} 2>/dev/null || printf '%s' ${sq(v)})"; export ${k}`);
+  // A bare string is ONE line, not one line per character: `...lines` on a
+  // string spreads its characters, which turns the script into a column of
+  // one-character commands that dies under `set -e` before printing anything.
+  // Accept either shape, the way the suites' own `run` helpers do.
+  const body = [].concat(lines);
   const script = ['set -Eeuo pipefail',
     'unset RT_TEMPLATE RT_RELEASE_URL RT_RELEASE_DIR RT_ASSUME_YES RT_PANEL RT_SMOKE_URL XUI_DB_FOLDER',
-    ...head, ...lines].join('\n');
+    ...head, ...body].join('\n');
   const r = spawnSync('bash', ['-c', script], {
     cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: { ...process.env, ...env },
   });
@@ -251,16 +256,26 @@ exit 1
 /* A PATH that is the one given, minus every directory that holds a sqlite3
    executable. Those directories are replaced by a mirror of themselves -- the
    same entries, symlinked, without sqlite3 -- so nothing else on the host stops
-   resolving. Cached per input, because mirroring /usr/bin is ~1200 links. */
+   resolving. Cached per input, because mirroring /usr/bin is ~1500 links.
+
+   A mirror is only trusted once it is stamped. A run killed by a signal (a
+   timeout, a cancelled job) never reaches the exit hook below, and a half-built
+   mirror would otherwise be reused on the next run -- and, if `bash` happened to
+   be the entry that never got linked, fail in a way that has nothing to do with
+   sqlite3. */
 const mirrors = new Map();
 function mirrorWithoutSqlite(dir) {
   const dest = join(tmpdir(), `row-nosqlite-${sha256(dir).slice(0, 12)}`);
-  if (!existsSync(dest)) {
+  const stamp = join(dest, '.mirror-complete');
+  if (!existsSync(stamp)) {
+    rmSync(dest, { recursive: true, force: true });
     mkdirSync(dest, { recursive: true });
+    let n = 0;
     for (const entry of readdirSync(dir)) {
       if (entry === 'sqlite3') continue;
-      try { symlinkSync(join(dir, entry), join(dest, entry)); } catch { /* unreadable entry: skip it */ }
+      try { symlinkSync(join(dir, entry), join(dest, entry)); n += 1; } catch { /* unreadable entry: skip it */ }
     }
+    writeFileSync(stamp, `${n}\n`);
     process.on('exit', () => rmSync(dest, { recursive: true, force: true }));
   }
   return dest;

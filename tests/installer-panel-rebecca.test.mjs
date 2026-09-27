@@ -453,8 +453,9 @@ test('sqlite: false takes every sqlite3 off PATH, a real one included', () => {
     const seen = bashRun([
       's=0; command -v sqlite3 >/dev/null 2>&1 || s=$?; echo "sqlite3=$s"',
       'm=0; command -v rowmarker >/dev/null 2>&1 || m=$?; echo "rowmarker=$m"',
-    ].join('\n'), { env: { PATH: scrubbed } });
-    assert.match(seen.out, /sqlite3=1/, 'command -v sqlite3 fails -- the gate the adapters ask');
+    ], { env: { PATH: scrubbed } });
+    assert.match(seen.out, /sqlite3=1/,
+      `command -v sqlite3 fails -- the gate the adapters ask\n${seen.code}\n${seen.err}`);
     assert.match(seen.out, /rowmarker=0/, 'and the rest of the host still resolves');
 
     // And through the host the suite actually builds.
