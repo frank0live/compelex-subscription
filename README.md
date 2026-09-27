@@ -4,7 +4,7 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/branding/row-template-logo.png">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/branding/Row-Template Logo 2 ( ENG ).png">
     <img src="docs/assets/branding/row-template-wordmark-en.png" alt="Row-Template" height="140">
   </picture>
 </p>
