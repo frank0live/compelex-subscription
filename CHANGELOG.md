@@ -70,6 +70,19 @@ involved.
 - `docs/design/FLAG-RENDERER-AUDIT.md` §17 — the alpha-2 path is an **input**
   extension; the return shape, `CODES` and every fallback are unchanged.
 
+### Development
+
+- **The release validation now runs on Linux, in CI.** The repository's only
+  workflow was `Docs`, which builds the documentation site and never ran the
+  suite — so a green check on a pull request said nothing about whether the page
+  still rendered. `.github/workflows/release-validation.yml` runs the four
+  release commands (`npm test`, `npm run verify`, `npm run lint:sh`,
+  `npm run build:panels`) on `ubuntu-latest`, installing the three tools the
+  suite needs and a Node runtime does not provide: **Go** (the fixture renderer
+  and the pongo2 harness), **Python 3 with Jinja2** (the PasarGuard harness) and
+  **ShellCheck**. Each command reports its own result even when an earlier one
+  fails, because the point of the job is the four results.
+
 ## [1.3.0] - 2026-09-26
 
 Row-Template now installs on **PasarGuard** and **Rebecca** as well as 3X-UI,
