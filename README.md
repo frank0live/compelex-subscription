@@ -51,7 +51,7 @@ It ships as one self-contained HTML file per design, with every style, script, f
 
 ## Designs
 
-Row-Template 1.3.0 ships seventeen designs. Row is the default.
+Row-Template 1.3.1 ships seventeen designs. Row is the default.
 
 <table>
   <tr>
@@ -118,13 +118,14 @@ Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scri
 
 The three panels use three different template engines — Go `html/template`, Jinja2 and pongo2 — so every design is built once per panel, and each version is tested by rendering it with that panel's real engine. The installer detects which panel is on the server; on a server with more than one, it asks (or reads `RT_PANEL`). **Supported** means all seven capabilities are present on that panel — detect, install, activate, verify, backup, restore and uninstall — and each one is exercised by the test suite. See [Compatibility](https://iitzseridev.github.io/Row-Template/compatibility/) for the details of each panel.
 
-**Limitations in 1.3.0:**
+**Limitations in 1.3.1:**
 
 - **Live refresh is 3X-UI only.** On PasarGuard and Rebecca the page shows usage and expiry as of when it was opened.
 - **Rebecca's Docker image is refused.** It is still 0.0.x, the Python edition; Rebecca's own `rebecca migrate-binary` moves a Docker install to 1.x.
 - **One setting by hand** when automatic activation is not possible: 3X-UI without `sqlite3`, and Rebecca on MySQL/MariaDB or without `sqlite3`.
 - **Panel settings still take precedence** on PasarGuard and Rebecca: an admin's own subscription template, and PasarGuard's **disable subscription template** setting. `row-template verify` reports both.
-- **PasarGuard's page title** (`subTitle`) and **Clash templates** are not produced; only the subscription page is.
+- **Clash templates** are not produced; only the subscription page is.
+- **Flags come from a code or an emoji, never from a name.** An ISO 3166-1 alpha-2 code in the node name (`TR | Istanbul`, `RU-01`, `GB-LON-1`, `DE`) draws that country's flag, as does a flag emoji. Country *names* and *city names* (`Turkey - Istanbul`, `Finland Helsinki`) are **not** inferred and keep the monogram.
 - **One panel per server.** An installation serves the panel it was installed for; to serve a different one, run `row-template uninstall` first.
 
 ## Architecture
