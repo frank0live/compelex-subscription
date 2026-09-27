@@ -51,5 +51,3 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# --- local AI workspace ------------------------------------------------------
-.workbuddy-ai/

@@ -3,7 +3,10 @@
      translated READMEs. -->
 
 <p align="center">
-  <img src="docs/assets/row-template-banner.png" alt="Row-Template" width="900">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/branding/Row-Template Logo 2 ( ENG ).png">
+    <img src="docs/assets/branding/row-template-wordmark-en.png" alt="Row-Template" height="140">
+  </picture>
 </p>
 
 <p align="center">
@@ -80,7 +83,7 @@ Row-Template 1.3.0 ships seventeen designs. Row is the default.
 
 <sub>Previews are rendered from the project's own placeholder data. Desktop and mobile previews of every design are in the <a href="https://iitzseridev.github.io/Row-Template/templates/">template gallery</a>.</sub>
 
-Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scripted one, or change it later from the manager (**Reconfigure branding → Template**). Updates keep your choice.
+Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scripted one, or change it later from the manager (**Reconfigure branding → Template**). Updates keep your choice. The `RT_TEMPLATE` values are `row`, `editorial`, `canvas`, `prism`, `terminal`, `pulse`, `brutal`, `arcade`, `sketch`, `signature`, `saffron`, `pulsenova`, `prismnova`, `terminalnova`, `arcadenova`, `meter`, and `notebook`.
 
 ## Features
 
@@ -110,10 +113,19 @@ Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scri
 | Panel | Status | Notes |
 | ----- | ------ | ----- |
 | [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ Supported | Requires version **>= 3.6.0** |
-| [PasarGuard](https://github.com/PasarGuard/panel) | ✅ Supported since 1.3.0 | The official Docker install or a source install (`pasarguard.service`) |
-| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ Supported since 1.3.0 | Rebecca **1.x**, the Go edition (Rebecca's binary install). Automatic activation with SQLite and `sqlite3`; with MySQL/MariaDB, one setting to enter in the dashboard. The Docker image is still 0.0.x and is refused |
+| [PasarGuard](https://github.com/PasarGuard/panel) | ✅ Supported since 1.3.0 | PasarGuard **5.x** — the official Docker install or a source install (`pasarguard.service`) |
+| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ Supported since 1.3.0 | Rebecca **1.x**, the Go edition (Rebecca's binary install). Automatic activation with SQLite and `sqlite3`; with MySQL/MariaDB, one setting to enter in the dashboard. **Not supported:** the Docker image, which is still Rebecca 0.0.x (the Python edition) — the installer refuses it and changes nothing |
 
 The three panels use three different template engines — Go `html/template`, Jinja2 and pongo2 — so every design is built once per panel, and each version is tested by rendering it with that panel's real engine. The installer detects which panel is on the server; on a server with more than one, it asks (or reads `RT_PANEL`). **Supported** means all seven capabilities are present on that panel — detect, install, activate, verify, backup, restore and uninstall — and each one is exercised by the test suite. See [Compatibility](https://iitzseridev.github.io/Row-Template/compatibility/) for the details of each panel.
+
+**Limitations in 1.3.0:**
+
+- **Live refresh is 3X-UI only.** On PasarGuard and Rebecca the page shows usage and expiry as of when it was opened.
+- **Rebecca's Docker image is refused.** It is still 0.0.x, the Python edition; Rebecca's own `rebecca migrate-binary` moves a Docker install to 1.x.
+- **One setting by hand** when automatic activation is not possible: 3X-UI without `sqlite3`, and Rebecca on MySQL/MariaDB or without `sqlite3`.
+- **Panel settings still take precedence** on PasarGuard and Rebecca: an admin's own subscription template, and PasarGuard's **disable subscription template** setting. `row-template verify` reports both.
+- **PasarGuard's page title** (`subTitle`) and **Clash templates** are not produced; only the subscription page is.
+- **One panel per server.** An installation serves the panel it was installed for; to serve a different one, run `row-template uninstall` first.
 
 ## Architecture
 
@@ -132,7 +144,7 @@ flowchart TB
   end
   build -- "GitHub Releases" --> host
   host -- "serves the page" --> BROWSER["Subscriber's browser"]
-  BROWSER -. "live status: ?format=info" .-> host
+  BROWSER -. "live status (3X-UI): ?format=info" .-> host
 ```
 
 - **One file per design.** `tools/build.mjs` inlines the shared runtime, the translations, the fonts, and the QR generator into a design's layout, and refuses a layout that is missing any hook the runtime needs. `tools/verify.mjs` then rejects an artifact that loads anything remote or carries a forbidden construct.
@@ -152,7 +164,7 @@ flowchart TB
 
 > **Recommended OS: Ubuntu 24.04 LTS (x86_64).** Other modern Linux distributions may work but have not had the same validation coverage.
 
-**Requirements:** a server running 3X-UI **>= 3.6.0**, PasarGuard, or Rebecca **1.x**; root access to it; and `curl`, `tar`, and `sha256sum` (present on virtually all Linux systems). Automatic activation on 3X-UI and Rebecca also needs `sqlite3`.
+**Requirements:** a server running 3X-UI **>= 3.6.0**, PasarGuard **5.x**, or Rebecca **1.x** (its binary install; the 0.0.x Docker image is not supported); root access to it; and `curl`, `tar`, and `sha256sum` (present on virtually all Linux systems). Automatic activation on 3X-UI and Rebecca also needs `sqlite3`.
 
 Run as **root** on the server that hosts your panel:
 
@@ -175,11 +187,13 @@ To choose a design without the chooser, for example in a script:
 RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
 
-On a server that runs more than one supported panel, the installer asks which one to serve; in a script, name it with `RT_PANEL` (`3xui`, `pasarguard` or `rebecca`):
+On a server that runs more than one supported panel, the installer asks which one to serve. A scripted (non-interactive) fresh install on such a server **must** name it with `RT_PANEL` (`3xui`, `pasarguard` or `rebecca`); without it, the installer stops before changing anything:
 
 ```bash
 RT_PANEL=pasarguard bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
+
+`RT_PANEL` must name a panel that is installed on that server. A re-run or an update keeps the panel Row-Template was installed for.
 
 If you prefer not to pipe from the network, download the four release assets (`install.sh`, `manifest.txt`, `SHA256SUMS`, and `row-template-<version>.tar.gz`) from the [Releases page](https://github.com/frank0live/Row-Template/releases/latest) into one folder, verify the checksum yourself as described in [PROVENANCE.md](PROVENANCE.md), and point the installer at that folder:
 
@@ -215,12 +229,12 @@ SUBSCRIPTION_PAGE_TEMPLATE = "row-template/index.html"
 
 PasarGuard reads `.env` at start-up, so a running panel is restarted once. None of your own lines are edited; uninstall removes the block and returns `.env` to its exact previous bytes. An admin with their own subscription template, or the **disable subscription template** setting, still takes precedence — `row-template verify` tells you when either applies.
 
-Row-Template supports Rebecca **1.x**, the Go edition, which Rebecca publishes for its binary install (`rebecca-binary.sh`). Docker Hub's `rebeccapanel/rebecca` image is still the 0.0.x Python edition, which cannot render this page; the installer refuses it and changes nothing, and Rebecca's own `rebecca migrate-binary` moves a Docker install to 1.x.
-
 **Rebecca.** The page is placed at `/var/lib/rebecca/templates/row-template/index.html` (or inside your own custom templates directory), and Rebecca's subscription settings are set to `row-template/index.html`. Rebecca reads them on every request, so no restart is needed.
 
 - **Automatic** with the default SQLite database and `sqlite3` installed.
 - **Manual** with MySQL/MariaDB (or without `sqlite3`): the page is still placed; in the Rebecca dashboard open **Settings → Subscription → Templates** and set **Subscription page template** to `row-template/index.html` and **Custom templates directory** to `/var/lib/rebecca/templates`.
+
+Row-Template supports Rebecca **1.x**, the Go edition, which Rebecca publishes for its binary install (`rebecca-binary.sh`). Docker Hub's `rebeccapanel/rebecca` image is still the 0.0.x Python edition, which cannot render this page; the installer refuses it and changes nothing, and Rebecca's own `rebecca migrate-binary` moves a Docker install to 1.x.
 
 ## Usage
 
@@ -246,8 +260,8 @@ Commands that change the system (`config`, `update`, `rollback`, `uninstall`) mu
 
 - **Branding** is stored as data, never executed, and injected into the page as text. Leave a field blank for an unbranded page. The support link accepts only schemes a browser should open, such as `https://…`, `tg://…`, or `mailto:…`.
 - **Updates** come from the public stable channel. `row-template update` always applies the latest stable release, even the version you already run; the manager's **Update** compares versions first and asks before changing anything. If the release source is unreachable, nothing is changed and your installation is never treated as damaged.
-- **Updating from 1.1.0 or 1.2.x** takes one `row-template update`. 1.1.0's own updater copies only part of the new release, so the next `row-template`, `row-template config`, or `row-template verify` run as root first downloads the rest of that same release — every design, checksum-verified. Your design, branding, and panel wiring are kept.
-- **Rollback** restores a previous version from a validated backup. The current version is snapshotted first, so a failed rollback can be recovered, and your branding is preserved. Backups record the panel they were made on and are never restored onto another; a backup from an older release that does not name its design restores as Row.
+- **Updating from 1.1.0 or 1.2.0** takes one `row-template update`. 1.1.0's own updater copies only part of the new release, so the next `row-template`, `row-template config`, or `row-template verify` run as root first downloads the rest of that same release — every design, checksum-verified. Your design, branding, and panel wiring are kept. Earlier releases did not install on PasarGuard or Rebecca; there, run the installer.
+- **Rollback** restores a previous version from a validated backup. The current version is snapshotted first, so a failed rollback can be recovered, and your branding is preserved. Backups record the panel they were made on and are never restored onto another; a backup from an older release that does not name its design restores as Row. A rollback restores the page and the version it records, not the `row-template` manager itself: after rolling back to a 1.1.0 backup, `row-template version` reports 1.1.0 while the 1.3.0 manager stays in place, and the next `row-template update` returns to 1.3.0. Only the two newest backups are kept — each update, design switch, and rollback makes one.
 - **Uninstall** removes Row-Template's files and returns the panel to the page it had before: on 3X-UI it clears `subThemeDir` only if it points at Row-Template; on PasarGuard it removes its `.env` block and its page; on Rebecca it restores the two subscription settings it changed (leaving them alone if you have since chosen another page). Your users, inbounds, clients, nodes, and certificates are not touched.
 
 The [documentation](https://iitzseridev.github.io/Row-Template/) covers configuration, branding, and troubleshooting in more depth.
@@ -278,7 +292,6 @@ The build is deterministic — the same sources always produce a byte-identical 
 
 Direction, not promises:
 
-- **Row-Template 1.3.0** — PasarGuard and Rebecca support, and the Meter and Notebook designs, described above.
 - **Live status on PasarGuard and Rebecca** — both serve it on a path suffix rather than `?format=info`; wiring it up needs a small runtime change, and that decision is deferred. See [Compatibility](https://iitzseridev.github.io/Row-Template/compatibility/).
 - **Custom templates** — a proposal for adding your own design: [`docs/design/CUSTOM-TEMPLATES-PROPOSAL.md`](docs/design/CUSTOM-TEMPLATES-PROPOSAL.md).
 

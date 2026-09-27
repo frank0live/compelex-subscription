@@ -3,7 +3,10 @@
      README ترجمه شده نگه دارید. -->
 
 <p align="center">
-  <img src="docs/assets/row-template-banner.png" alt="Row-Template" width="900">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/branding/row-template-logo.png">
+    <img src="docs/assets/branding/row-template-wordmark-fa.png" alt="Row-Template" height="140">
+  </picture>
 </p>
 
 <p align="center">
@@ -80,7 +83,7 @@ Row-Template 1.3.0 با هفده طرح عرضه می شود. طرح پیش فر
 
 <sub>پیش نمایش ها با داده های نمونهٔ خود پروژه ساخته شده اند. پیش نمایش دسکتاپ و موبایل همهٔ طرح ها در <a href="https://iitzseridev.github.io/Row-Template/fa/templates/">گالری طرح ها</a> موجود است.</sub>
 
-طرح را هنگام یک نصب تعاملی تازه انتخاب کنید، برای نصب اسکریپتی `RT_TEMPLATE` را تنظیم کنید، یا بعداً آن را از مدیر تغییر دهید (**Reconfigure branding → Template**). به روزرسانی ها انتخاب شما را حفظ می کنند.
+طرح را هنگام یک نصب تعاملی تازه انتخاب کنید، برای نصب اسکریپتی `RT_TEMPLATE` را تنظیم کنید، یا بعداً آن را از مدیر تغییر دهید (**Reconfigure branding → Template**). به روزرسانی ها انتخاب شما را حفظ می کنند. مقدارهای `RT_TEMPLATE` عبارت اند از `row`، `editorial`، `canvas`، `prism`، `terminal`، `pulse`، `brutal`، `arcade`، `sketch`، `signature`، `saffron`، `pulsenova`، `prismnova`، `terminalnova`، `arcadenova`، `meter` و `notebook`.
 
 ## ویژگی ها
 
@@ -110,10 +113,19 @@ Row-Template 1.3.0 با هفده طرح عرضه می شود. طرح پیش فر
 | پنل | وضعیت | یادداشت ها |
 | ----- | ------ | ----- |
 | [3X-UI](https://github.com/MHSanaei/3x-ui) (MHSanaei) | ✅ پشتیبانی شده | نیازمند نسخهٔ **>= 3.6.0** |
-| [PasarGuard](https://github.com/PasarGuard/panel) | ✅ پشتیبانی شده از 1.3.0 | نصب رسمی Docker یا نصب از سورس (`pasarguard.service`) |
-| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ پشتیبانی شده از 1.3.0 | Rebecca نسخهٔ **1.x**، نسخهٔ Go (نصب باینری Rebecca). فعال سازی خودکار با SQLite و `sqlite3`؛ با MySQL/MariaDB یک تنظیم که باید در داشبورد وارد شود. ایمیج Docker هنوز 0.0.x است و رد می شود |
+| [PasarGuard](https://github.com/PasarGuard/panel) | ✅ پشتیبانی شده از 1.3.0 | PasarGuard نسخهٔ **5.x** — نصب رسمی Docker یا نصب از سورس (`pasarguard.service`) |
+| [Rebecca](https://github.com/rebeccapanel/Rebecca) | ✅ پشتیبانی شده از 1.3.0 | Rebecca نسخهٔ **1.x**، نسخهٔ Go (نصب باینری Rebecca). فعال سازی خودکار با SQLite و `sqlite3`؛ با MySQL/MariaDB یک تنظیم که باید در داشبورد وارد شود. **پشتیبانی نمی شود:** ایمیج Docker که هنوز Rebecca نسخهٔ 0.0.x (نسخهٔ پایتونی) است — نصب کننده آن را رد می کند و چیزی را تغییر نمی دهد |
 
 این سه پنل از سه موتور قالب متفاوت استفاده می کنند — `html/template` زبان Go، Jinja2 و pongo2 — پس هر طرح برای هر پنل یک بار ساخته می شود و هر نسخه با رندر شدن توسط موتور واقعی همان پنل آزموده می شود. نصب کننده تشخیص می دهد کدام پنل روی سرور است؛ روی سروری با بیش از یک پنل، از شما می پرسد (یا `RT_PANEL` را می خواند). **پشتیبانی‌شده** یعنی هر هفت توانایی روی آن پنل موجود است — تشخیص، نصب، فعال‌سازی، بررسی، پشتیبان‌گیری، بازگردانی و حذف نصب — و هر کدام توسط مجموعهٔ آزمون آزموده می شود. برای جزئیات هر پنل، [سازگاری](https://iitzseridev.github.io/Row-Template/fa/compatibility/) را ببینید.
+
+**محدودیت های 1.3.0:**
+
+- **به روزرسانی زنده فقط در 3X-UI.** در PasarGuard و Rebecca، صفحه مصرف و انقضا را همان طور نشان می دهد که هنگام باز شدن صفحه بود.
+- **ایمیج Docker مربوط به Rebecca رد می شود.** این ایمیج هنوز 0.0.x، یعنی نسخهٔ پایتونی است؛ دستور `rebecca migrate-binary` خود Rebecca یک نصب Docker را به 1.x منتقل می کند.
+- **یک تنظیم دستی** وقتی فعال سازی خودکار ممکن نیست: 3X-UI بدون `sqlite3`، و Rebecca با MySQL/MariaDB یا بدون `sqlite3`.
+- **تنظیمات پنل همچنان اولویت دارند** در PasarGuard و Rebecca: قالب اشتراک اختصاصی یک ادمین، و تنظیم **disable subscription template** در PasarGuard. `row-template verify` هر دو را گزارش می دهد.
+- **عنوان صفحهٔ PasarGuard** (`subTitle`) و **قالب های Clash** ساخته نمی شوند؛ فقط صفحهٔ اشتراک ساخته می شود.
+- **یک پنل برای هر سرور.** هر نصب به پنلی سرویس می دهد که برای آن نصب شده است؛ برای سرویس دادن به پنل دیگر، ابتدا `row-template uninstall` را اجرا کنید.
 
 ## معماری
 
@@ -132,7 +144,7 @@ flowchart TB
   end
   build -- "GitHub Releases" --> host
   host -- "serves the page" --> BROWSER["Subscriber's browser"]
-  BROWSER -. "live status: ?format=info" .-> host
+  BROWSER -. "live status (3X-UI): ?format=info" .-> host
 ```
 
 - **یک فایل برای هر طرح.** `tools/build.mjs` کد اجرایی مشترک، ترجمه ها، فونت ها و مولد QR را درون چیدمان هر طرح می گنجاند و چیدمانی را که هر یک از قلاب های (hook) مورد نیاز کد اجرایی را نداشته باشد رد می کند. سپس `tools/verify.mjs` هر فایلی را که چیزی را از راه دور بارگذاری کند یا ساختاری ممنوع داشته باشد رد می کند.
@@ -152,7 +164,7 @@ flowchart TB
 
 > **سیستم عامل پیشنهادی: Ubuntu 24.04 LTS (x86_64).** دیگر توزیع های امروزی لینوکس نیز ممکن است کار کنند، اما پوشش اعتبارسنجی یکسانی نداشته اند.
 
-**پیش نیازها:** سروری با 3X-UI **>= 3.6.0**، PasarGuard یا Rebecca **1.x**؛ دسترسی root به آن؛ و `curl`، `tar` و `sha256sum` (که تقریباً روی همهٔ سیستم های لینوکس موجود است). فعال سازی خودکار در 3X-UI و Rebecca به `sqlite3` هم نیاز دارد.
+**پیش نیازها:** سروری با 3X-UI **>= 3.6.0**، PasarGuard **5.x** یا Rebecca **1.x** (نصب باینری آن؛ ایمیج Docker نسخهٔ 0.0.x پشتیبانی نمی شود)؛ دسترسی root به آن؛ و `curl`، `tar` و `sha256sum` (که تقریباً روی همهٔ سیستم های لینوکس موجود است). فعال سازی خودکار در 3X-UI و Rebecca به `sqlite3` هم نیاز دارد.
 
 با کاربر **root** روی سروری که پنل شما را میزبانی می کند اجرا کنید:
 
@@ -175,11 +187,13 @@ bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/dow
 RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
 
-روی سروری که بیش از یک پنل پشتیبانی شده دارد، نصب کننده می پرسد کدام را سرویس دهد؛ در یک اسکریپت، آن را با `RT_PANEL` (`3xui`، `pasarguard` یا `rebecca`) مشخص کنید:
+روی سروری که بیش از یک پنل پشتیبانی شده دارد، نصب کننده می پرسد کدام را سرویس دهد. یک نصب تازهٔ اسکریپتی (غیرتعاملی) روی چنین سروری **باید** پنل را با `RT_PANEL` (`3xui`، `pasarguard` یا `rebecca`) مشخص کند؛ بدون آن، نصب کننده پیش از هر تغییری متوقف می شود:
 
 ```bash
 RT_PANEL=pasarguard bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
 ```
+
+`RT_PANEL` باید پنلی را نام ببرد که روی همان سرور نصب است. اجرای دوباره یا به روزرسانی، پنلی را که Row-Template برای آن نصب شده حفظ می کند.
 
 اگر ترجیح می دهید از طریق شبکه به صورت pipe عمل نکنید، چهار فایل نسخه (`install.sh`، `manifest.txt`، `SHA256SUMS` و `row-template-<version>.tar.gz`) را از [صفحهٔ Releases](https://github.com/frank0live/Row-Template/releases/latest) در یک پوشه دانلود کنید، مجموع کنترلی را خودتان همان گونه که در [PROVENANCE.md](PROVENANCE.md) توضیح داده شده بررسی کنید و نصب کننده را به آن پوشه ارجاع دهید:
 
@@ -215,12 +229,12 @@ SUBSCRIPTION_PAGE_TEMPLATE = "row-template/index.html"
 
 PasarGuard فایل `.env` را هنگام راه اندازی می خواند، پس پنلی که در حال اجراست یک بار راه اندازی مجدد می شود. هیچ یک از خط های خودتان ویرایش نمی شود؛ حذف نصب بلوک را برمی دارد و `.env` را دقیقاً به بایت های قبلی اش بازمی گرداند. ادمینی که قالب اشتراک خودش را دارد، یا تنظیم **disable subscription template**، همچنان مقدم است — `row-template verify` به شما می گوید اگر یکی از آن ها برقرار باشد.
 
-Row-Template از Rebecca نسخهٔ **1.x** پشتیبانی می کند، یعنی نسخهٔ Go که Rebecca برای نصب باینری خود (`rebecca-binary.sh`) منتشر می کند. ایمیج `rebeccapanel/rebecca` در Docker Hub هنوز نسخهٔ 0.0.x پایتونی است که نمی تواند این صفحه را رندر کند؛ نصب کننده آن را رد می کند و چیزی را تغییر نمی دهد، و دستور `rebecca migrate-binary` خود Rebecca یک نصب Docker را به 1.x منتقل می کند.
-
 **Rebecca.** صفحه در `/var/lib/rebecca/templates/row-template/index.html` قرار می گیرد (یا درون دایرکتوری قالب های سفارشی خودتان)، و تنظیمات اشتراک Rebecca روی `row-template/index.html` تنظیم می شود. Rebecca این تنظیمات را در هر درخواست می خواند، پس نیازی به راه اندازی مجدد نیست.
 
 - **خودکار** با پایگاه دادهٔ پیش فرض SQLite و نصب بودن `sqlite3`.
 - **دستی** با MySQL/MariaDB (یا بدون `sqlite3`): صفحه همچنان جایگذاری می شود؛ در داشبورد Rebecca، **Settings → Subscription → Templates** را باز کنید و **Subscription page template** را `row-template/index.html` و **Custom templates directory** را `/var/lib/rebecca/templates` قرار دهید.
+
+Row-Template از Rebecca نسخهٔ **1.x** پشتیبانی می کند، یعنی نسخهٔ Go که Rebecca برای نصب باینری خود (`rebecca-binary.sh`) منتشر می کند. ایمیج `rebeccapanel/rebecca` در Docker Hub هنوز نسخهٔ 0.0.x پایتونی است که نمی تواند این صفحه را رندر کند؛ نصب کننده آن را رد می کند و چیزی را تغییر نمی دهد، و دستور `rebecca migrate-binary` خود Rebecca یک نصب Docker را به 1.x منتقل می کند.
 
 ## استفاده
 
@@ -246,8 +260,8 @@ row-template
 
 - **برندسازی** به عنوان داده ذخیره می شود، هرگز اجرا نمی شود و به صورت متن در صفحه تزریق می گردد. برای یک صفحهٔ بدون برند، فیلدی را خالی بگذارید. پیوند پشتیبانی تنها پروتکل هایی را می پذیرد که مرورگر باید باز کند، مانند `https://…`، `tg://…` یا `mailto:…`.
 - **به روزرسانی ها** از کانال عمومی نسخه های پایدار می آیند. `row-template update` همیشه آخرین نسخهٔ پایدار را اعمال می کند، حتی اگر همان نسخه را داشته باشید؛ گزینهٔ **Update** در منوی مدیریت ابتدا نسخه ها را مقایسه می کند و پیش از هر تغییری می پرسد. اگر منبع انتشار در دسترس نباشد، چیزی تغییر نمی کند و نصب شما هرگز آسیب دیده تلقی نمی شود.
-- **به روزرسانی از 1.1.0 یا 1.2.x** با یک بار اجرای `row-template update` انجام می شود. به روزرسان خود 1.1.0 فقط بخشی از نسخهٔ جدید را کپی می کند، برای همین اجرای بعدی `row-template`، `row-template config` یا `row-template verify` با دسترسی root، ابتدا بقیهٔ همان نسخه را دریافت می کند — همهٔ طرح ها، با بررسی checksum. طرح، برندسازی و اتصال پنل شما حفظ می شوند.
-- **بازگردانی** یک نسخهٔ پیشین را از یک پشتیبان اعتبارسنجی شده بازیابی می کند. ابتدا از نسخهٔ فعلی یک عکس فوری (snapshot) گرفته می شود تا یک بازگردانی ناموفق قابل جبران باشد، و برندسازی شما حفظ می شود. پشتیبان ها پنلی را که روی آن ساخته شده اند ثبت می کنند و هرگز روی پنل دیگری بازگردانده نمی شوند؛ پشتیبانی از یک نسخهٔ قدیمی تر که نام طرحش را ثبت نکرده، به صورت Row بازگردانده می شود.
+- **به روزرسانی از 1.1.0 یا 1.2.0** با یک بار اجرای `row-template update` انجام می شود. به روزرسان خود 1.1.0 فقط بخشی از نسخهٔ جدید را کپی می کند، برای همین اجرای بعدی `row-template`، `row-template config` یا `row-template verify` با دسترسی root، ابتدا بقیهٔ همان نسخه را دریافت می کند — همهٔ طرح ها، با بررسی checksum. طرح، برندسازی و اتصال پنل شما حفظ می شوند. نسخه های پیشین روی PasarGuard یا Rebecca نصب نمی شدند؛ در آنجا نصب کننده را اجرا کنید.
+- **بازگردانی** یک نسخهٔ پیشین را از یک پشتیبان اعتبارسنجی شده بازیابی می کند. ابتدا از نسخهٔ فعلی یک عکس فوری (snapshot) گرفته می شود تا یک بازگردانی ناموفق قابل جبران باشد، و برندسازی شما حفظ می شود. پشتیبان ها پنلی را که روی آن ساخته شده اند ثبت می کنند و هرگز روی پنل دیگری بازگردانده نمی شوند؛ پشتیبانی از یک نسخهٔ قدیمی تر که نام طرحش را ثبت نکرده، به صورت Row بازگردانده می شود. بازگردانی، صفحه و نسخه ای را که پشتیبان ثبت کرده بازیابی می کند، نه خود مدیر `row-template` را: پس از بازگردانی به یک پشتیبان 1.1.0، `row-template version` نسخهٔ 1.1.0 را گزارش می دهد در حالی که مدیر 1.3.0 سر جایش می ماند، و `row-template update` بعدی به 1.3.0 برمی گردد. فقط دو پشتیبان جدیدتر نگه داشته می شوند — هر به روزرسانی، تغییر طرح و بازگردانی یکی می سازد.
 - **حذف نصب** فایل های Row-Template را حذف می کند و پنل را به صفحه ای که پیش تر داشت بازمی گرداند: در 3X-UI، `subThemeDir` را تنها در صورتی پاک می کند که به Row-Template اشاره کند؛ در PasarGuard بلوک `.env` و صفحهٔ خودش را برمی دارد؛ در Rebecca دو تنظیم اشتراکی را که تغییر داده بازمی گرداند (و اگر از آن پس صفحهٔ دیگری انتخاب کرده باشید، به آن ها دست نمی زند). به کاربران، inboundها، کلاینت ها، نودها و گواهی های شما دست زده نمی شود.
 
 [مستندات](https://iitzseridev.github.io/Row-Template/fa/) پیکربندی، برندسازی و رفع اشکال را با جزئیات بیشتری پوشش می دهد.
@@ -278,7 +292,6 @@ npm run preview        # preview the fixture pages at http://127.0.0.1:8787
 
 جهت گیری، نه وعده:
 
-- **Row-Template 1.3.0** — پشتیبانی از PasarGuard و Rebecca، و طرح های Meter و Notebook، که در بالا توضیح داده شد.
 - **وضعیت زنده در PasarGuard و Rebecca** — هر دو آن را روی یک پسوند مسیر ارائه می دهند نه `?format=info`؛ اتصال آن به یک تغییر کوچک در کد اجرایی نیاز دارد و این تصمیم به تعویق افتاده است. [سازگاری](https://iitzseridev.github.io/Row-Template/fa/compatibility/) را ببینید.
 - **قالب های سفارشی** — پیشنهادی برای افزودن طرح خودتان: [`docs/design/CUSTOM-TEMPLATES-PROPOSAL.md`](docs/design/CUSTOM-TEMPLATES-PROPOSAL.md).
 
