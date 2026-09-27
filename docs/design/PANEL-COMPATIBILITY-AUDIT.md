@@ -1047,6 +1047,13 @@ subscriber's own address is deliberately excluded).
 | `datepicker` | `.datepicker` | — | — |
 | `links[]` | `.links` | `links` context key (may be `[]`) | `links` / `user.links` |
 
+> **The `subTitle` row is the `/info` mapping, not the page's.** Both panels
+> resolve that header from panel-wide settings, but **neither page context
+> carries it**: the page's own title is derived from the subscriber
+> (`user.username`, and on PasarGuard the admin's own `profile_title` first).
+> The header value and the page title can therefore legitimately differ. See
+> `PASARGUARD-ADAPTER-AUDIT.md` §8 and `REBECCA-ADAPTER-AUDIT.md` §2.
+
 Additional data neither panel needs to fake because the UI does not use it: the combined
 `used` is computed as `download + upload` in `normalize()`; with no split available the
 adapter supplies the combined value and the UI renders correctly (§0.5).

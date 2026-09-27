@@ -78,12 +78,26 @@ function pgPageTitle(doc) {
   return String(doc.native.info.username ?? '').trim();
 }
 
+/* The page's title, as the shipped prelude derives it
+   (src/panels/rebecca/prelude.pongo2). Rebecca's page context carries NO
+   profile title: the panel-wide subscription_profile_title is written into the
+   /info `profile-title` HEADER (subscriptionHeaders) and the page render path
+   (renderSubscriptionHTML -> renderSubscriptionPageTemplate) never passes it,
+   so the /info title the adapter reads is not visible to the page at all. The
+   one identity the page does receive is user.username, which is therefore the
+   page's name -- the same fallback the PasarGuard prelude takes when no
+   profile title is configured. The model reads the title back through
+   contract.mjs, which trims, so a whitespace-only name is no name here too. */
+function rbPageTitle(doc) {
+  return String(doc.native.info.username ?? '').trim();
+}
+
 function rbExpected(doc, links) {
   const subUrl = doc.native.info.subscription_url || '';
   return {
     ...doc.expected.model,
-    title: '',          // not in Rebecca's page context
-    announce: '',       // Rebecca has no announcement
+    title: rbPageTitle(doc),  // the header title is not in Rebecca's page context
+    announce: '',             // Rebecca has no announcement
     subUrl,
     subClashUrl: subUrl ? `${subUrl}/clash-meta` : '',
     links,
@@ -460,6 +474,105 @@ test('PasarGuard: the panel-wide subscription settings are not in the page conte
   assert.deepEqual(Object.keys(context).sort(), ['announce', 'announce_url', 'links', 'now', 'user']);
   assert.equal(Object.prototype.hasOwnProperty.call(context, 'sub_settings'), false);
   const [html] = renderPasarGuard([{ html: SHELL.pasarguard, context }]);
+  assert.ok(html.startsWith('<!doctype html>'));
+  assert.deepEqual(validateIsland(extractIsland(html)), []);
+});
+
+/* --- Rebecca: the subscriber names the page ---------------------------------
+   Rebecca's page context carries NO profile title. The panel-wide
+   subscription_profile_title is written into the /info `profile-title` HEADER
+   (subscriptionHeaders) and the page render path -- renderSubscriptionHTML ->
+   renderSubscriptionPageTemplate -- never passes it into the render context,
+   which is exactly {user, links, links_text, usage_url, support_url, token,
+   current_timestamp, remaining_days}. The one identity the page does receive is
+   user.username, so that is the page's name: the same fallback the PasarGuard
+   prelude takes when no profile title is configured. Every case below runs
+   through the SHIPPED prelude on the real pongo2. */
+
+/* The page context a real install builds for one subscriber, with the value
+   this section is about supplied explicitly. */
+function rbPage({ username }) {
+  const doc = RB.find((d) => d.case === '01-active-online');
+  const context = rebeccaContext(doc);
+  context.user.username = username;
+  const [html] = renderRebecca([{ html: SHELL.rebecca, context }]);
+  return { html, model: toModel(extractIsland(html)) };
+}
+
+test('Rebecca: the page names the subscriber, not the generic word', () => {
+  /* The reported defect: the page titled itself with the generic word. */
+  const { html, model } = rbPage({ username: 'alice' });
+  assert.equal(model.title, 'alice', 'the subscriber reaches the page model');
+  assert.ok(html.includes('<title>alice</title>'), 'and names the browser title');
+  assert.equal(html.includes('<title>Subscription</title>'), false, 'never the generic word');
+  assert.ok(html.includes('data-sub-title="alice"'), 'and labels the page');
+});
+
+test('Rebecca: the /info header title does not reach the page', () => {
+  /* The adapter reads `profile-title` from the /info headers and the fixtures
+     pin it, but the page never receives the headers. The subscriber's own name
+     must win, and the header value must not appear on the page at all. */
+  const doc = RB.find((d) => d.case === '12-base64-title');
+  assert.equal(doc.expected.model.title, 'گزارش وضعیت', 'the fixture really pins a header title');
+  const context = rebeccaContext(doc);
+  const [html] = renderRebecca([{ html: SHELL.rebecca, context }]);
+  assert.equal(toModel(extractIsland(html)).title, 'alice', 'the subscriber names the page');
+  assert.equal(html.includes('گزارش وضعیت'), false, 'the header title is not on the page');
+  assert.equal(html.includes('base64:'), false, 'and neither is its encoding');
+});
+
+test('Rebecca: a missing subscriber name keeps the generic fallback', () => {
+  for (const value of [null, undefined, '', '   ']) {
+    const { html, model } = rbPage({ username: value });
+    const label = JSON.stringify(value);
+    assert.equal(model.title, '', `${label}: no name is invented`);
+    assert.equal(html.includes('data-sub-title=""'), true, `${label}: the island title is empty`);
+    assert.ok(html.includes('<title>Subscription</title>'), `${label}: the generic fallback stands`);
+  }
+});
+
+test('Rebecca: a non-Latin subscriber name is carried as text', () => {
+  /* Rebecca's own validator restricts a username to [A-Za-z0-9._@-], 3..32
+     characters (internal/app/user/validation.go), so this is a value the panel
+     cannot produce today. The page must still carry it as text rather than
+     corrupt it, which is what makes the boundary safe if that rule widens. */
+  const name = '\u06a9\u0627\u0631\u0628\u0631-\u0622\u0632\u0645\u0627\u06cc\u0634\u06cc';
+  const { html, model } = rbPage({ username: name });
+  assert.equal(model.title, name, 'the name survives intact');
+  assert.ok(html.includes(name), 'and is written as text');
+});
+
+test('Rebecca: the subscriber name is escaped and never becomes markup', () => {
+  const { html, model } = rbPage({ username: HOSTILE });
+  assert.equal(model.title, HOSTILE, 'the name arrives whole, as text');
+  assert.equal(html.includes(HOSTILE), false, 'and never appears unescaped');
+  assert.equal(html.includes('"><script>'), false, 'no attribute value is broken out of');
+  assert.equal(html.includes('<img src=x onerror'), false, 'no element is injected');
+  const scripts = (text) => (text.match(/<script/gi) || []).length;
+  assert.equal(scripts(html), scripts(SHELL.rebecca), 'no script element is added');
+  assert.equal(html.includes('>49<') || html.includes('"49"'), false, '{{ 7*7 }} is not evaluated');
+});
+
+test('Rebecca: a long subscriber name is carried whole, not truncated', () => {
+  /* 32 characters is the panel's own ceiling for a username. */
+  const name = 'a'.repeat(32);
+  const { html, model } = rbPage({ username: name });
+  assert.equal(model.title, name);
+  assert.equal(html.includes(`data-sub-title="${name}"`), true);
+});
+
+test('Rebecca: the panel-wide profile title is not in the page context', () => {
+  /* The page context is exactly the map subscriptionTemplateContext builds
+     (internal/app/user/subscription.go). The panel-wide
+     subscription_profile_title goes to the `profile-title` HEADER and nowhere
+     else, so a shell that reached for it would render an empty title and never
+     say so: a context WITHOUT it still renders a whole document. */
+  const doc = RB.find((d) => d.case === '00-showcase');
+  const context = rebeccaContext(doc);
+  assert.deepEqual(Object.keys(context).sort(),
+    ['current_timestamp', 'links', 'remaining_days', 'support_url', 'token', 'user']);
+  assert.equal(Object.prototype.hasOwnProperty.call(context, 'profile_title'), false);
+  const [html] = renderRebecca([{ html: SHELL.rebecca, context }]);
   assert.ok(html.startsWith('<!doctype html>'));
   assert.deepEqual(validateIsland(extractIsland(html)), []);
 });

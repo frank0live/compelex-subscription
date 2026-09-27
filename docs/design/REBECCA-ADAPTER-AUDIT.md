@@ -139,6 +139,16 @@ Two things the context does that matter:
 - **`current_timestamp` is `time.Now().UTC().Unix()` — seconds.** Confirms the whole time model
   is seconds-based.
 
+**There is no profile title in it.** The panel-wide `subscription_profile_title` is written into
+the `profile-title` **header** above and nowhere else: `renderSubscriptionHTML` →
+`renderSubscriptionPageTemplate` (`internal/app/user/subscription.go:1131`, `:3687`) passes the
+context listed here, which has no title, no admin object and no service brand. The one identity
+the page does receive is `user.username`, so that is what the page's title is derived from
+(`src/panels/rebecca/prelude.pongo2`), with a generic fallback when it carries no word at all.
+The header title the adapter reads is therefore **not visible to the page**, which is why the
+page's title and the adapter's `title` field can legitimately differ — and why a page test must
+not assert the header value.
+
 The template itself uses **26 `if` / 26 `endif`, 8 `else`, 6 `for` / 6 `endfor`** — balanced, and
 all in the pongo2 dialect.
 

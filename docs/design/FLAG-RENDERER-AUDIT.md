@@ -1012,7 +1012,7 @@ badge. It is preserved exactly:
 | `CODES` | the validity source, 258 assigned codes | **unchanged** |
 | the monogram fallback | `flagOf(name) === ''` | **unchanged** |
 | `cleanName` | strips indicators, tidies separators | **unchanged** |
-| existing tests | 10 in `tests/flag.test.mjs` | **all pass verbatim** |
+| existing tests | 13 in `tests/flag.test.mjs` | **all pass verbatim** |
 
 What changed is the **input** vocabulary: a bare uppercase two-letter token is now
 read as a code *in addition to* the emoji scan. §8's `flagOf()` **unchanged** row
@@ -1087,10 +1087,11 @@ that had a code — now draw a flag.
 
 All **15** byte-locks were re-baselined (`tests/build.test.mjs`: the 4 individual
 locks and the 13-row `FROZEN_ARTIFACTS` table), because `flag.js` is shared.
-`tests/flag.test.mjs` gained six tests: the reported cases; **all 676 letter
-pairs** against the 258-code registry; the uppercase/bounded/assigned refusals;
-emoji-beats-code; a re-assertion that no previous answer moved; and the
-country-name boundary. The previous 10 tests pass verbatim.
+`tests/flag.test.mjs` went from **13 tests to 20** — seven added: the reported
+cases; **all 676 letter pairs** against the 258-code registry; the
+uppercase/bounded/assigned refusals; emoji-beats-code; a re-assertion that no
+previous answer moved; that the label is left exactly as the operator wrote it;
+and the country-name boundary. The previous 13 tests pass verbatim.
 
 ---
 
