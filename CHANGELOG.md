@@ -70,7 +70,7 @@ involved.
 - `docs/design/FLAG-RENDERER-AUDIT.md` §17 — the alpha-2 path is an **input**
   extension; the return shape, `CODES` and every fallback are unchanged.
 
-## [1.3.0] - Unreleased
+## [1.3.0] - 2026-09-26
 
 Row-Template now installs on **PasarGuard** and **Rebecca** as well as 3X-UI,
 and ships two more designs. A minor release: nothing changes for an existing
