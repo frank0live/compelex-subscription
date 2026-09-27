@@ -12,7 +12,7 @@
  * variables -- the same knobs a non-default APP_NAME would use, so no adapter
  * code is bypassed.
  *
- * WHAT IS DOUBLED, AND WHY. Two external programs the adapters talk to:
+ * WHAT IS DOUBLED, AND WHY. Three external programs the adapters talk to:
  *
  *   docker   a shim that keeps "is the panel container running" in a state
  *            directory, and on `compose up` loads the .env the way Docker
@@ -22,15 +22,25 @@
  *   sqlite3  forwards to Python's sqlite3 module (as the 3X-UI suite does), so
  *            Rebecca's database is a real SQLite file and every statement the
  *            adapter runs is executed for real.
+ *   curl     denied, and the attempt recorded. These suites are offline; see
+ *   wget     NET_DENY_SHIM below for what used to leak in through them.
  *
  * Everything else -- the adapters, the transaction engine, the library -- is
  * the shipping code.
+ *
+ * `sqlite: false` means the host has NO sqlite3, and it is enforced rather than
+ * assumed: the child runs with a PATH from which every directory holding a
+ * sqlite3 has been removed (pathWithoutSqlite). The adapters gate on
+ * `command -v sqlite3`, so shadowing it with a shim that fails would still let
+ * the gate pass -- which is exactly how the runner's own sqlite3 changed the
+ * outcome of the manual-activation test.
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { chmodSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, readdirSync, existsSync, symlinkSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { build } from '../../tools/build.mjs';
@@ -54,9 +64,14 @@ export const PYTHON = workingProgram(process.platform === 'win32' ? ['python', '
 export function bashRun(lines, { paths = {}, env = {} } = {}) {
   const head = Object.entries(paths).map(([k, v]) =>
     `${k}="$(cygpath -u ${sq(v)} 2>/dev/null || printf '%s' ${sq(v)})"; export ${k}`);
+  // A bare string is ONE line, not one line per character: `...lines` on a
+  // string spreads its characters, which turns the script into a column of
+  // one-character commands that dies under `set -e` before printing anything.
+  // Accept either shape, the way the suites' own `run` helpers do.
+  const body = [].concat(lines);
   const script = ['set -Eeuo pipefail',
     'unset RT_TEMPLATE RT_RELEASE_URL RT_RELEASE_DIR RT_ASSUME_YES RT_PANEL RT_SMOKE_URL XUI_DB_FOLDER',
-    ...head, ...lines].join('\n');
+    ...head, ...body].join('\n');
   const r = spawnSync('bash', ['-c', script], {
     cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: { ...process.env, ...env },
   });
@@ -209,6 +224,87 @@ finally:
 PYEOF
 `;
 
+/* --- no network, and no sqlite3 the host happens to have --------------------
+ *
+ * NETWORK. `rt_complete_install` downloads the release pinned to the INSTALLED
+ * version whenever it judges the install short of what that version ships. The
+ * panel suites used to build a two-design payload, and RT_TEMPLATES_AVAILABLE
+ * names seventeen, so the install was ALWAYS short: on a runner with network the
+ * download succeeded, the store was rebuilt from the PUBLISHED release, and the
+ * test then compared it against the LOCALLY built artifact. The payloads are
+ * complete now, so that download is not reached -- these shims are the guard
+ * rail. curl and wget are on PATH in every fake host, they record the attempt
+ * and they fail, so a regression fails the suite loudly instead of silently
+ * validating a published release against the working tree.
+ *
+ * SQLITE3. `rt_panel_<panel>_db_ready` gates on `command -v sqlite3`, so a
+ * sqlite3 that merely FAILS is not enough -- the command must be unreachable.
+ * `sqlite: false` therefore scrubs every directory that holds a sqlite3 out of
+ * the child's PATH (see pathWithoutSqlite), rather than trusting that the host
+ * has none: ubuntu-latest ships a real one, which is what made the manual
+ * activation test pass on the authoring machine and fail on the runner. */
+const NET_DENY_SHIM = `#!/usr/bin/env bash
+# Test double: this suite has no network. Record the attempt, then fail.
+set -u
+if [ -n "\${RT_TEST_NET_LOG:-}" ]; then
+  printf '%s %s\\n' "\${0##*/}" "$*" >> "$RT_TEST_NET_LOG"
+fi
+printf 'row-template tests: network access is denied in this suite (%s %s)\\n' "\${0##*/}" "$*" >&2
+exit 1
+`;
+
+/* A PATH that is the one given, minus every directory that holds a sqlite3
+   executable. Those directories are replaced by a mirror of themselves -- the
+   same entries, symlinked, without sqlite3 -- so nothing else on the host stops
+   resolving. Cached per input, because mirroring /usr/bin is ~1500 links.
+
+   A mirror is only trusted once it is stamped. A run killed by a signal (a
+   timeout, a cancelled job) never reaches the exit hook below, and a half-built
+   mirror would otherwise be reused on the next run -- and, if `bash` happened to
+   be the entry that never got linked, fail in a way that has nothing to do with
+   sqlite3. */
+const mirrors = new Map();
+function mirrorWithoutSqlite(dir) {
+  const dest = join(tmpdir(), `row-nosqlite-${sha256(dir).slice(0, 12)}`);
+  const stamp = join(dest, '.mirror-complete');
+  if (!existsSync(stamp)) {
+    rmSync(dest, { recursive: true, force: true });
+    mkdirSync(dest, { recursive: true });
+    let n = 0;
+    for (const entry of readdirSync(dir)) {
+      if (entry === 'sqlite3') continue;
+      try { symlinkSync(join(dir, entry), join(dest, entry)); n += 1; } catch { /* unreadable entry: skip it */ }
+    }
+    writeFileSync(stamp, `${n}\n`);
+    process.on('exit', () => rmSync(dest, { recursive: true, force: true }));
+  }
+  return dest;
+}
+
+export function pathWithoutSqlite(base = process.env.PATH || '') {
+  const hit = mirrors.get(base);
+  if (hit) return hit;
+  const out = [];
+  const seen = new Set();
+  for (const dir of base.split(delimiter).filter(Boolean)) {
+    if (seen.has(dir)) continue;
+    seen.add(dir);
+    if (!existsSync(join(dir, 'sqlite3'))) { out.push(dir); continue; }
+    out.push(mirrorWithoutSqlite(dir));
+  }
+  const path = out.join(delimiter);
+  mirrors.set(base, path);
+  return path;
+}
+
+/* The network attempts a fake host recorded. Empty means the suite never tried:
+   assert on it, so "this test needs no network" is checked, not assumed. */
+export function netAttempts(base) {
+  const f = join(base, 'net.log');
+  if (!existsSync(f)) return '';
+  return readFileSync(f, 'utf8').trim();
+}
+
 /* The transaction engine locks with flock and refuses to run without it. Git
    Bash on Windows has none, so -- exactly as tests/installer-transaction.test.mjs
    does -- a minimal double provides flock's contract (an exclusive lock on the
@@ -242,6 +338,11 @@ function shims(base, { sqlite = true } = {}) {
   mkdirSync(bin, { recursive: true });
   writeFileSync(join(bin, 'docker'), DOCKER_SHIM);
   chmodSync(join(bin, 'docker'), 0o755);
+  // Both downloaders rt_fetch_one can pick, denied in every host.
+  for (const prog of ['curl', 'wget']) {
+    writeFileSync(join(bin, prog), NET_DENY_SHIM);
+    chmodSync(join(bin, prog), 0o755);
+  }
   if (!HOST_HAS_FLOCK) {
     writeFileSync(join(bin, 'flock'), FLOCK_SHIM);
     chmodSync(join(bin, 'flock'), 0o755);
@@ -318,7 +419,13 @@ export function pasarguardHost(base, { running = true, env = PG_ENV, compose = t
   const bin = shims(base, { sqlite: Boolean(db) });
   return {
     app, dataDir, cliPath, docker, bin, db: dbPath, envFile: join(app, '.env'),
-    paths: { RT_PG_APP_DIR: app, RT_PG_DATA_DIR: dataDir, RT_PG_CLI: cliPath, RT_TEST_DOCKER: docker, RT_TEST_BIN: bin },
+    paths: {
+      RT_PG_APP_DIR: app, RT_PG_DATA_DIR: dataDir, RT_PG_CLI: cliPath,
+      RT_TEST_DOCKER: docker, RT_TEST_BIN: bin, RT_TEST_NET_LOG: join(base, 'net.log'),
+    },
+    // No sqlite3 shim means the host has no sqlite3 as far as the code under
+    // test is concerned -- including any sqlite3 the RUNNER ships.
+    env: db ? {} : { PATH: pathWithoutSqlite() },
   };
 }
 
@@ -382,7 +489,14 @@ export function rebeccaHost(base, { running = true, sqlite = true, url, customDi
   const bin = shims(base, { sqlite });
   return {
     app, dataDir, cliPath, docker, bin, db, envFile: join(app, '.env'),
-    paths: { RT_RB_APP_DIR: app, RT_RB_DATA_DIR: dataDir, RT_RB_CLI: cliPath, RT_TEST_DOCKER: docker, RT_TEST_BIN: bin },
+    paths: {
+      RT_RB_APP_DIR: app, RT_RB_DATA_DIR: dataDir, RT_RB_CLI: cliPath,
+      RT_TEST_DOCKER: docker, RT_TEST_BIN: bin, RT_TEST_NET_LOG: join(base, 'net.log'),
+    },
+    // `sqlite: false` must make sqlite3 UNAVAILABLE, not merely broken: the
+    // adapters gate on `command -v sqlite3`, so the runner's own sqlite3 has to
+    // be off PATH, not shadowed by a shim that exists and fails.
+    env: sqlite ? {} : { PATH: pathWithoutSqlite() },
   };
 }
 
