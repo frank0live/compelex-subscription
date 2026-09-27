@@ -24,6 +24,20 @@ involved.
   printed literally, because the page cannot resolve those variables and a
   literal placeholder is worse than the subscriber's own name. The subscriber's
   address (`user.ip`) is still never read.
+- **Rebecca: the page no longer titles itself "Subscription" either.** Rebecca's
+  page context carries **no profile title at all**: the panel-wide
+  `subscription_profile_title` is written into the `/info` `profile-title`
+  **header** (`subscriptionHeaders`) and the page render path
+  (`renderSubscriptionHTML` → `renderSubscriptionPageTemplate`) never passes it,
+  so the title the adapter reads from that header is invisible to the page. The
+  one identity the page does receive is `user.username`, so that now names the
+  page — the same fallback PasarGuard takes when no profile title is
+  configured. A value with no word in it at all (absent, empty,
+  whitespace-only) is not a name and the page keeps its generic fallback; the
+  value is never rewritten. No `{` guard is needed here, unlike PasarGuard:
+  Rebecca never runs a title through `str.format_map`. The subscriber's token
+  and address are still never read, and nothing changes for an existing 3X-UI
+  or PasarGuard install.
 - **Country flags: a node name that carries an ISO alpha-2 code now gets that
   country's flag.** `TR | Istanbul`, `RU-01`, `GB-LON-1`, `FI-01`, `DE` and the
   rest previously found no regional-indicator pair and fell to the monogram
@@ -49,6 +63,10 @@ involved.
 - `docs/design/PASARGUARD-ADAPTER-AUDIT.md` §8 — the page context is not the
   `/info` payload: the headers carry the values the panel *resolved*, the page
   context carries the admin's own columns and nothing else.
+- `docs/design/REBECCA-ADAPTER-AUDIT.md` §2 — the same distinction for Rebecca,
+  stated against `subscriptionHeaders` and `subscriptionTemplateContext`: the
+  page context carries no profile title at all, so the page's title and the
+  adapter's header-derived `title` field can legitimately differ.
 - `docs/design/FLAG-RENDERER-AUDIT.md` §17 — the alpha-2 path is an **input**
   extension; the return shape, `CODES` and every fallback are unchanged.
 
