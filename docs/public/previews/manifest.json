@@ -13,7 +13,7 @@
     "height": 844
   },
   "total": 34,
-  "totalBytes": 1249830,
+  "totalBytes": 1246744,
   "uniqueHashes": 34,
   "entries": [
     {
@@ -22,8 +22,8 @@
       "file": "previews/row-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 37202,
-      "sha256": "2f8839cd9f1e0b5659143c9a538b1d7d2f28733673ff437d403855b0a5300e18"
+      "bytes": 36692,
+      "sha256": "529878d687fcae80997eeda45f7d22c398ab454cf1671ea422fae91700cb8ef9"
     },
     {
       "id": "row",
@@ -31,8 +31,8 @@
       "file": "previews/row-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 25190,
-      "sha256": "c6d2d07c53c1b1f707cb3ca5072f1cb2012dfd0c87131643dd9f57250fdedefe"
+      "bytes": 25292,
+      "sha256": "1e6a518c62cf75efca84e2eb4025f50e6e581e294ef8359fa4fbefb76d0cb618"
     },
     {
       "id": "editorial",
@@ -40,8 +40,8 @@
       "file": "previews/editorial-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 41278,
-      "sha256": "7ab032758ae3114b06c74388a595de1a070b9b364bb44792c88d6eaf98871ef2"
+      "bytes": 41582,
+      "sha256": "0da6953381dea79b3ed9b9324cbee9117848a368c688f69ca0908c5b25fc953a"
     },
     {
       "id": "editorial",
@@ -49,8 +49,8 @@
       "file": "previews/editorial-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 26850,
-      "sha256": "d27648cfe7240cef745710504d6e1db6491443d7633ff4b9deb60cd92f53a408"
+      "bytes": 26776,
+      "sha256": "b516379c37ff6755c38ca118b9ce7aa718e85cc937d71896cb6b75ab39e268f4"
     },
     {
       "id": "canvas",
@@ -58,8 +58,8 @@
       "file": "previews/canvas-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 52232,
-      "sha256": "a29706ba2e4d4b8be34f6ef170d30c12ede96e5b00a0887feb9cd767be288c15"
+      "bytes": 52044,
+      "sha256": "0f8dfb89b651f3e46b09a2cfdd96ef6684a37ced62acb52e7f5888aacc71f9a0"
     },
     {
       "id": "canvas",
@@ -76,8 +76,8 @@
       "file": "previews/prism-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 37556,
-      "sha256": "c7ccaf6f1e7a68eee752c2a7b14c8385152263993d22c72cebc6d0b311622a97"
+      "bytes": 37494,
+      "sha256": "9d3cca88bcb6296f480e50fbfd4176c281327492da2e93132bffba8485bbc278"
     },
     {
       "id": "prism",
@@ -85,8 +85,8 @@
       "file": "previews/prism-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 25560,
-      "sha256": "1fb0f54a95c8d2315a4432b1d4d2340a3026b89ce560c3e90e82948a28185fdb"
+      "bytes": 25730,
+      "sha256": "cca18742a1e78ce2e5268e4cd96792fa4e15430c227a8b430c4bf53d06d38f86"
     },
     {
       "id": "terminal",
@@ -94,8 +94,8 @@
       "file": "previews/terminal-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 39440,
-      "sha256": "aefcaf7959290cc8ed9126688459c224ac0e1ee420b5ef0926b00ba8968ece92"
+      "bytes": 39434,
+      "sha256": "bc0df3855d5066435167b664f8e2781847a5797a71ad0b1430547f8282d80ef5"
     },
     {
       "id": "terminal",
@@ -103,8 +103,8 @@
       "file": "previews/terminal-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 32208,
-      "sha256": "a9942bbd4d9cd86f8dd3d8c2972d123f3995a3153a60d227fa4a80c5956a8860"
+      "bytes": 32012,
+      "sha256": "b6d6ca9cc1566c4c46432dba8f6915648a23366b54d6d2cd532ab45fb0bdffef"
     },
     {
       "id": "pulse",
@@ -130,8 +130,8 @@
       "file": "previews/brutal-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 50616,
-      "sha256": "ddb0b36dfbc5551f0c45c27fc356bf2b4ece5b521948e6b73ef975970cddeed0"
+      "bytes": 50322,
+      "sha256": "d5aa1929e8cb5dcf938ea32d56cd7735a187f4508d6dfab7a9b891895ed290c2"
     },
     {
       "id": "brutal",
@@ -139,8 +139,8 @@
       "file": "previews/brutal-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 31760,
-      "sha256": "6e87ac1c6e655cb7b0e646d55a6d1b072b48c826c3ee70b3ddef5cc3114953ee"
+      "bytes": 31796,
+      "sha256": "7fa88f4584f44e4d32071f9fbb42475e2f5592ad3c1652ffc60e41d046e7d27d"
     },
     {
       "id": "arcade",
@@ -148,8 +148,8 @@
       "file": "previews/arcade-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 39150,
-      "sha256": "e2499e8976f5581b5280485772e4dcba3356f721075211a6b60124a1ad8b56f5"
+      "bytes": 38822,
+      "sha256": "64e31869bca3a6154d1a9fb5eda66c1d28383064eddb4ecd919663fab58af44c"
     },
     {
       "id": "arcade",
@@ -157,8 +157,8 @@
       "file": "previews/arcade-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 26390,
-      "sha256": "4b9fdcb298aa622e488c3979ed1b6705827be2018dca025d890d076d53561cad"
+      "bytes": 26218,
+      "sha256": "8f87e04741152c24dc17006846cafeaffa9206fb487b7ad3e363a2ea6da2a548"
     },
     {
       "id": "sketch",
@@ -166,8 +166,8 @@
       "file": "previews/sketch-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 49602,
-      "sha256": "04b4b69ee5ab8d0721cbb56552985625c0afe73f898f22a3b8d00b78ef2aef09"
+      "bytes": 49476,
+      "sha256": "8a495633d467fc9837a29291bef0c8059c4b6e336bbda75f65470b97767c4098"
     },
     {
       "id": "sketch",
@@ -175,8 +175,8 @@
       "file": "previews/sketch-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 31388,
-      "sha256": "00ce6fcd25426ae1abaef1111810440299185bb920fa50d2b293920d553a97b4"
+      "bytes": 31192,
+      "sha256": "75ca776c4ef621be9b14f45c87c1e00acdbd9e9978f31a8926cf6141bf672143"
     },
     {
       "id": "signature",
@@ -184,8 +184,8 @@
       "file": "previews/signature-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 54052,
-      "sha256": "eecd01627db94bf3e5608a54ea68d1781ece93a70c68b7b6c6854e2a77202114"
+      "bytes": 53392,
+      "sha256": "6faf1b80746d2f0f0d2e55f64393ca192a2eca536e547b89e12e43bec991afbe"
     },
     {
       "id": "signature",
@@ -220,8 +220,8 @@
       "file": "previews/pulsenova-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 46196,
-      "sha256": "274f15e87d7e98e1b8ae64ceb901be43274c3b9b619e355d4ca783841e543c52"
+      "bytes": 45876,
+      "sha256": "396814a0f9b4ab18aa45355c78e5b89ee95bd4fb835606c25e4acfcc734b32dc"
     },
     {
       "id": "pulsenova",
@@ -238,8 +238,8 @@
       "file": "previews/prismnova-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 58662,
-      "sha256": "116e156da250960551fc0995bb223b8e601a7c5a6eea2b5663bc550da3691f9c"
+      "bytes": 58272,
+      "sha256": "cdceca352f5c525c149ff0f313407f2826e7ffa13a16b3e40e59cfd6dae857c0"
     },
     {
       "id": "prismnova",
@@ -247,8 +247,8 @@
       "file": "previews/prismnova-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 25372,
-      "sha256": "4e85b479a5be51bad594e1d49f3b3317ff0e6fd646c3b3176b980a9df9ad969a"
+      "bytes": 25256,
+      "sha256": "286c43a964ba7f98c9d3a05834d3fb80c350c619860697e1840ba0602109f379"
     },
     {
       "id": "terminalnova",
@@ -256,8 +256,8 @@
       "file": "previews/terminalnova-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 57236,
-      "sha256": "cb57c67ce7775890e9b2c1648a3c82b90c198f42d5fd6ccaced6f4baf5f8652d"
+      "bytes": 57322,
+      "sha256": "c9ef272e56ed03dca4dad95edf4af9672a06d8cb6af096270910cfaa99d7deac"
     },
     {
       "id": "terminalnova",
@@ -265,8 +265,8 @@
       "file": "previews/terminalnova-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 26046,
-      "sha256": "0e133ff25d7142f23ca0e7b04099e65dd92cd838d78c82074b7b3e0c4ccc2abb"
+      "bytes": 26144,
+      "sha256": "219b7d717c58d6ce4c719142aecde4567811c9c05acf472989aceeee22f10543"
     },
     {
       "id": "arcadenova",
@@ -274,8 +274,8 @@
       "file": "previews/arcadenova-desktop.webp",
       "width": 1440,
       "height": 1000,
-      "bytes": 59442,
-      "sha256": "9954967a7796756fd9de6cdf80fc23b3ba9e3767dc034aa9494f9160c82d96c3"
+      "bytes": 58612,
+      "sha256": "8bbc2190b292b75dfa9f786c070b5d92b111437a1b000298485741af0ce7bbf7"
     },
     {
       "id": "arcadenova",
@@ -283,8 +283,8 @@
       "file": "previews/arcadenova-mobile.webp",
       "width": 390,
       "height": 844,
-      "bytes": 26344,
-      "sha256": "aa03520c8e6fe569b914e314b6423f3a5260ae577e7487c37290693e6bdbceed"
+      "bytes": 26930,
+      "sha256": "62a2afb85f22b6910d8a63a54a5f7933d615e87a97fcea8ab297d1f03e422eb8"
     },
     {
       "id": "meter",
