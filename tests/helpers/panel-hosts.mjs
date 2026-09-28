@@ -266,10 +266,15 @@ exit 1
    timeout, a cancelled job) never reaches the exit hook below, and a half-built
    mirror would otherwise be reused on the next run -- and, if `bash` happened to
    be the entry that never got linked, fail in a way that has nothing to do with
-   sqlite3. */
+   sqlite3.
+
+   Each test process builds its own. `node --test` runs the suites that use it
+   side by side, and a mirror they shared was removed by the exit hook of
+   whichever finished first, taking bash, grep and the rest of /usr/bin away
+   from the others mid-test (`spawnSync bash ENOENT`). */
 const mirrors = new Map();
 function mirrorWithoutSqlite(dir) {
-  const dest = join(tmpdir(), `row-nosqlite-${sha256(dir).slice(0, 12)}`);
+  const dest = join(tmpdir(), `row-nosqlite-${process.pid}-${sha256(dir).slice(0, 12)}`);
   const stamp = join(dest, '.mirror-complete');
   if (!existsSync(stamp)) {
     rmSync(dest, { recursive: true, force: true });
