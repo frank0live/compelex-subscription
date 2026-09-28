@@ -2709,7 +2709,8 @@ rt_restore_from_backup() {
   # artifact and the stored selection always agree — including when the backup
   # predates the current release's store. If the checksum match fails (the backup
   # artifact is not byte-identical to any installed template), fall back to the
-  # template recorded in the backup's meta, then to Row as a last resort.
+  # template recorded in the backup's meta, then to the selection saved in the
+  # backup's own config.env, then to Row as a last resort.
   local dir="$1" tpl_id bpanel
   rt_backup_validate "$dir" || { rt_err "backup failed validation: $dir"; return 1; }
   # A backup is only ever restored onto the panel it was made for. Every backup
@@ -2723,6 +2724,17 @@ rt_restore_from_backup() {
   tpl_id="$(rt_template_id_for_artifact "$src")"
   if [ -z "$tpl_id" ]; then
     tpl_id="$(rt_backup_meta template "$dir")"
+    # 1.4.0: an update backs up the page it replaces AFTER the new release's
+    # designs are in the store, so a backup taken by an updater from before
+    # 1.4.0 matches none of them and records no template -- and every design
+    # changed in 1.4.0. The selection the install had at that moment is still in
+    # the backup's own config.env: read as data (never sourced), and only a
+    # known id is taken. Found rolling a real 3X-UI back from 1.4.0 to its 1.3.1
+    # backup, which restored Row instead of the operator's Editorial.
+    if [ -z "$tpl_id" ] && [ -f "$dir/config.env" ]; then
+      tpl_id="$(rt_config_get_raw TEMPLATE "$dir/config.env" | LC_ALL=C tr -cd 'a-z0-9')"
+      rt_template_allowed "$tpl_id" || tpl_id=""
+    fi
     if [ -z "$tpl_id" ]; then
       tpl_id="row"
       rt_warn "backup artifact has no store match and no recorded template; defaulting to Row."

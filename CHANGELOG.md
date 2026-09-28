@@ -62,6 +62,12 @@ existing install except what is listed below.
   panel outranks the one configured in Row-Template, so on a default Rebecca
   every page's *Contact support* went to Telegram's front page. The bare
   default now counts as no link, on Rebecca and PasarGuard alike.
+- **Rolling back after the update keeps your design.** The backup a
+  pre-1.4.0 updater takes of the page it replaces is written after the new
+  designs are installed, so it matches none of them and names no design; a
+  rollback to it restored Row instead of the design you had. The rollback now
+  takes the design that backup's own saved settings record, and restores it from
+  the installed designs.
 
 ### Changed
 
