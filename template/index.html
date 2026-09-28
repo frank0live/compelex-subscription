@@ -3205,6 +3205,17 @@ function importLink(raw) {
   return APP_SCHEME.test(probe) && !BLOCKED.test(probe) ? value : '';
 }
 
+function absolutize(link, loc) {
+  const value = String(link || '');
+  const first = String((loc && loc.pathname) || '').split('/')[1];
+  const origin = String((loc && loc.origin) || '');
+  if (!first || !/^https?:\/\/[^/]+$/.test(origin)) return value;
+  const seg = '/' + first + '/';
+  const at = value.indexOf(seg);
+  if (at < 0 || /:\/\/[^/?#]*$/.test(value.slice(0, at))) return value;
+  return value.slice(0, at) + origin + value.slice(at);
+}
+
 function webLink(raw) {
   return safe(raw, LINK_SCHEMES) || '';
 }
@@ -5097,7 +5108,7 @@ function onAppClick(button) {
   if (!app) return;
   if (button.getAttribute('data-act') === 'import' && app.link) {
     try {
-      win.location.href = app.link;
+      win.location.href = absolutize(app.link, win.location);
       toast(i18n.t('client.opening'));
       return;
     } catch (err) {

@@ -42,6 +42,25 @@ export function importLink(raw) {
   return APP_SCHEME.test(probe) && !BLOCKED.test(probe) ? value : '';
 }
 
+/* PasarGuard builds `{url}` in an import link from its subscription URL prefix,
+   and with no prefix configured that is a bare path -- "/sub/<token>" -- which
+   no application can fetch. The page knows its own origin, so a subscription
+   path that is not already part of an absolute address is completed with it:
+   exactly the link PasarGuard would have built with the prefix set. A link that
+   already carries an address is left as it is. The path is found by the page's
+   own first path segment ("/sub/"), because the token in the link is a fresh
+   one the panel signed for this render. */
+export function absolutize(link, loc) {
+  const value = String(link || '');
+  const first = String((loc && loc.pathname) || '').split('/')[1];
+  const origin = String((loc && loc.origin) || '');
+  if (!first || !/^https?:\/\/[^/]+$/.test(origin)) return value;
+  const seg = '/' + first + '/';
+  const at = value.indexOf(seg);
+  if (at < 0 || /:\/\/[^/?#]*$/.test(value.slice(0, at))) return value;
+  return value.slice(0, at) + origin + value.slice(at);
+}
+
 /* A download link opens a web page and nothing else. */
 function webLink(raw) {
   return safe(raw, LINK_SCHEMES) || '';
