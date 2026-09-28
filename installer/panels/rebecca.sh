@@ -135,7 +135,7 @@ rt_panel_rebecca_edition_ok() {
   case "$(rt_panel_rebecca_edition)" in
     go) return 0 ;;
     python)
-      rt_err "panel rebecca: this is Rebecca 0.0.x, the Python edition (Docker image $(rt_panel_rebecca_image)). Row-Template's Rebecca page is built for Rebecca 1.x, the Go edition, which Rebecca publishes for its binary install (rebecca-binary.sh); Rebecca's own 'rebecca migrate-binary' moves a Docker install to it." ;;
+      rt_err "panel rebecca: this is Rebecca 0.0.x, the Python edition (Docker image $(rt_panel_rebecca_image)). Row-Template's Rebecca page is built for Rebecca 1.x, the Go edition, which Rebecca publishes for its binary install: install it with Rebecca's rebecca-binary.sh, then run this installer again." ;;
     *)
       rt_err "panel rebecca: cannot tell which Rebecca edition this is (the Docker image could not be inspected); refusing rather than placing a page Rebecca may not be able to render." ;;
   esac

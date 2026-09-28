@@ -137,7 +137,11 @@ test('on the 0.0.x Python edition, install is refused before anything is written
     const r = run(['export RT_ASSUME_NONINTERACTIVE=1 RT_SERVICE_NAME="X"', 'rt_cmd_install "$PAYLOAD" </dev/null']);
     assert.notEqual(r.code, 0, 'refused');
     assert.match(r.err, /Rebecca 0\.0\.x, the Python edition/);
-    assert.match(r.err, /rebecca migrate-binary/, 'and the way forward is named');
+    /* 1.4.0: the way forward is Rebecca's binary installer. Its `rebecca
+       migrate-binary`, which 1.3 named, is not routed by the current rebecca
+       command (dispatch_command has no arm for it), so it only prints usage. */
+    assert.match(r.err, /install it with Rebecca's rebecca-binary\.sh/, 'and the way forward is named');
+    assert.doesNotMatch(r.err, /migrate-binary/);
     assert.match(r.err, /nothing was changed/);
     assert.equal(existsSync(rt), false, 'no install root was created');
     assert.equal(existsSync(join(host.dataDir, 'templates')), false, 'no page was placed');

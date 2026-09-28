@@ -14,7 +14,9 @@ description: The panels Row-Template supports, what it changes on each, and what
 | **What activation changes** | `subThemeDir` | one marked block in `/opt/pasarguard/.env` | two fields of the newest subscription settings row |
 | **Automatic activation needs** | `sqlite3` | nothing extra | SQLite and `sqlite3` |
 | **Restart on activation** | yes, briefly | once, only if running | never |
-| **Live status refresh** | ✅ | — (values as of page load) | — (values as of page load) |
+| **Live status refresh** | ✅ | ✅ since 1.4.0 | ✅ since 1.4.0 |
+| **The panel's own application list** | — | ✅ since 1.4.0 | — |
+| **Name and support link offered at install** | — | ✅ since 1.4.0 (SQLite) | ✅ since 1.4.0 (SQLite) |
 
 | | |
 |---|---|
@@ -93,8 +95,8 @@ v6.1.0 (Rebecca's pinned version) for Rebecca — including hostile and malforme
   pages from a different context and cannot render this one: there, Rebecca would accept
   the setting and silently keep serving its own page. The installer therefore identifies
   the edition first (a binary install, or an image that runs `rebecca-server`) and refuses
-  anything else before changing a thing. Rebecca's own `rebecca migrate-binary` moves a
-  Docker install to 1.x.
+  anything else before changing a thing. To use Row-Template, install Rebecca 1.x with
+  Rebecca's own binary installer (`rebecca-binary.sh`).
 - **Placement.** `/var/lib/rebecca/templates/row-template/index.html`, or inside your own
   custom templates directory.
 - **Selection.** The page and directory fields of the newest `subscription_settings` row —
@@ -109,10 +111,11 @@ v6.1.0 (Rebecca's pinned version) for Rebecca — including hostile and malforme
 
 ## Known limits
 
-- **Live status.** 3X-UI serves live status at `?format=info`. PasarGuard and Rebecca serve
-  it on a **path suffix** instead, so on those panels the page shows the values as of when
-  it was opened, and does not refresh them. Wiring the suffix up needs a small runtime change;
-  that decision is deliberately deferred.
+- **PasarGuard application icons** are not shown. The page loads nothing from another site,
+  so the icon address an application has in the panel is not used; its name, description,
+  import link and download link are.
+- **The name and support link offered at install** are read from a SQLite database only;
+  with MySQL, MariaDB or PostgreSQL the installer asks as it always did.
 - **PasarGuard's page title** (`subTitle`) and **Clash templates** are not produced; only the
   subscription page is.
 - **The `on_hold` state.** A subscription that starts on first connection is shown as
