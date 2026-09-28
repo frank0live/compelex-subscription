@@ -34,8 +34,10 @@ existing install except what is listed below.
   platform the list covers (Android, iOS, Windows, macOS, Linux, Android TV,
   Apple TV), the recommended application first, the operator's description in
   the reader's language, and a download link. Import uses the link PasarGuard
-  built for this subscriber, and for a device-bound subscription PasarGuard has
-  already left out the applications that do not apply. With no list configured,
+  built for this subscriber — completed with the page's own address when
+  PasarGuard has no subscription URL prefix and gives only a path — and for a
+  device-bound subscription PasarGuard has already left out the applications
+  that do not apply. With no list configured,
   the page keeps its built-in catalogue. The icons the panel names are never
   loaded, because the page makes no request to another site.
 - **PasarGuard: the announcement's own link.** An announcement with an address
@@ -71,9 +73,9 @@ existing install except what is listed below.
 
 ### Changed
 
-- **The page is larger, and paints as early as before.** The flag font adds
-  80,575 bytes to every design (the largest is 285,280 bytes); the size ceiling
-  is 280 KiB (was 200 KiB). The font is placed after the page's markup, not in
+- **The page is larger, and paints as early as before.** 1.4.0 adds 81,052
+  bytes to every design, 68,748 of them the flag font (the largest design is now
+  285,757 bytes); the size ceiling is 280 KiB (was 200 KiB). The font is placed after the page's markup, not in
   its head, so the first paint does not wait for it: measured on a 4× slower CPU
   and a 1.6 Mbit/s link, first paint is unchanged or earlier, and the page
   finishes loading about 0.4 s later on that link (about 0.1 s on 4G). Script
