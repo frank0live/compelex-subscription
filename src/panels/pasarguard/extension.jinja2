@@ -1,0 +1,26 @@
+{#- ==========================================================================
+  Row-Template -> PasarGuard: what only a PasarGuard page carries.
+
+  tools/shell.mjs inserts this into the body, inside the autoescape block, just
+  before the locale island. A 3X-UI page has neither element, and the runtime
+  then behaves exactly as it always has.
+
+    #panel-data   names the panel, so the runtime polls /<token>/info and reads
+                  PasarGuard's own vocabulary (src/scripts/live.js), and carries
+                  the announcement's own address (announce_url, already
+                  formatted by the panel).
+    #apps-source  the applications the operator configured in
+                  Settings > Subscription > Applications, each import link
+                  already built by the panel for this subscriber
+                  (app/operation/subscription.py _make_apps_import_urls). The
+                  panel has also already dropped the ones that do not apply to a
+                  device-bound subscription. src/scripts/apps.js reads it; with
+                  no applications configured it is empty, and the page keeps its
+                  built-in catalogue.
+
+  Every value is written into an attribute and escaped by the autoescape block;
+  icon_url is deliberately not written at all, because the page makes no
+  request to another site.
+========================================================================== -#}
+<div id="panel-data" hidden data-panel="pasarguard" data-announce-url="{{ rt_announce_url }}"></div>
+<div id="apps-source" hidden>{%- for a in rt_apps -%}<i data-name="{{ a.name }}" data-platform="{{ a.platform }}" data-import="{{ a.import_url }}" data-rec="{{ '1' if a.recommended else '' }}" data-en="{{ a.description.en }}" data-fa="{{ a.description.fa }}" data-ru="{{ a.description.ru }}" data-zh="{{ a.description.zh }}">{%- for d in a.download_links -%}<b data-name="{{ d.name }}" data-url="{{ d.url }}" data-lang="{{ d.language }}"></b>{%- endfor -%}</i>{%- endfor -%}</div>

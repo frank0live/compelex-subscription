@@ -13,7 +13,6 @@
 
 import { setText, setAttr } from './render.js';
 import { parseAll } from './config.js';
-import { paintFlag } from './flag.js';
 
 /* Protocol names are Latin proper nouns — the same in every language — so they
    are not catalogue keys. Anything the parser produces but this table misses
@@ -136,7 +135,6 @@ function configRow(doc, cfg, index) {
   badge.setAttribute('aria-hidden', 'true');
   if (cfg.flag) {
     badge.textContent = cfg.flag;
-    paintFlag(badge, cfg.flag);
   } else {
     badge.setAttribute('data-mono', '1');
     badge.textContent = monoLetter(cfg);

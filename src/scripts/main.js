@@ -4,10 +4,11 @@
  * clipboard, the dialog, the client buttons and the poller. The rendering
  * functions stay pure and are called from paint(); this file decides when. */
 
-import { readDocument, normalize } from './model.js';
+import { readDocument, readPanel, normalize } from './model.js';
 import { readCatalogues, createI18n } from './i18n.js';
 import { collect, render, renderUpdated, summary, setText, setAttr, empty, subLink, svgUse } from './render.js';
-import { renderConnect, urlsFor, nextTab } from './connect.js';
+import { renderConnect, urlsFor, nextTab, platformsFor } from './connect.js';
+import { readApps, pickPlatform } from './apps.js';
 import { detectPlatform, sourceUrl, deepLink } from './clients.js';
 import { monogram, displayName } from './brand.js';
 import { copyText, selectField } from './clipboard.js';
@@ -38,11 +39,19 @@ const catalogues = readCatalogues(doc);
    They never change after load, so the list is parsed a single time here. */
 const configs = readConfigs(doc);
 
+/* The panel the shell was built for, and the applications it configured. Both
+   are fixed for the life of the page. */
+const panel = readPanel(doc);
+const apps = readApps(doc);
+const platforms = platformsFor(apps);
+
 let model = normalize(readDocument(doc));
 let lang = row.lang || 'en';
 let mode = row.themeMode || 'system';
 let i18n = createI18n(catalogues, lang, model.jalali);
-let platform = detectPlatform(win.navigator);
+let platform = apps.length
+  ? pickPlatform(detectPlatform(win.navigator), platforms, win.navigator.userAgent)
+  : detectPlatform(win.navigator);
 let urls = urlsFor(model, win);
 let serviceName = '';
 let state = '';
@@ -270,9 +279,9 @@ function tick() {
 function paint(now) {
   const at = now || Date.now();
   const before = state;
-  state = render(el, model, i18n, at, row.branding);
+  state = render(el, model, i18n, at, row.branding, panel.announceUrl);
   urls = urlsFor(model, win);
-  renderConnect(el, i18n, urls, platform);
+  renderConnect(el, i18n, urls, platform, apps);
   if (el.qrUrl && el.qrUrl.value !== urls.sub) el.qrUrl.value = urls.sub;
   tick();
   /* The first paint is the page loading, which is not news. */
@@ -470,17 +479,20 @@ function saveConf(text, filename) {
 
 function selectPlatform(next) {
   platform = next;
-  renderConnect(el, i18n, urls, platform);
+  renderConnect(el, i18n, urls, platform, apps);
 }
 
 const poller = createPoller({
   win: win,
   doc: doc,
+  panel: panel.id,
   isActive: function () {
     return state === 'active';
   },
+  /* A panel's payload carries only the figures that change, so the rest of the
+     model -- name, support link, addresses -- stays as the page was rendered. */
   onData: function (data, at) {
-    const next = normalize(data);
+    const next = normalize(panel.id ? Object.assign(readDocument(doc), data) : data);
     const calendar = next.jalali !== model.jalali;
     model = next;
     if (calendar) i18n = createI18n(catalogues, lang, model.jalali);
@@ -554,7 +566,7 @@ function wire() {
       selectPlatform(tab.getAttribute('data-platform'));
     });
     el.tabs.addEventListener('keydown', function (event) {
-      const next = nextTab(platform, event.key, !!RTL_LANGS[lang]);
+      const next = nextTab(platform, event.key, !!RTL_LANGS[lang], platforms);
       if (next === platform) return;
       event.preventDefault();
       selectPlatform(next);
@@ -645,6 +657,11 @@ function onConfigClick(event) {
    address is built at the moment of the click and never written into the
    document, so a client with no verified scheme simply copies instead. */
 function onClientClick(event) {
+  const own = event.target.closest ? event.target.closest('[data-app]') : null;
+  if (own) {
+    onAppClick(own);
+    return;
+  }
   const button = event.target.closest ? event.target.closest('[data-client]') : null;
   if (!button) return;
   const id = button.getAttribute('data-client');
@@ -664,6 +681,24 @@ function onClientClick(event) {
   } catch (err) {
     copyValue(sourceUrl(id, urls) || subLink(model, win), button);
   }
+}
+
+/* One of the panel's own applications: its import link was built by the panel
+   for this subscriber and checked by apps.js; Copy puts the subscription link
+   on the clipboard. */
+function onAppClick(button) {
+  const app = apps[Number(button.getAttribute('data-app'))];
+  if (!app) return;
+  if (button.getAttribute('data-act') === 'import' && app.link) {
+    try {
+      win.location.href = app.link;
+      toast(i18n.t('client.opening'));
+      return;
+    } catch (err) {
+      /* fall through to copying */
+    }
+  }
+  copyValue(subLink(model, win), button);
 }
 
 applyTheme(mode);

@@ -90,5 +90,11 @@
   "theme.dark": "تیره",
   "footer.updated": "به\u200cروزرسانی {when}",
   "footer.stopped": "به\u200cروزرسانی زنده متوقف شد.",
-  "footer.static": "به\u200cروزرسانی زنده در این پنل در دسترس نیست"
+  "footer.static": "به\u200cروزرسانی زنده در این پنل در دسترس نیست",
+  "platform.linux": "لینوکس",
+  "platform.androidtv": "اندروید تی\u200cوی",
+  "platform.appletv": "اپل تی\u200cوی",
+  "client.recommended": "پیشنهادی",
+  "client.download_for": "دانلود {name}",
+  "announce.open": "باز کردن لینک"
 }

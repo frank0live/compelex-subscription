@@ -63,7 +63,7 @@ test('a name with no flag is left as it is', () => {
 /* --- ISO alpha-2 codes -----------------------------------------------------
    A node name often carries the country as a code rather than a flag emoji.
    The badge is the same badge the emoji path draws: the pair is built from the
-   code, and membership is the same 258-code registry, so a code is accepted
+   code, and membership is the same 259-code registry, so a code is accepted
    only when it names a real country. The label is never rewritten — two
    uppercase letters can be an operator's own wording, and only an emoji
    unambiguously means a flag. */
@@ -75,6 +75,10 @@ const pair = (code) => String.fromCodePoint(
   0x1f1e6 + code.charCodeAt(1) - 65,
 );
 
+/* The flag a code is drawn as: itself, except UK, which no emoji set draws and
+   which is drawn as GB (src/scripts/flag.js pair()). */
+const drawn = (code) => (code === 'UK' ? 'GB' : code);
+
 test('a node name carrying an ISO alpha-2 code gets that country flag', () => {
   const cases = [
     ['TR | Istanbul', 'TR'],
@@ -82,11 +86,12 @@ test('a node name carrying an ISO alpha-2 code gets that country flag', () => {
     ['TR_01', 'TR'],
     ['RU-01', 'RU'],
     ['GB-LON-1', 'GB'],
-    /* "UK" is the exceptionally reserved code the registry already carries
-       beside GB, because its flag is widely rendered (see src/scripts/flag.js).
-       The code path therefore accepts it, and "UK London" and "GB-LON-1"
-       resolve to the two different-but-both-real UK flag emoji. */
-    ['UK London', 'UK'],
+    /* "UK" is the exceptionally reserved code the registry carries beside GB.
+       No platform and no emoji set draws that pair, and operators write "UK"
+       for Britain far more often than "GB", so since 1.4.0 it resolves to the
+       flag it means: "UK London" and "GB-LON-1" draw the same flag. */
+    ['UK London', 'GB'],
+    ['XK Pristina', 'XK'],
     ['FI-01', 'FI'],
     ['DE', 'DE'],
     ['NL | Amsterdam', 'NL'],
@@ -118,11 +123,11 @@ test('every assigned code resolves through the code path, and no other pair does
     for (let b = 0; b < 26; b += 1) {
       const code = String.fromCharCode(65 + a) + String.fromCharCode(65 + b);
       const got = flagOf(`Node ${code}`);
-      assert.equal(got, assigned.has(code) ? pair(code) : '', code);
+      assert.equal(got, assigned.has(code) ? pair(drawn(code)) : '', code);
       if (got) found += 1;
     }
   }
-  assert.equal(found, 258, 'exactly the assigned codes');
+  assert.equal(found, 259, 'exactly the assigned codes');
 });
 
 test('a code is read only when it is uppercase and stands alone', () => {
@@ -243,7 +248,7 @@ const EXPECTED_CODES = (
   'PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW ' +
   'SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ ' +
   'TA TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ ' +
-  'UA UG UK UM UN US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'
+  'UA UG UK UM UN US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW'
 ).split(' ');
 
 /* The bitmap, read from the shipped source exactly as the runtime reads it. */
@@ -266,17 +271,17 @@ test('the bitmap is present and decodes to exactly the assigned codes', () => {
     }
   }
   assert.deepEqual(decoded, EXPECTED_CODES, 'the decoded bitmap must equal the assigned list');
-  assert.equal(decoded.length, 258, '258 assigned codes');
+  assert.equal(decoded.length, 259, '259 assigned codes');
 });
 
-test('the bitmap holds exactly 258 set bits in 85 bytes', () => {
+test('the bitmap holds exactly 259 set bits in 85 bytes', () => {
   assert.equal(BITMAP.length, 85, '676 bits is 84.5 bytes, so the array is 85');
   let set = 0;
   for (let i = 0; i < BITMAP.length; i += 1) {
     let v = BITMAP.charCodeAt(i);
     while (v) { set += v & 1; v >>= 1; }
   }
-  assert.equal(set, 258, 'exactly one bit per assigned code, and no stray bits');
+  assert.equal(set, 259, 'exactly one bit per assigned code, and no stray bits');
 });
 
 test('every reserved code is present', () => {
@@ -311,7 +316,8 @@ test('all 676 letter pairs behave exactly as the previous list did', () => {
     for (let b = 0; b < 26; b += 1) {
       const code = String.fromCharCode(65 + a) + String.fromCharCode(65 + b);
       const pair = String.fromCodePoint(0x1f1e6 + a, 0x1f1e6 + b);
-      const want = previous.has(code) ? pair : '';
+      const want = !previous.has(code) ? ''
+        : code === 'UK' ? String.fromCodePoint(0x1f1e6 + 6, 0x1f1e6 + 1) : pair;
       const got = flagOf('name ' + pair + ' tail');
       if (got !== want) {
         mismatches += 1;
@@ -320,5 +326,5 @@ test('all 676 letter pairs behave exactly as the previous list did', () => {
     }
   }
   assert.equal(mismatches, 0, 'every pair must match the list: ' + firstMismatch);
-  assert.equal(previous.size, 258, 'the reference list itself is 258 codes');
+  assert.equal(previous.size, 259, 'the reference list itself is 259 codes');
 });

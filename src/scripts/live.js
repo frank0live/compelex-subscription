@@ -38,6 +38,72 @@ function looksLikeInfo(value) {
   return 'totalByte' in value && 'downloadByte' in value;
 }
 
+/* PasarGuard and Rebecca serve the figures on a path suffix, /<token>/info, in
+   their own vocabulary; 3X-UI serves them in the page's own at ?format=info.
+   The panel is named by the shell the page was built for, never guessed from a
+   response. */
+export function infoUrl(panel, pathname) {
+  const path = String(pathname || '');
+  return panel ? path.replace(/\/+$/, '') + '/info' : path + '?format=info';
+}
+
+/* The statuses both panels define. Anything else is a payload this page does
+   not understand, and the poller stops rather than guess. */
+const STATUSES = ['active', 'disabled', 'limited', 'expired', 'on_hold'];
+const ONLINE_WINDOW = 120000;
+/* An on-hold subscription whose duration the panel does not give: outside the
+   plausible range, which the page reads as "unknown" -- the same value the
+   shells render for it. */
+const HOLD_UNKNOWN = 9999999999;
+
+/* A datetime string in epoch milliseconds. A zoneless value is UTC: Rebecca
+   writes its timestamps that way, and reading them as local time would shift
+   them by the reader's offset. */
+function instant(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value * 1000 : null;
+  if (typeof value !== 'string' || value === '') return null;
+  const zoned = /(?:Z|[+-]\d\d:?\d\d)$/.test(value) ? value : value.replace(' ', 'T') + 'Z';
+  const ms = Date.parse(zoned);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/* A panel's /info payload -> the page's own field names, or null when it is
+   not the payload this page expects. Only the figures that change are read;
+   the name, the support link and the addresses stay as the page was rendered.
+   Rebecca wraps the account in `user`; PasarGuard does not. The subscriber's
+   address, which PasarGuard includes, is never read. */
+export function fromPanel(panel, data, now) {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return null;
+  const u = data.user !== null && typeof data.user === 'object' && !Array.isArray(data.user) ? data.user : data;
+  if (STATUSES.indexOf(u.status) < 0) return null;
+  const used = Number(u.used_traffic);
+  if (!Number.isFinite(used) || used < 0) return null;
+
+  const enabled = u.status !== 'disabled';
+  const limit = Number(u.data_limit);
+  let expire = 0;
+  if (u.status === 'on_hold') {
+    const hold = panel === 'pasarguard' ? Number(u.on_hold_expire_duration) : 0;
+    expire = hold > 0 ? -Math.trunc(hold) : HOLD_UNKNOWN;
+  } else if (u.expire !== null && u.expire !== undefined && u.expire !== '' && u.expire !== 0) {
+    const at = instant(u.expire);
+    if (at === null) return null;
+    expire = at > 0 ? Math.floor(at / 1000) : 0;
+  }
+  const seen = instant(u.online_at);
+  const age = seen === null ? -1 : now - seen;
+
+  return {
+    enabled: enabled ? '1' : '0',
+    isOnline: enabled && age >= 0 && age <= ONLINE_WINDOW ? '1' : '0',
+    downloadByte: Math.trunc(used),
+    uploadByte: 0,
+    totalByte: limit > 0 ? Math.trunc(limit) : 0,
+    expire: expire,
+    lastOnline: seen === null ? '' : seen,
+  };
+}
+
 function failure(structural) {
   const err = new Error('subscription info request failed');
   err.structural = structural;
@@ -87,7 +153,7 @@ export function createPoller(ctx) {
     if (win.AbortSignal && typeof win.AbortSignal.timeout === 'function') {
       init.signal = win.AbortSignal.timeout(TIMEOUT);
     }
-    return win.fetch(win.location.pathname + '?format=info', init);
+    return win.fetch(infoUrl(ctx.panel, win.location.pathname), init);
   }
 
   function run() {
@@ -107,10 +173,11 @@ export function createPoller(ctx) {
       })
       .then(function (data) {
         if (mine !== ticket) return;
-        if (!looksLikeInfo(data)) throw failure(true);
+        const info = ctx.panel ? fromPanel(ctx.panel, data, Date.now()) : data;
+        if (!looksLikeInfo(info)) throw failure(true);
         failures = 0;
         lastOk = Date.now();
-        ctx.onData(data, lastOk);
+        ctx.onData(info, lastOk);
         schedule(interval());
       })
       .catch(function (err) {

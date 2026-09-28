@@ -577,3 +577,129 @@ test('Rebecca: the panel-wide profile title is not in the page context', () => {
   assert.deepEqual(validateIsland(extractIsland(html)), []);
 });
 
+
+/* --- 1.4.0: what only a PasarGuard or Rebecca page carries ------------------
+   src/panels/<panel>/extension.* adds the panel's name for the runtime and, on
+   PasarGuard, the announcement's own address and the operator's application
+   list. Rendered here by the real engines, from the contexts the panels build,
+   with the values an operator (or an attacker with a panel account) could put
+   in those settings. */
+
+const DECODE = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&#34;': '"', '&#39;': "'", '&quot;': '"', '&#x27;': "'" };
+const decode = (s) => s.replace(/&(?:amp|lt|gt|quot|#34|#39|#x27);/g, (m) => DECODE[m]);
+
+function attrsOf(tag) {
+  const out = {};
+  for (const m of tag.matchAll(/ data-([a-z-]+)="([^"]*)"/g)) out[m[1]] = decode(m[2]);
+  return out;
+}
+
+/* The list as the runtime will read it: one entry per <i>, its links per <b>. */
+function appsOnPage(html) {
+  const m = html.match(/<div id="apps-source" hidden>([\s\S]*?)<\/div>/);
+  assert.ok(m, 'the page carries the application list element');
+  return [...m[1].matchAll(/<i([^>]*)>([\s\S]*?)<\/i>/g)].map((x) => ({
+    ...attrsOf(x[1]),
+    links: [...x[2].matchAll(/<b([^>]*)><\/b>/g)].map((y) => attrsOf(y[1])),
+  }));
+}
+
+function panelData(html) {
+  const m = html.match(/<div id="panel-data" hidden([^>]*)><\/div>/);
+  assert.ok(m, 'the page names its panel');
+  return attrsOf(m[1]);
+}
+
+function pgWith(extra) {
+  const doc = PG.find((d) => d.case === '01-active-online');
+  const context = { ...pasarguardContext(doc), ...extra };
+  const [html] = renderPasarGuard([{ html: SHELL.pasarguard, context }]);
+  return html;
+}
+
+const APPS = [
+  {
+    name: 'v2rayNG', icon_url: 'https://cdn.example/v2rayng.png',
+    import_url: 'v2rayng://install-sub?url=https%3A%2F%2Fpanel.example%2Fsub%2Fabc&name=Aurora',
+    description: { en: 'Fast & free', fa: 'سریع و رایگان' }, recommended: true, show_when_hwid_enabled: false,
+    platform: 'android',
+    download_links: [{ name: 'GitHub', url: 'https://github.com/2dust/v2rayNG/releases', language: 'en' }],
+  },
+  {
+    name: HOSTILE, icon_url: HOSTILE, import_url: HOSTILE, description: { en: HOSTILE, zh: HOSTILE },
+    recommended: false, show_when_hwid_enabled: false, platform: 'ios',
+    download_links: [{ name: HOSTILE, url: HOSTILE, language: 'fa' }],
+  },
+];
+
+test('PasarGuard: the operator\'s applications reach the page as data, exactly as configured', () => {
+  const html = pgWith({ apps: APPS });
+  const apps = appsOnPage(html);
+  assert.equal(apps.length, 2);
+  assert.deepEqual(apps[0], {
+    name: 'v2rayNG', platform: 'android', import: APPS[0].import_url, rec: '1',
+    en: 'Fast & free', fa: 'سریع و رایگان', ru: '', zh: '',
+    links: [{ name: 'GitHub', url: 'https://github.com/2dust/v2rayNG/releases', lang: 'en' }],
+  });
+  assert.equal(apps[1].name, HOSTILE, 'a hostile name arrives intact, as data');
+  assert.equal(apps[1].import, HOSTILE);
+  assert.equal(apps[1].rec, '');
+  assert.equal(apps[1].zh, HOSTILE);
+  assert.deepEqual(apps[1].links, [{ name: HOSTILE, url: HOSTILE, lang: 'fa' }]);
+});
+
+test('PasarGuard: application data never becomes markup or template code, and no icon is written', () => {
+  const html = pgWith({ apps: APPS });
+  const list = html.match(/<div id="apps-source" hidden>([\s\S]*?)<\/div>/)[1];
+  assert.equal(list.includes('<script>'), false);
+  assert.equal(list.includes('<img'), false);
+  assert.equal(list.includes('49'), false, '{{ 7*7 }} is never evaluated');
+  assert.equal(html.includes('cdn.example'), false, 'the icon address is not on the page at all');
+  /* No value closed its attribute early: every entry carries exactly the eight
+     attributes the shell writes, and every link exactly three. */
+  for (const tag of list.match(/<i [^>]*>/g)) {
+    const names = [...tag.matchAll(/ ([a-z-]+)="[^"]*"/g)].map((m) => m[1]);
+    assert.deepEqual(names, ['data-name', 'data-platform', 'data-import', 'data-rec', 'data-en', 'data-fa', 'data-ru', 'data-zh']);
+    assert.equal(tag.replace(/ [a-z-]+="[^"]*"/g, ''), '<i>');
+  }
+  for (const tag of list.match(/<b [^>]*>/g)) {
+    assert.equal(tag.replace(/ [a-z-]+="[^"]*"/g, ''), '<b>');
+  }
+  assert.deepEqual(validateIsland(extractIsland(html)), [], 'the island is untouched');
+});
+
+test('PasarGuard: with no applications configured, or no list in the context, the list is empty', () => {
+  for (const extra of [{ apps: [] }, {}]) {
+    assert.deepEqual(appsOnPage(pgWith(extra)), []);
+  }
+});
+
+test('PasarGuard: the page names its panel and carries the announcement\'s own address', () => {
+  const html = pgWith({ announce: 'Maintenance tonight', announce_url: 'https://status.example/?a=1&b="2"' });
+  assert.deepEqual(panelData(html), { panel: 'pasarguard', 'announce-url': 'https://status.example/?a=1&b="2"' });
+  assert.deepEqual(panelData(pgWith({ announce_url: '' })), { panel: 'pasarguard', 'announce-url': '' });
+  const { announce_url: _, ...none } = pasarguardContext(PG.find((d) => d.case === '01-active-online'));
+  const [bare] = renderPasarGuard([{ html: SHELL.pasarguard, context: none }]);
+  assert.deepEqual(panelData(bare), { panel: 'pasarguard', 'announce-url': '' }, 'an older panel with no announce_url');
+});
+
+test('Rebecca: the page names its panel and carries no application list', () => {
+  const { html } = rbPage({ username: 'rbuser' });
+  assert.deepEqual(panelData(html), { panel: 'rebecca' });
+  assert.equal(html.includes('<div id="apps-source"'), false, 'no list element');
+});
+
+test('the panels\' default support link is a placeholder, not a link: the page\'s own stands', () => {
+  for (const url of ['https://t.me/', 'https://t.me', 'http://t.me/', 'http://t.me']) {
+    const pg = pgPage({ username: 'u', supportUrl: url });
+    assert.equal(pg.model.supportUrl, '', `PasarGuard ${url}`);
+    const doc = RB.find((d) => d.case === '01-active-online');
+    const context = { ...rebeccaContext(doc), support_url: url };
+    const [html] = renderRebecca([{ html: SHELL.rebecca, context }]);
+    assert.equal(toModel(extractIsland(html)).supportUrl, '', `Rebecca ${url}`);
+  }
+  assert.equal(pgPage({ username: 'u', supportUrl: 'https://t.me/aurora' }).model.supportUrl, 'https://t.me/aurora');
+  const doc = RB.find((d) => d.case === '01-active-online');
+  const [html] = renderRebecca([{ html: SHELL.rebecca, context: { ...rebeccaContext(doc), support_url: 'https://t.me/aurora' } }]);
+  assert.equal(toModel(extractIsland(html)).supportUrl, 'https://t.me/aurora');
+});

@@ -1,0 +1,57 @@
+/* Shared by every template. The build appends this stylesheet after each
+   template's own, so a rule here is the last word on the parts it names.
+
+   --- Country flags ---
+
+   The flag badge asks for the Twemoji flag face first (src/styles/flag-face.css
+   declares it), so every platform draws the same flag. Appended after the
+   template's stylesheet, so a template's .cfg-flag rule cannot drop the face by
+   setting a font of its own. The monogram badge keeps the template's font. */
+
+.cfg-flag:not([data-mono]) {
+  font-family: "Row Flags", var(--font);
+}
+
+/* --- The panel's own applications ---
+
+   A PasarGuard operator can describe each application (connect.js appRow). The
+   description sits under the name in the row every template already styles;
+   only its own line is new, so it is written against the fallbacks every
+   template has, in the text colour the row already uses, only quieter. */
+.client-desc {
+  font-size: var(--fs-caption, 0.8125rem);
+  line-height: 1.45;
+  opacity: 0.75;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* In a template whose row header is a line of name and tag, the description
+   and the download link still start lines of their own. */
+.client-head:has(> .client-desc),
+.client-head:has(> .client-dl) {
+  flex-wrap: wrap;
+}
+
+.client-desc {
+  inline-size: 100%;
+}
+
+.client-dl {
+  inline-size: fit-content;
+  flex-basis: 100%;
+  justify-self: start;
+  margin-block-start: 0.125rem;
+  font-size: var(--fs-caption, 0.8125rem);
+}
+
+/* A panel's list can name up to seven platforms. A tab strip designed for four
+   wraps onto a second line rather than cutting its labels down to a letter;
+   with four tabs or fewer nothing here applies. */
+#platform-tabs:has(> :nth-child(5)) {
+  flex-wrap: wrap;
+}
+
+#platform-tabs:has(> :nth-child(5)) > [role="tab"] {
+  min-inline-size: max-content;
+}

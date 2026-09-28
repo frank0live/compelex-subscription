@@ -32,3 +32,40 @@ Cyrillic and CJK better than a subset would, and a Latin-bearing build costs
 90 KB of base64 instead of 42 KB. The @font-face declaration carries the same
 unicode-range, so the face is never applied to Latin text even when the
 interface language is Persian or Arabic.
+
+
+Twemoji Country Flags — the flag badge, embedded in the built page
+==================================================================
+
+twemoji-country-flags.woff2 is not an upstream file either. It is produced by
+tools/subset-flag-font.sh from a pinned release of the font TalkJS publishes as
+"Twemoji Country Flags" (itself a subset of Mozilla's Twemoji build). The script
+verifies the archive digest before touching it.
+
+  upstream         https://github.com/talkjs/country-flag-emoji-polyfill
+  release          npm country-flag-emoji-polyfill@0.1.10
+  source font      package/dist/TwemojiCountryFlags.woff2
+  archive sha512   5O50p2mq/d8+4AfHz3monRQaBA4TIQ0XcKqJUhCYR6SMsLqlO4m8f87og6R1D68Z1sNXGkjLkcEccuzC6T9i5g==
+  licence          artwork: Twemoji, CC-BY 4.0; build: MIT — TWEMOJI-LICENSE.txt
+
+  unicodes         U+1F1E6-1F1FF (the regional indicator symbols only)
+  units per em     64 (the source uses 512)
+  built with       fonttools 4.63.0, brotli 1.2.0
+
+  result           1641 glyphs, 258 flags
+  woff2 bytes      51560
+  base64 bytes     68748
+  sha256           806220bbb9728915709267d5c7ca99b69212f9acf6c4007bd0bff27fe5ea5586
+
+Rebuild and confirm the digest is unchanged:
+
+  bash tools/subset-flag-font.sh
+  sha256sum src/fonts/twemoji-country-flags.woff2
+
+Changes from the upstream font: the three subdivision flags (tag sequences the
+page never draws) are removed, hinting is removed, and the outlines are scaled
+from 512 to 64 units per em. At the badge's 16 to 34 px a unit is at most half a
+pixel, and the flags were compared side by side in Chromium, WebKit and Firefox
+before and after. The @font-face declaration carries unicode-range U+1F1E6-1F1FF,
+so the face is used for flags and nothing else, and a browser only decodes it on
+a page that shows a flag.
