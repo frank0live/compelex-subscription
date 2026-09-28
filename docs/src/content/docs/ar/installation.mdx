@@ -39,7 +39,7 @@ bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/dow
 | ‎`more than one panel is installed here (…); choose one with RT_PANEL=3xui\|pasarguard\|rebecca.`‎ | تثبيت غير تفاعلي على خادم فيه عدة لوحات. | أعد التشغيل مع ضبط ‎`RT_PANEL`‎ على اللوحة المطلوبة. |
 | ‎`RT_PANEL=<panel>, but <panel> was not detected on this host.`‎ | يسمّي ‎`RT_PANEL`‎ لوحة غير مثبّتة على هذا الخادم. | اضبط ‎`RT_PANEL`‎ على لوحة مثبّتة هنا. |
 | ‎`Row-Template is installed for <panel> at …; uninstall it before installing for <panel>.`‎ | رو-تمبلت يخدم بالفعل لوحة أخرى على هذا الخادم. | شغّل ‎`row-template uninstall`‎ أولًا، ثم ثبّت للوحة الأخرى. |
-| ‎`panel rebecca: this is Rebecca 0.0.x, the Python edition …`‎ | ‎Rebecca‎ هنا هي صورة ‎Docker‎، التي ما زالت ‎0.0.x‎ ولا تستطيع عرض الصفحة. لم يتغيّر شيء. | انقل ‎Rebecca‎ إلى ‎1.x‎ عبر ‎`rebecca migrate-binary`‎، ثم أعد التشغيل. |
+| ‎`panel rebecca: this is Rebecca 0.0.x, the Python edition …`‎ | ‎Rebecca‎ هنا هي صورة ‎Docker‎، التي ما زالت ‎0.0.x‎ ولا تستطيع عرض الصفحة. لم يتغيّر شيء. | ثبّت ‎Rebecca 1.x‎ بمثبّت ‎Rebecca‎ الثنائي (‎`rebecca-binary.sh`‎)، ثم أعد التشغيل. |
 | ‎`an existing install was found at …`‎ | رو-تمبلت مثبّت مسبقًا. | شغّل ‎`row-template update`‎، أو أعد التشغيل مع ‎`RT_ASSUME_YES=1`‎ للإصلاح. |
 | رفض بسبب checksum | التنزيل ناقص أو الملف ليس من الإصدار الرسمي. | أعد التنزيل من صفحة الإصدارات الرسمية. **لا تتجاوز هذا الفحص.** |
 | خطأ في الشبكة | تعذّر الوصول إلى GitHub. | أعد المحاولة أو استخدم [التثبيت دون اتصال](#التثبيت-دون-اتصال). |

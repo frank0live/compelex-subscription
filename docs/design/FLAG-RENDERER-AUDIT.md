@@ -1096,3 +1096,28 @@ and the country-name boundary. The previous 13 tests pass verbatim.
 ---
 
 ALPHA-2 INPUT PATH ADDED — RETURN SHAPE, `CODES` AND FALLBACKS UNCHANGED — 15 LOCKS RE-BASELINED
+
+---
+
+## 18. 1.4.0 — the embedded flag face (supersedes §3's "no font" and §5)
+
+The owner approved raising the artifact ceiling from 200 KiB to 280 KiB for
+1.4.0, which removes the one constraint that ruled Option **I** out (§3, §4.2:
+"+104,430 → impossible"). The page now embeds the Twemoji Country Flags face
+and the six CSS gradients of §5 are gone.
+
+- **Size.** Not the 104,430 B of §4.2: the face is subset to the regional
+  indicators and scaled from 512 to 64 units per em (`tools/subset-flag-font.sh`),
+  51,560 B of WOFF2, 68,748 B of base64. Compared side by side in Chromium,
+  WebKit and Firefox at badge size and at 48 px, before and after; 32 units per
+  em visibly moved stripe proportions and was not used.
+- **Coverage.** Every code in `CODES` has a colour glyph — proven from the
+  committed bytes by `tests/flag-font.test.mjs`, which reads the WOFF2 with
+  Node's own Brotli. `UK`, which no emoji set draws, resolves to `GB`; `XK`
+  joins the registry (259 codes, 258 flags).
+- **Placement.** Not the head stylesheet: the face is its own `<style>` just
+  before the locale island (`src/styles/flag-face.css`), after the markup and
+  before the script that creates the badges. First paint is unchanged or earlier
+  than 1.3.1 on a throttled 3G link; no badge ever exists before the face.
+- **J** (§3) stays rejected: the face is used on every platform rather than
+  after a capability probe, so every reader sees the same flag.

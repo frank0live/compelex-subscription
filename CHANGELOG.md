@@ -5,7 +5,119 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.1] - Unreleased
+## [1.4.0] - Unreleased
+
+Every country's flag, on every platform. On PasarGuard, the applications and
+the announcement link the operator already configured in the panel. Live
+figures on PasarGuard and Rebecca, as on 3X-UI. And on a fresh PasarGuard or
+Rebecca install, the panel's own name and support link are offered instead of
+being typed again. Row stays the default design, and nothing changes for an
+existing install except what is listed below.
+
+### Added
+
+- **Every country's flag, on every platform.** A node's flag used to be drawn by
+  the reader's own emoji font, and Windows has none with flags, so Chromium-based
+  browsers there — most desktop readers — printed the two letters (`TR`, `DE`)
+  instead; only six countries were drawn another way. The page now carries the
+  Twemoji flags as a small colour font and uses it for the flag badge alone, so
+  all 258 flags draw the same on Windows, Android, iOS, macOS and Linux, in
+  Chromium, Safari and Firefox. It covers flag emoji and ISO codes alike
+  (`🇹🇷 Istanbul`, `TR | Ankara`, `GB-LON-1`). `UK` now draws the British flag
+  (no emoji set draws a `UK` pair), and `XK` (Kosovo) is recognised. The font is
+  a 64-units-per-em subset of Twemoji Country Flags — visually identical at badge
+  size and a third smaller — rebuilt reproducibly by `tools/subset-flag-font.sh`;
+  the artwork is CC-BY 4.0 (`src/fonts/TWEMOJI-LICENSE.txt`).
+- **PasarGuard: the operator's own applications.** When the operator has listed
+  applications in PasarGuard (Settings → Subscription → Applications), the
+  Connect card shows those instead of the built-in list: one tab for each
+  platform the list covers (Android, iOS, Windows, macOS, Linux, Android TV,
+  Apple TV), the recommended application first, the operator's description in
+  the reader's language, and a download link. Import uses the link PasarGuard
+  built for this subscriber, and for a device-bound subscription PasarGuard has
+  already left out the applications that do not apply. With no list configured,
+  the page keeps its built-in catalogue. The icons the panel names are never
+  loaded, because the page makes no request to another site.
+- **PasarGuard: the announcement's own link.** An announcement with an address
+  set in the panel (`announce_url`) gains an *Open link* under its text.
+- **Live figures on PasarGuard and Rebecca.** Usage, expiry and online status now
+  refresh while the page is open on every panel. Both panels serve them at
+  `/<token>/info` in their own format; the page reads that format and stops,
+  leaving the figures it has, if a panel ever answers with anything else.
+- **The panel's own name and support link, offered at install.** PasarGuard and
+  Rebecca already hold a subscription title and a support URL. A fresh install
+  on either reads them (read-only) and asks *Use them for this page?*. In a
+  script, `RT_PANEL_BRANDING=1` takes them and `RT_PANEL_BRANDING=0` never offers
+  them; `RT_SERVICE_NAME` and `RT_SUPPORT_URL` always win. On an existing
+  install, **Reconfigure → Use PasarGuard's (Rebecca's) name and support link**
+  in the manager, or `RT_PANEL_BRANDING=1 row-template config`, does the same.
+  The panels' defaults (`Subscription`, `https://t.me/`) are never offered, nor a
+  PasarGuard title that still carries a per-subscriber placeholder such as
+  `{USERNAME}`; every value passes the same checks a typed one does.
+
+### Fixed
+
+- **A panel's default support link no longer replaces yours.** Rebecca's
+  support URL defaults to the bare `https://t.me/`, and a support link from the
+  panel outranks the one configured in Row-Template, so on a default Rebecca
+  every page's *Contact support* went to Telegram's front page. The bare
+  default now counts as no link, on Rebecca and PasarGuard alike.
+
+### Changed
+
+- **The page is larger, and paints as early as before.** The flag font adds
+  80,575 bytes to every design (the largest is 285,280 bytes); the size ceiling
+  is 280 KiB (was 200 KiB). The font is placed after the page's markup, not in
+  its head, so the first paint does not wait for it: measured on a 4× slower CPU
+  and a 1.6 Mbit/s link, first paint is unchanged or earlier, and the page
+  finishes loading about 0.4 s later on that link (about 0.1 s on 4G). Script
+  time is unchanged.
+- **Tabs wrap.** With more than four platforms in a panel's list, the tab strip
+  wraps onto a second line in every design instead of shortening the labels.
+
+### Known limitations
+
+- The panel-branding offer reads SQLite databases only; with MySQL, MariaDB or
+  PostgreSQL the installer simply asks as before.
+- PasarGuard's application icons are not shown (see above), and the page does
+  not state a device limit; the panel's own filtering of the application list is
+  what a device-bound subscription gets.
+- PasarGuard's page title (`subTitle`) and Clash templates are still not
+  produced, and Rebecca on MySQL/MariaDB still needs its one setting entered in
+  the dashboard.
+- Rebecca's Docker image is still the 0.0.x Python edition, which cannot render
+  this page, and is refused before anything is changed. Use Rebecca 1.x from its
+  binary installer (`rebecca-binary.sh`).
+
+### Development
+
+- **Every built script is compiled by the suite.** The runtime modules are
+  concatenated into one scope for the page, so two modules declaring the same
+  name are fine as modules and a syntax error as a page. `tests/artifact-scripts
+  .test.mjs` compiles every script of every design on every panel, and refuses
+  a top-level name declared twice.
+- **The flag font is tested from its bytes.** `tests/flag-font.test.mjs` reads
+  the committed WOFF2 with Node's own Brotli and proves that every code the page
+  can emit has a colour glyph, and where the face sits in every page.
+- **Browser validation in three engines.** The PasarGuard and Rebecca pages,
+  rendered by the panels' real engines, and the 3X-UI pages from the fixture
+  renderer, were checked in Chromium, WebKit and Firefox: every flag drawn as a
+  flag, the panel's applications and platforms, the announcement link, live
+  refresh repainting, Persian right-to-left, no request to another host.
+- `tools/rebaseline.mjs` re-pins the seventeen artifact locks to the current
+  build and prints what moved, for a deliberate change to the shared runtime.
+
+### Upgrading
+
+- From **1.1.0, 1.2.0 or 1.3.x**, on any panel: run `row-template update`. Your
+  design, branding and panel wiring are kept; the new page is in place at once.
+- To take PasarGuard's or Rebecca's own name and support link on an existing
+  install: `row-template` → **Reconfigure** → the last item, or
+  `RT_PANEL_BRANDING=1 row-template config`.
+- Rolling back after the update returns the page and the recorded version, not
+  the manager, as before; only the two newest backups are kept.
+
+## [1.3.1] - 2026-09-27
 
 A hotfix release: everything fixed after v1.3.0 was published, packaged as one
 small upgrade. The PasarGuard and Rebecca pages now name themselves after the

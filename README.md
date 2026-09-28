@@ -51,7 +51,7 @@ It ships as one self-contained HTML file per design, with every style, script, f
 
 ## Designs
 
-Row-Template 1.3.1 ships seventeen designs. Row is the default.
+Row-Template 1.4.0 ships seventeen designs. Row is the default.
 
 <table>
   <tr>
@@ -89,15 +89,15 @@ Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scri
 
 **For your subscribers**
 
-- **Live status.** Plan state, traffic used and remaining, and expiry, refreshed from your panel while the page is visible (3X-UI; on PasarGuard and Rebecca the page shows the values as of when it was opened).
-- **One-tap import** into popular apps, grouped by platform: v2rayNG, Happ and sing-box on Android; Streisand, V2Box and Shadowrocket on iOS; Clash Verge Rev, Mihomo Party and v2rayN on Windows; Clash Verge Rev, Streisand and V2Box on macOS.
+- **Live status.** Plan state, traffic used and remaining, and expiry, refreshed from your panel while the page is visible — on 3X-UI, PasarGuard and Rebecca alike.
+- **One-tap import** into popular apps, grouped by platform: v2rayNG, Happ and sing-box on Android; Streisand, V2Box and Shadowrocket on iOS; Clash Verge Rev, Mihomo Party and v2rayN on Windows; Clash Verge Rev, Streisand and V2Box on macOS. On PasarGuard, the applications you list in the panel (Settings → Subscription → Applications) take their place, with your descriptions and download links.
 - **Copy and QR.** Copy the subscription link or scan it as a QR code generated on the page.
-- **Configuration Explorer.** Every server on its own row, with a country flag or monogram and a protocol label (VLESS, VMess, Trojan, Shadowsocks, Hysteria/Hysteria2, WireGuard, AmneziaWG, Telegram MTProto), plus per-configuration QR and copy, and search for long lists.
+- **Configuration Explorer.** Every server on its own row, with a country flag or monogram and a protocol label (VLESS, VMess, Trojan, Shadowsocks, Hysteria/Hysteria2, WireGuard, AmneziaWG, Telegram MTProto), plus per-configuration QR and copy, and search for long lists. Flags are drawn by an embedded Twemoji font, so every country's flag shows on every platform — Windows included.
 - **Five languages** — English, Persian, Arabic, Russian, and Chinese — with right-to-left layout, and a System / Light / Dark theme choice.
 
 **For you**
 
-- **White-label branding.** Service name, support link, and logo, all optional, stored as data and injected as text.
+- **White-label branding.** Service name, support link, and logo, all optional, stored as data and injected as text. On PasarGuard and Rebecca, a fresh install offers the name and support link already set in the panel.
 - **A manager for everything.** An interactive menu and direct commands for branding, updates, verification, rollback, and uninstall.
 - **Stable-channel updates.** `row-template update` installs the latest stable release, verified, whenever you run it — which also makes it a quick repair.
 
@@ -118,13 +118,13 @@ Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scri
 
 The three panels use three different template engines — Go `html/template`, Jinja2 and pongo2 — so every design is built once per panel, and each version is tested by rendering it with that panel's real engine. The installer detects which panel is on the server; on a server with more than one, it asks (or reads `RT_PANEL`). **Supported** means all seven capabilities are present on that panel — detect, install, activate, verify, backup, restore and uninstall — and each one is exercised by the test suite. See [Compatibility](https://iitzseridev.github.io/Row-Template/compatibility/) for the details of each panel.
 
-**Limitations in 1.3.1:**
+**Limitations in 1.4.0:**
 
-- **Live refresh is 3X-UI only.** On PasarGuard and Rebecca the page shows usage and expiry as of when it was opened.
-- **Rebecca's Docker image is refused.** It is still 0.0.x, the Python edition; Rebecca's own `rebecca migrate-binary` moves a Docker install to 1.x.
+- **Rebecca's Docker image is refused.** It is still 0.0.x, the Python edition; install Rebecca 1.x with its binary installer (`rebecca-binary.sh`).
 - **One setting by hand** when automatic activation is not possible: 3X-UI without `sqlite3`, and Rebecca on MySQL/MariaDB or without `sqlite3`.
 - **Panel settings still take precedence** on PasarGuard and Rebecca: an admin's own subscription template, and PasarGuard's **disable subscription template** setting. `row-template verify` reports both.
 - **Clash templates** are not produced; only the subscription page is.
+- **PasarGuard application icons are not shown.** The page loads nothing from another site, so an icon address set in the panel is not used.
 - **Flags come from a code or an emoji, never from a name.** An ISO 3166-1 alpha-2 code in the node name (`TR | Istanbul`, `RU-01`, `GB-LON-1`, `DE`) draws that country's flag, as does a flag emoji. Country *names* and *city names* (`Turkey - Istanbul`, `Finland Helsinki`) are **not** inferred and keep the monogram.
 - **One panel per server.** An installation serves the panel it was installed for; to serve a different one, run `row-template uninstall` first.
 
@@ -145,7 +145,7 @@ flowchart TB
   end
   build -- "GitHub Releases" --> host
   host -- "serves the page" --> BROWSER["Subscriber's browser"]
-  BROWSER -. "live status (3X-UI): ?format=info" .-> host
+  BROWSER -. "live status: ?format=info (3X-UI), /info (PasarGuard, Rebecca)" .-> host
 ```
 
 - **One file per design.** `tools/build.mjs` inlines the shared runtime, the translations, the fonts, and the QR generator into a design's layout, and refuses a layout that is missing any hook the runtime needs. `tools/verify.mjs` then rejects an artifact that loads anything remote or carries a forbidden construct.
@@ -196,6 +196,12 @@ RT_PANEL=pasarguard bash <(curl -fsSL https://github.com/frank0live/Row-Template
 
 `RT_PANEL` must name a panel that is installed on that server. A re-run or an update keeps the panel Row-Template was installed for.
 
+On PasarGuard and Rebecca, a fresh install also offers the service name and support link already set in the panel's own subscription settings. To take them in a script, set `RT_PANEL_BRANDING=1` (`RT_PANEL_BRANDING=0` never offers them, and `RT_SERVICE_NAME` and `RT_SUPPORT_URL` always win):
+
+```bash
+RT_PANEL_BRANDING=1 bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
+```
+
 If you prefer not to pipe from the network, download the four release assets (`install.sh`, `manifest.txt`, `SHA256SUMS`, and `row-template-<version>.tar.gz`) from the [Releases page](https://github.com/frank0live/Row-Template/releases/latest) into one folder, verify the checksum yourself as described in [PROVENANCE.md](PROVENANCE.md), and point the installer at that folder:
 
 ```bash
@@ -235,7 +241,7 @@ PasarGuard reads `.env` at start-up, so a running panel is restarted once. None 
 - **Automatic** with the default SQLite database and `sqlite3` installed.
 - **Manual** with MySQL/MariaDB (or without `sqlite3`): the page is still placed; in the Rebecca dashboard open **Settings → Subscription → Templates** and set **Subscription page template** to `row-template/index.html` and **Custom templates directory** to `/var/lib/rebecca/templates`.
 
-Row-Template supports Rebecca **1.x**, the Go edition, which Rebecca publishes for its binary install (`rebecca-binary.sh`). Docker Hub's `rebeccapanel/rebecca` image is still the 0.0.x Python edition, which cannot render this page; the installer refuses it and changes nothing, and Rebecca's own `rebecca migrate-binary` moves a Docker install to 1.x.
+Row-Template supports Rebecca **1.x**, the Go edition, which Rebecca publishes for its binary install (`rebecca-binary.sh`). Docker Hub's `rebeccapanel/rebecca` image is still the 0.0.x Python edition, which cannot render this page; the installer refuses it and changes nothing. Install Rebecca 1.x with Rebecca's own binary installer (`rebecca-binary.sh`) to use Row-Template.
 
 ## Usage
 
@@ -261,8 +267,8 @@ Commands that change the system (`config`, `update`, `rollback`, `uninstall`) mu
 
 - **Branding** is stored as data, never executed, and injected into the page as text. Leave a field blank for an unbranded page. The support link accepts only schemes a browser should open, such as `https://…`, `tg://…`, or `mailto:…`.
 - **Updates** come from the public stable channel. `row-template update` always applies the latest stable release, even the version you already run; the manager's **Update** compares versions first and asks before changing anything. If the release source is unreachable, nothing is changed and your installation is never treated as damaged.
-- **Updating from 1.1.0 or 1.2.0** takes one `row-template update`. 1.1.0's own updater copies only part of the new release, so the next `row-template`, `row-template config`, or `row-template verify` run as root first downloads the rest of that same release — every design, checksum-verified. Your design, branding, and panel wiring are kept. Earlier releases did not install on PasarGuard or Rebecca; there, run the installer.
-- **Rollback** restores a previous version from a validated backup. The current version is snapshotted first, so a failed rollback can be recovered, and your branding is preserved. Backups record the panel they were made on and are never restored onto another; a backup from an older release that does not name its design restores as Row. A rollback restores the page and the version it records, not the `row-template` manager itself: after rolling back to a 1.1.0 backup, `row-template version` reports 1.1.0 while the 1.3.0 manager stays in place, and the next `row-template update` returns to 1.3.0. Only the two newest backups are kept — each update, design switch, and rollback makes one.
+- **Updating from 1.1.0, 1.2.0 or 1.3.x** takes one `row-template update`. 1.1.0's own updater copies only part of the new release, so the next `row-template`, `row-template config`, or `row-template verify` run as root first downloads the rest of that same release — every design, checksum-verified. Your design, branding, and panel wiring are kept. Earlier releases did not install on PasarGuard or Rebecca; there, run the installer.
+- **Rollback** restores a previous version from a validated backup. The current version is snapshotted first, so a failed rollback can be recovered, and your branding is preserved. Backups record the panel they were made on and are never restored onto another; a backup from an older release that does not name its design restores as Row. A rollback restores the page and the version it records, not the `row-template` manager itself: after rolling back to a 1.1.0 backup, `row-template version` reports 1.1.0 while the 1.4.0 manager stays in place, and the next `row-template update` returns to 1.4.0. Only the two newest backups are kept — each update, design switch, and rollback makes one.
 - **Uninstall** removes Row-Template's files and returns the panel to the page it had before: on 3X-UI it clears `subThemeDir` only if it points at Row-Template; on PasarGuard it removes its `.env` block and its page; on Rebecca it restores the two subscription settings it changed (leaving them alone if you have since chosen another page). Your users, inbounds, clients, nodes, and certificates are not touched.
 
 The [documentation](https://iitzseridev.github.io/Row-Template/) covers configuration, branding, and troubleshooting in more depth.
@@ -293,7 +299,6 @@ The build is deterministic — the same sources always produce a byte-identical 
 
 Direction, not promises:
 
-- **Live status on PasarGuard and Rebecca** — both serve it on a path suffix rather than `?format=info`; wiring it up needs a small runtime change, and that decision is deferred. See [Compatibility](https://iitzseridev.github.io/Row-Template/compatibility/).
 - **Custom templates** — a proposal for adding your own design: [`docs/design/CUSTOM-TEMPLATES-PROPOSAL.md`](docs/design/CUSTOM-TEMPLATES-PROPOSAL.md).
 
 ## Contributing
@@ -330,7 +335,7 @@ Thank you.
 
 ## License
 
-Released under the [MIT License](LICENSE). The bundled QR code generator (`src/vendor/uqr`) is included under its own MIT license, and the embedded Vazirmatn font subset under the SIL Open Font License (`src/fonts/OFL.txt`).
+Released under the [MIT License](LICENSE). The bundled QR code generator (`src/vendor/uqr`) is included under its own MIT license, and the embedded Vazirmatn font subset under the SIL Open Font License (`src/fonts/OFL.txt`). The embedded flag font is Twemoji artwork under CC-BY 4.0 (`src/fonts/TWEMOJI-LICENSE.txt`).
 
 ## Developer
 

@@ -152,8 +152,8 @@ installer placed the page but could not select it.
 still the 0.0.x Python edition. It cannot render Row-Template's Rebecca page, so the
 installer refused before changing anything.
 
-**Fix.** Move to Rebecca 1.x, the Go edition, with Rebecca's own `rebecca migrate-binary`
-(or install it with `rebecca-binary.sh`), then re-run the installer.
+**Fix.** Install Rebecca 1.x, the Go edition, with Rebecca's own binary installer
+(`rebecca-binary.sh`), then re-run the installer.
 
 ---
 
@@ -190,11 +190,18 @@ that the panel answers locally, then re-run `row-template verify`.
 
 ---
 
-### The figures do not refresh on PasarGuard or Rebecca
+### The figures do not refresh
 
-**What it means.** This is expected. Both panels serve live status on a path suffix rather
-than `?format=info`, so the page shows the values as of when it was opened. Reload the page
-to update them. See [Compatibility](/compatibility/#known-limits).
+**What it means.** Since 1.4.0 the page refreshes usage, expiry and online status on every
+panel while it is visible — every 15 seconds for an active subscription, every minute
+otherwise. When the footer says **Live updates stopped.** or **Live updates are not available
+on this panel**, the panel did not answer the page's info address: `?format=info` on 3X-UI,
+`/<token>/info` on PasarGuard and Rebecca. A reverse proxy in front of the panel that does not
+pass that address through is the usual cause. The figures already on the page stay as they
+were, and **Try again** retries.
+
+**Fix.** Let the info address through to the panel, the same way as the subscription
+address itself.
 
 ## Build and verification
 
@@ -262,14 +269,15 @@ Rebecca), then re-run.
 
 ## Browser and display
 
-### Flags render as letters on Windows
+### A server shows a letter instead of its flag
 
-**What it means.** Windows Chromium has no local font containing flag glyphs, so the
-country badge falls back to the two-letter code.
+**What it means.** Since 1.4.0 the page carries its own flag font, so a country's flag draws
+on every platform, Windows included. A badge with a single letter is the monogram: the node's
+name holds no flag emoji and no uppercase two-letter country code standing on its own
+(`TR | Istanbul`, `DE-FRA-2`), or the code is not a country (`ZZ`). Country and city names
+are not read.
 
-**Status.** **Known and documented.** This is a platform limitation, not a defect, and it
-is one of the open questions in the flag-rendering workstream. The badge is legible either
-way.
+**Fix.** Put the flag emoji, or the two-letter code, in the node's name in the panel.
 
 ## Still stuck
 
