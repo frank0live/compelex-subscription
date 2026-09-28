@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  APP_PLATFORMS, importLink, readApps, appPlatforms, appsFor, describe, downloadFor, pickPlatform,
+  APP_PLATFORMS, importLink, readApps, appPlatforms, appsFor, describe, downloadFor, pickPlatform, absolutize,
 } from '../src/scripts/apps.js';
 import { renderConnect, platformsFor, nextTab } from '../src/scripts/connect.js';
 import { PLATFORMS } from '../src/scripts/clients.js';
@@ -260,4 +260,32 @@ test('an announcement address that is not a web address is never a link', () => 
     assert.equal(notice('Maintenance tonight', url).querySelector('.announce-link'), null, url);
   }
   assert.equal(notice('', 'https://status.example').firstChild, null, 'no text, no card, no link');
+});
+
+/* --- a relative subscription path in an import link (found on a real
+   PasarGuard 5.4.1 with no subscription URL prefix) ------------------------- */
+
+test('a bare subscription path in an import link is completed with the page origin', () => {
+  const loc = { origin: 'https://panel.example:8443', pathname: '/sub/PAGE-TOKEN' };
+  assert.equal(absolutize('v2rayng://install-sub?url=/sub/LINK-TOKEN', loc),
+    'v2rayng://install-sub?url=https://panel.example:8443/sub/LINK-TOKEN');
+  assert.equal(absolutize('happ://add//sub/LINK-TOKEN', loc), 'happ://add/https://panel.example:8443/sub/LINK-TOKEN');
+  assert.equal(absolutize('streisand://import//sub/LINK-TOKEN#Aurora', loc),
+    'streisand://import/https://panel.example:8443/sub/LINK-TOKEN#Aurora');
+});
+
+test('an import link that already carries an address is left exactly as it is', () => {
+  const loc = { origin: 'https://panel.example', pathname: '/sub/PAGE-TOKEN' };
+  for (const link of [
+    'v2rayng://install-sub?url=https://cdn.example/sub/T',
+    'happ://add/https://panel.example/sub/T',
+    'clash://install-config?url=https%3A%2F%2Fpanel.example%2Fsub%2FT',
+    'sing-box://import-remote-profile?url=https://h/x',
+    'hiddify://import/https://other.example/sub/T',
+  ]) {
+    assert.equal(absolutize(link, loc), link, link);
+  }
+  assert.equal(absolutize('v2rayng://x?url=/sub/T', { origin: 'null', pathname: '/sub/P' }), 'v2rayng://x?url=/sub/T',
+    'no usable origin: nothing is invented');
+  assert.equal(absolutize('v2rayng://x?url=/sub/T', { origin: 'https://h', pathname: '/' }), 'v2rayng://x?url=/sub/T');
 });

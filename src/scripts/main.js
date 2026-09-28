@@ -8,7 +8,7 @@ import { readDocument, readPanel, normalize } from './model.js';
 import { readCatalogues, createI18n } from './i18n.js';
 import { collect, render, renderUpdated, summary, setText, setAttr, empty, subLink, svgUse } from './render.js';
 import { renderConnect, urlsFor, nextTab, platformsFor } from './connect.js';
-import { readApps, pickPlatform } from './apps.js';
+import { readApps, pickPlatform, absolutize } from './apps.js';
 import { detectPlatform, sourceUrl, deepLink } from './clients.js';
 import { monogram, displayName } from './brand.js';
 import { copyText, selectField } from './clipboard.js';
@@ -691,7 +691,7 @@ function onAppClick(button) {
   if (!app) return;
   if (button.getAttribute('data-act') === 'import' && app.link) {
     try {
-      win.location.href = app.link;
+      win.location.href = absolutize(app.link, win.location);
       toast(i18n.t('client.opening'));
       return;
     } catch (err) {
