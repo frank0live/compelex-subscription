@@ -188,6 +188,10 @@ rt_panel_impl_uninstall_template() { rt_panel_dispatch uninstall_template "$@"; 
 #       ours is placed, 2 unavailable here, 1 failure.
 #   rt_panel_status PANEL
 #       echo active | inactive | manual | unknown, for the dashboard.
+#   rt_panel_branding PANEL
+#       echo the panel's own subscription title and support URL, one per line,
+#       read-only (1.4.0). 0 read, 2 unavailable here (3X-UI, or a database
+#       Row-Template does not read).
 #
 # 3X-UI places nothing: its page is served from the install root directly, so
 # refresh is NOT_APPLICABLE and its status stays with rt_status_theme.
@@ -225,5 +229,16 @@ rt_panel_status() {
     pasarguard) rt_panel_pasarguard_status ;;
     rebecca)    rt_panel_rebecca_status ;;
     *)          printf 'unknown' ;;
+  esac
+}
+
+rt_panel_branding() {
+  local panel="${1:-}" impl
+  rt_panel_id_ok "$panel" || return "$RT_PANEL_FAIL"
+  impl="$(rt_panel_impl_for "$panel")"
+  case "$impl" in
+    pasarguard) rt_panel_pasarguard_branding || return "$RT_PANEL_UNAVAILABLE" ;;
+    rebecca)    rt_panel_rebecca_branding || return "$RT_PANEL_UNAVAILABLE" ;;
+    *)          return "$RT_PANEL_UNAVAILABLE" ;;
   esac
 }

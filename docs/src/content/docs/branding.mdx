@@ -34,6 +34,23 @@ tells you why.
 That is why the support link only accepts schemes a browser should open: a link that
 could run code is not a link.
 
+## Using the panel's own name and support link
+
+PasarGuard and Rebecca keep a subscription title and a support link in their own settings.
+On a fresh install for either, the installer reads them and asks **Use them for this page?**,
+so you do not type them twice. In a script, `RT_PANEL_BRANDING=1` takes them and
+`RT_PANEL_BRANDING=0` never offers them; `RT_SERVICE_NAME` and `RT_SUPPORT_URL` always win.
+On an existing install, open `row-template` → **Reconfigure** → **Use PasarGuard's (or
+Rebecca's) name and support link**, or run:
+
+```bash
+RT_PANEL_BRANDING=1 row-template config
+```
+
+The panels' defaults — the title `Subscription` and the bare `https://t.me/` — are never
+offered, nor a PasarGuard title that still carries a per-subscriber placeholder such as
+`{USERNAME}`. The values are read, never written, and only from a SQLite database.
+
 ## Branding persists across updates
 
 `row-template update` replaces the code, not your configuration. Your service name,

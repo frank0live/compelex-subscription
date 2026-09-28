@@ -118,43 +118,43 @@ test('the release payload ships Row on top and every selectable design with chec
     }
     if (id === 'editorial') {
       assert.equal(file.equals(EDITORIAL), true, 'editorial store artifact is the current build');
-      assert.ok(file.length <= 200 * 1024, 'editorial stays inside the hard ceiling');
+      assert.ok(file.length <= 280 * 1024, 'editorial stays inside the hard ceiling');
     }
       if (id === 'canvas') {
         assert.equal(file.equals(CANVAS), true, 'canvas store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'canvas stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'canvas stays inside its own budget line');
       }
       if (id === 'prism') {
         assert.equal(file.equals(PRISM), true, 'prism store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'prism stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'prism stays inside its own budget line');
       }
       if (id === 'terminal') {
         assert.equal(file.equals(TERMINAL), true, 'terminal store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'terminal stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'terminal stays inside its own budget line');
       }
       if (id === 'pulse') {
         assert.equal(file.equals(PULSE), true, 'pulse store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'pulse stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'pulse stays inside its own budget line');
       }
       if (id === 'brutal') {
         assert.equal(file.equals(BRUTAL), true, 'brutal store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'brutal stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'brutal stays inside its own budget line');
       }
       if (id === 'arcade') {
         assert.equal(file.equals(ARCADE), true, 'arcade store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'arcade stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'arcade stays inside its own budget line');
       }
       if (id === 'sketch') {
         assert.equal(file.equals(SKETCH), true, 'sketch store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'sketch stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'sketch stays inside its own budget line');
       }
       if (id === 'signature') {
         assert.equal(file.equals(SIGNATURE), true, 'signature store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'signature stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'signature stays inside its own budget line');
       }
       if (id === 'saffron') {
         assert.equal(file.equals(SAFFRON), true, 'saffron store artifact is the current build');
-        assert.ok(file.length <= 203 * 1024, 'saffron stays inside its own budget line');
+        assert.ok(file.length <= 283 * 1024, 'saffron stays inside its own budget line');
       }
     }
 

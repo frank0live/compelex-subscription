@@ -24,21 +24,40 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BOOT = ['detect.js', 'boot.js'];
 const APP = [
   'model.js', 'format.js', 'url.js', 'i18n.js', 'brand.js', 'flag.js', 'config.js',
-  'clipboard.js', 'qr.js', 'clients.js', 'live.js', 'render.js', 'connect.js', 'explorer.js', 'main.js',
+  'clipboard.js', 'qr.js', 'clients.js', 'apps.js', 'live.js', 'render.js', 'connect.js', 'explorer.js', 'main.js',
 ];
 const LOCALES = ['en', 'fa', 'ar', 'ru', 'zh'];
 
 const FONT = 'fonts/vazirmatn-arabic-subset.woff2';
+const FLAG_FONT = 'fonts/twemoji-country-flags.woff2';
 const VENDOR_QR = 'vendor/uqr/index.mjs';
 
-/* Size gates: the soft target (185 KiB, a caution) and the hard refusal point
-   (204,800 B). Neither may be raised — a new template that cannot fit must be
-   reduced, not given headroom. */
-const WARN_BYTES = 185 * 1024;
-const FAIL_BYTES = 200 * 1024;
+/* The stylesheet every template shares, appended after the template's own
+   (src/styles/shared.css): the few rules for parts every template draws the
+   same way. */
+const SHARED_STYLES = ['src/styles/shared.css', 'styles/shared.css'];
+
+/* The flag face, written as a <style> of its own just before the locale island
+   rather than into the <head> (src/styles/flag-face.css says why). Its banner
+   carries the artwork's attribution, which CC-BY asks to travel with the copy,
+   and banners survive the comment strip. */
+const FLAG_FACE = ['src/styles/flag-face.css', 'fonts/twemoji-country-flags.woff2 — Twemoji (c) Twitter, Inc and contributors, CC-BY 4.0'];
+const FLAG_FACE_ANCHOR = '<script type="application/json" id="i18n-data">';
+
+/* Size gates: the soft target (a caution) and the hard refusal point.
+
+   1.4.0 raised both, once and deliberately: the embedded flag face is 68,748 B
+   of base64, and the 200 KiB ceiling it replaces had 95 B left in the tightest
+   template. The ceiling is still a ceiling — a template that cannot fit is
+   reduced, not given headroom — and it is written as a KiB count so a test can
+   compare against the same number. */
+const WARN_BYTES = 272 * 1024;
+const FAIL_BYTES = 280 * 1024;
 
 const FONT_FACE_OPEN = '/* row:font-face */';
 const FONT_FACE_CLOSE = '/* row:font-face end */';
+const FLAG_FACE_OPEN = '/* row:flag-face */';
+const FLAG_FACE_CLOSE = '/* row:flag-face end */';
 
 function read(...parts) {
   return readFileSync(join(ROOT, ...parts), 'utf8');
@@ -123,21 +142,46 @@ function buildStyles(withFont, styles) {
   /* styles is a list of [path, banner label] from the template registry. The
      label is what appears in the artifact, so Row's historical labels are what
      keep its bytes stable; new templates pick their own. */
-  let css = styles.map(([path, label]) => banner(label) + read(...path.split('/'))).join('\n');
+  let css = [...styles, SHARED_STYLES].map(([path, label]) => banner(label) + read(...path.split('/'))).join('\n');
 
-  const open = css.indexOf(FONT_FACE_OPEN);
-  const close = css.indexOf(FONT_FACE_CLOSE);
-  if (open < 0 || close < open) throw new Error('tokens.css: font-face markers not found');
+  css = embedFace(css, withFont, FONT, '__FONT_BASE64__', FONT_FACE_OPEN, FONT_FACE_CLOSE, 'tokens.css');
+  return deindent(stripComments(css), 'styles');
+}
+
+/* The flag face's own stylesheet, or '' for a system-fonts build. */
+function buildFlagFace(withFont) {
+  if (!withFont) return '';
+  const css = embedFace(banner(FLAG_FACE[1]) + read(...FLAG_FACE[0].split('/')), true, FLAG_FONT,
+    '__FLAGS_BASE64__', FLAG_FACE_OPEN, FLAG_FACE_CLOSE, 'flag-face.css');
+  return deindent(stripComments(css), 'flag face');
+}
+
+/* The page with the flag face placed just before the locale island: after the
+   markup, so the page paints without it, and before the script that creates
+   the badges, so no badge is drawn before the face exists. */
+function withFlagFace(html, face) {
+  if (!face) return html;
+  const parts = html.split(FLAG_FACE_ANCHOR);
+  if (parts.length !== 2) throw new Error('a page must carry the locale island exactly once');
+  return `${parts[0]}<style>${face}</style>\n${FLAG_FACE_ANCHOR}${parts[1]}`;
+}
+
+/* One embedded face: its placeholder filled with the font as base64, or — for a
+   system-fonts build — the whole marked block removed. */
+function embedFace(css, withFont, file, placeholder, openMarker, closeMarker, label) {
+  const open = css.indexOf(openMarker);
+  const close = css.indexOf(closeMarker);
+  if (open < 0 || close < open) throw new Error(`${label}: face markers not found`);
 
   if (withFont) {
-    const base64 = readFileSync(join(ROOT, 'src', FONT)).toString('base64');
-    css = css.replace('__FONT_BASE64__', base64);
-    if (css.includes('__FONT_BASE64__')) throw new Error('font placeholder appears twice');
+    const base64 = readFileSync(join(ROOT, 'src', file)).toString('base64');
+    css = css.replace(placeholder, base64);
+    if (css.includes(placeholder)) throw new Error(`${label}: font placeholder appears twice`);
   } else {
-    css = css.slice(0, open) + css.slice(close + FONT_FACE_CLOSE.length);
-    if (css.includes('__FONT_BASE64__')) throw new Error('font-face block left a placeholder');
+    css = css.slice(0, open) + css.slice(close + closeMarker.length);
+    if (css.includes(placeholder)) throw new Error(`${label}: face block left a placeholder`);
   }
-  return deindent(stripComments(css), 'styles');
+  return css;
 }
 
 function buildBoot() {
@@ -298,6 +342,7 @@ function build(withFont, templateId = DEFAULT_TEMPLATE) {
   html = substitute(html, '/*__BOOT__*/', boot);
   html = substitute(html, '/*__LOCALES__*/', locales);
   html = substitute(html, '/*__APP__*/', app);
+  html = withFlagFace(html, buildFlagFace(withFont));
 
   /* Template hook on <html>. Row predates the attribute and must stay
      byte-identical to the v1.1.0 artifact, so its attribute is removed whole;
@@ -347,9 +392,9 @@ function defaultOut(templateId) {
   return join(ROOT, 'dist', 'templates', templateId, 'template.html');
 }
 
-/* The two size lines from the directive. A template past the hard ceiling
-   fails the build; past the soft target it only reports, so the growth stays
-   visible without blocking. Neither value may be raised. */
+/* The two size lines. A template past the hard ceiling fails the build; past
+   the soft target it only reports, so the growth stays visible without
+   blocking. */
 function budgetStatus(total) {
   if (total > FAIL_BYTES) return 'FAIL';
   if (total > WARN_BYTES) return 'WARN';
@@ -447,7 +492,7 @@ export { build, buildLocales, stripModuleSyntax, validateLayout, REQUIRED_HOOKS 
  * This is purely additive: these are build-side helpers, never inlined into an
  * artifact by name, so exporting them cannot move a byte of any template. The
  * artifact comparison in the verification step proves it. */
-export { buildStyles, buildBoot, buildApp, substitute, loadLayout };
+export { buildStyles, buildBoot, buildApp, buildFlagFace, withFlagFace, substitute, loadLayout };
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   try {

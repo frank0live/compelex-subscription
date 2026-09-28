@@ -88,10 +88,17 @@ function checkShape(html, bytes) {
   const marker = html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//);
   check('every build marker was substituted', marker ? `${marker[0]} is still there` : '');
 
+  /* The head stylesheet, and since 1.4.0 the flag face as a second <style>
+     just before the locale island (src/styles/flag-face.css); a system-fonts
+     build has only the first. Anything else is something the build did not
+     put there. */
   const styles = (html.match(/<style>/g) || []).length;
   const scripts = (html.match(/<script(?: |>)/g) || []).length;
+  const faceOk = styles === 1 || (styles === 2
+    && /<style>\/\* ---- fonts\/twemoji-country-flags\.woff2 [^\n]*\n[\s\S]*?<\/style>\n<script type="application\/json" id="i18n-data">/.test(html));
   check('everything is inlined',
-    styles !== 1 || scripts !== 3 ? `expected 1 style and 3 script elements, found ${styles} and ${scripts}` : '');
+    !faceOk || scripts !== 3
+      ? `expected the head style (and the flag face) and 3 script elements, found ${styles} and ${scripts}` : '');
 }
 
 /* §23.4: the installer rewrites the branding block in place. Losing a marker

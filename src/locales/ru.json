@@ -90,5 +90,11 @@
   "theme.dark": "Тёмная",
   "footer.updated": "Обновлено {when}",
   "footer.stopped": "Обновление остановлено.",
-  "footer.static": "Обновление в реальном времени недоступно на этой панели"
+  "footer.static": "Обновление в реальном времени недоступно на этой панели",
+  "platform.linux": "Linux",
+  "platform.androidtv": "Android TV",
+  "platform.appletv": "Apple TV",
+  "client.recommended": "Рекомендуем",
+  "client.download_for": "Скачать {name}",
+  "announce.open": "Открыть ссылку"
 }

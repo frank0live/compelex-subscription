@@ -26,7 +26,10 @@
                   date is converted with integer arithmetic (days from civil).
                   A value with a non-UTC offset is left unknown, never guessed.
     subUrl        user.subscription_url, and Clash Meta at its /clash-meta suffix
-    support       support_url
+    support       support_url. Rebecca's default is the bare "https://t.me/" --
+                  a placeholder, not a link anyone chose -- and a panel value
+                  outranks the page's own, so the default counts as none and
+                  the support link built into the page stands.
     subTitle      user.username, the one identity the page context carries. A
                   value with no word in it at all -- absent, empty or only
                   whitespace -- is not a name, and the page keeps its generic
@@ -98,6 +101,7 @@
 {%- set subTitle = "" -%}
 {%- if user.username|wordcount > 0 -%}{%- set subTitle = user.username -%}{%- endif -%}
 {%- set subSupportUrl = support_url -%}
+{%- if subSupportUrl == "https://t.me/" or subSupportUrl == "https://t.me" or subSupportUrl == "http://t.me/" or subSupportUrl == "http://t.me" -%}{%- set subSupportUrl = "" -%}{%- endif -%}
 {%- set datepicker = "gregorian" -%}
 {%- set announce = "" -%}
 {%- set used = downloadByte|bytesformat -%}

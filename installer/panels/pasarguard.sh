@@ -381,6 +381,30 @@ rt_panel_pasarguard_db_notes() {
   return 0
 }
 
+# --- the panel's own name and support link (1.4.0, read-only) -----------------
+# Settings > Subscription holds a profile title and a support URL. The installer
+# offers them as this page's service name and support link; lib/row-template.sh
+# (rt_panel_branding_read) decides which of them are worth offering and
+# validates both. Read-only and SQLite only, like the notes above. A value that
+# holds a newline is not a one-line setting and is dropped here, so the two
+# lines this prints are always exactly the two settings.
+
+rt_panel_pasarguard_branding() {
+  # echo the profile title, then the support URL, one per line.
+  local db t u
+  command -v sqlite3 >/dev/null 2>&1 || return 1
+  db="$(rt_panel_pasarguard_db)" || return 1
+  t="$(sqlite3 -readonly -cmd '.timeout 5000' "$db" \
+    "SELECT json_extract(subscription, '\$.profile_title') FROM settings ORDER BY id LIMIT 1;" 2>/dev/null)" || return 1
+  u="$(sqlite3 -readonly -cmd '.timeout 5000' "$db" \
+    "SELECT json_extract(subscription, '\$.support_url') FROM settings ORDER BY id LIMIT 1;" 2>/dev/null)" || return 1
+  case "$t" in *'
+'*) t="" ;; esac
+  case "$u" in *'
+'*) u="" ;; esac
+  printf '%s\n%s\n' "$t" "$u"
+}
+
 # --- the frozen verbs --------------------------------------------------------------
 
 rt_panel_pasarguard_detect() {

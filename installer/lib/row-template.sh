@@ -1275,6 +1275,18 @@ rt_backup_meta() {
   rt_manifest_get "$1" "$2/meta"
 }
 
+rt_backup_saved_template() {
+  # echo the design the install had selected when snapshot DIR was taken, from
+  # the TEMPLATE key of the settings saved in it (1.4.0), or nothing. That one
+  # key is READ, as data -- the file is never sourced, and never restored: a
+  # rollback keeps the operator's current branding. Only an id this release
+  # ships is echoed.
+  local id
+  id="$(rt_config_get_raw TEMPLATE "$1/config.env" | LC_ALL=C tr -cd 'a-z0-9')"
+  if rt_template_allowed "$id"; then printf '%s' "$id"; fi
+  return 0
+}
+
 rt_backup_panels() {
   # echo the comma-separated panels this snapshot RECORDS STATE FOR.
   #
@@ -2260,10 +2272,44 @@ rt_monogram_preview() {
   printf '%s' "$out"
 }
 
+# --- the panel's own name and support link (1.4.0) ---------------------------
+# PasarGuard and Rebecca each keep a subscription title and a support URL in
+# their settings. The installer offers them as this page's service name and
+# support link, so an operator who already set them does not type them twice.
+# A value is offered only when it is one the operator chose: the panels' own
+# defaults ("Subscription", "https://t.me/") are not, and a PasarGuard title
+# that still carries one of its per-user placeholders ({USERNAME}, ...) is not
+# a name this page could print. Every value then passes the same validators a
+# typed value does. Nothing is read from 3X-UI: its page already falls back to
+# the panel's own title and support link when none is configured here.
+
+RT_PB_NAME=""
+RT_PB_URL=""
+
+rt_panel_branding_read() {
+  # PANEL -> RT_PB_NAME, RT_PB_URL. 0 when at least one of them is usable.
+  local panel="${1:-}" raw t="" u=""
+  RT_PB_NAME=""; RT_PB_URL=""
+  case "$panel" in pasarguard|rebecca) : ;; *) return 1 ;; esac
+  raw="$(rt_panel_branding "$panel" 2>/dev/null)" || return 1
+  { IFS= read -r t || true; IFS= read -r u || true; } <<< "$raw"
+  t="$(rt_trim "$t")"; u="$(rt_trim "$u")"
+  [ "$t" = "Subscription" ] && t=""
+  if [ "$panel" = "pasarguard" ]; then case "$t" in *'{'*) t="" ;; esac; fi
+  case "$u" in https://t.me/|https://t.me|http://t.me/|http://t.me) u="" ;; esac
+  rt_validate_service_name "$t" || t=""
+  rt_validate_support_url "$u" || u=""
+  RT_PB_NAME="$t"; RT_PB_URL="$u"
+  [ -n "$t" ] || [ -n "$u" ]
+}
+
 # --- interactive configuration ----------------------------------------------
 # Prompts to stderr so a helper's stdout stays clean. Non-interactive callers
 # (automation, CI) provide values through the environment:
-# RT_SERVICE_NAME, RT_SUPPORT_URL, RT_LOGO_PATH, RT_LOGO_REMOVE=1.
+# RT_SERVICE_NAME, RT_SUPPORT_URL, RT_LOGO_PATH, RT_LOGO_REMOVE=1, and
+# RT_PANEL_BRANDING=1 to take the name and support link from the panel's own
+# settings (PasarGuard, Rebecca) where RT_SERVICE_NAME / RT_SUPPORT_URL do not
+# set them. RT_PANEL_BRANDING=0 never offers them.
 
 rt_prompt_text() {
   local label="$1" def="$2" reply
@@ -2277,7 +2323,9 @@ rt_prompt_text() {
 
 rt_config_interactive() {
   # gather branding (existing config supplies the defaults) and write config.env.
+  # `offer` (a fresh install) also offers the panel's own name and support link.
   local cur_name cur_url cur_mime cur_logo_b64 name url mime logo_b64 ni=0 mg lp
+  local mode="${1:-}" pb="${RT_PANEL_BRANDING:-}" use_pb=0 pb_name=0 pb_url=0 plabel
   cur_name="$(rt_config_get_text SERVICE_NAME_B64 2>/dev/null || true)"
   cur_url="$(rt_config_get_text SUPPORT_URL_B64 2>/dev/null || true)"
   cur_mime="$(rt_config_get_raw LOGO_MIME 2>/dev/null || true)"
@@ -2285,9 +2333,30 @@ rt_config_interactive() {
   name="$cur_name"; url="$cur_url"; mime="$cur_mime"; logo_b64="$cur_logo_b64"
   { [ -t 0 ] && [ -z "${RT_ASSUME_NONINTERACTIVE:-}" ]; } || ni=1
 
+  # --- the panel's own name and support link ---
+  # RT_PANEL_BRANDING=1 takes them without asking, =0 never offers them; unset,
+  # an interactive fresh install asks. Explicit RT_SERVICE_NAME/RT_SUPPORT_URL
+  # always win over the panel's values.
+  if [ "$pb" != "0" ] && { [ "$pb" = "1" ] || { [ "$ni" -eq 0 ] && [ "$mode" = "offer" ]; }; } \
+     && rt_panel_branding_read "$(rt_panel_current)"; then
+    if [ "$pb" = "1" ]; then
+      use_pb=1
+    else
+      plabel="$(rt_panel_label "$(rt_panel_current)")"
+      rt_info "${plabel}'s own subscription settings already have:"
+      [ -z "$RT_PB_NAME" ] || rt_info "  Service name:  $RT_PB_NAME"
+      [ -z "$RT_PB_URL" ]  || rt_info "  Support link:  $RT_PB_URL"
+      rt_ui_confirm "Use them for this page?" yes && use_pb=1
+    fi
+  fi
+  if [ "$use_pb" -eq 1 ]; then
+    if [ -n "$RT_PB_NAME" ] && [ -z "${RT_SERVICE_NAME+x}" ]; then name="$RT_PB_NAME"; pb_name=1; fi
+    if [ -n "$RT_PB_URL" ] && [ -z "${RT_SUPPORT_URL+x}" ]; then url="$RT_PB_URL"; pb_url=1; fi
+  fi
+
   # --- service name ---
   if [ -n "${RT_SERVICE_NAME+x}" ]; then name="$RT_SERVICE_NAME"
-  elif [ "$ni" -eq 0 ]; then name="$(rt_prompt_text "Service name (Enter to keep, - to clear)" "$cur_name")"; fi
+  elif [ "$ni" -eq 0 ] && [ "$pb_name" -eq 0 ]; then name="$(rt_prompt_text "Service name (Enter to keep, - to clear)" "$cur_name")"; fi
   name="$(rt_trim "$name")"
   rt_validate_service_name "$name" || { rt_err "service name rejected (control chars or too long)"; return 1; }
   if [ "$ni" -eq 0 ] && [ -n "$name" ]; then
@@ -2297,7 +2366,7 @@ rt_config_interactive() {
 
   # --- support URL ---
   if [ -n "${RT_SUPPORT_URL+x}" ]; then url="$RT_SUPPORT_URL"
-  elif [ "$ni" -eq 0 ]; then
+  elif [ "$ni" -eq 0 ] && [ "$pb_url" -eq 0 ]; then
     while true; do
       url="$(rt_prompt_text "Support URL, optional (Enter to keep, - to clear)" "$cur_url")"
       rt_validate_support_url "$url" && break
@@ -2652,7 +2721,8 @@ rt_restore_from_backup() {
   # artifact and the stored selection always agree — including when the backup
   # predates the current release's store. If the checksum match fails (the backup
   # artifact is not byte-identical to any installed template), fall back to the
-  # template recorded in the backup's meta, then to Row as a last resort.
+  # template recorded in the backup's meta, then to the selection saved in the
+  # backup's own config.env, then to Row as a last resort.
   local dir="$1" tpl_id bpanel
   rt_backup_validate "$dir" || { rt_err "backup failed validation: $dir"; return 1; }
   # A backup is only ever restored onto the panel it was made for. Every backup
@@ -2666,6 +2736,14 @@ rt_restore_from_backup() {
   tpl_id="$(rt_template_id_for_artifact "$src")"
   if [ -z "$tpl_id" ]; then
     tpl_id="$(rt_backup_meta template "$dir")"
+    # 1.4.0: an update backs up the page it replaces AFTER the new release's
+    # designs are in the store, so a backup taken by an updater from before
+    # 1.4.0 matches none of them and records no template -- and every design
+    # changed in 1.4.0. The selection the install had at that moment is still in
+    # the backup's own config.env: read as data (never sourced), and only a
+    # known id is taken. Found rolling a real 3X-UI back from 1.4.0 to its 1.3.1
+    # backup, which restored Row instead of the operator's Editorial.
+    [ -n "$tpl_id" ] || tpl_id="$(rt_backup_saved_template "$dir")"
     if [ -z "$tpl_id" ]; then
       tpl_id="row"
       rt_warn "backup artifact has no store match and no recorded template; defaulting to Row."
@@ -3118,7 +3196,7 @@ rt_cmd_install() {
   # branding: a first install prompts; a repair keeps the existing config as-is.
   if [ ! -f "$RT_CONFIG" ]; then
     while true; do
-      rt_config_interactive || rt_die "configuration was not completed; the panel was not changed."
+      rt_config_interactive offer || rt_die "configuration was not completed; the panel was not changed."
       if [ "$interactive" -eq 1 ]; then
         rt_install_summary_confirm "$picked_explicit" && break
         rt_info "Let's adjust the settings."
@@ -4220,6 +4298,28 @@ rt_reconfig_template() {
   fi
 }
 
+rt_reconfig_from_panel() {
+  # Take the service name and support link from the panel's own settings (1.4.0).
+  local panel plabel
+  panel="$(rt_panel_current)"; plabel="$(rt_panel_label "$panel")"
+  if ! rt_panel_branding_read "$panel"; then
+    rt_ui_info "${plabel}'s settings have no service name or support link to use (its defaults do not count)."
+    return 0
+  fi
+  [ -z "$RT_PB_NAME" ] || rt_ui_kv "Service name" "$RT_PB_NAME"
+  [ -z "$RT_PB_URL" ]  || rt_ui_kv "Support link" "$RT_PB_URL"
+  rt_ui_confirm "Use ${plabel}'s values for this page?" yes || { rt_ui_info "Nothing changed."; return 0; }
+  local name url
+  name="$(rt_config_get_text SERVICE_NAME_B64 2>/dev/null || true)"
+  url="$(rt_config_get_text SUPPORT_URL_B64 2>/dev/null || true)"
+  [ -z "$RT_PB_NAME" ] || name="$RT_PB_NAME"
+  [ -z "$RT_PB_URL" ]  || url="$RT_PB_URL"
+  if rt_apply_branding "$name" "$url" \
+      "$(rt_config_get_raw LOGO_MIME 2>/dev/null || true)" "$(rt_config_get_raw LOGO_DATA_B64 2>/dev/null || true)"; then
+    rt_ui_success "Branding taken from ${plabel}."
+  fi
+}
+
 rt_reconfig_reset() {
   rt_ui_warn "This clears custom branding (service name, support URL, logo) and"
   rt_ui_info "returns Row-Template to its default look. It does NOT remove Row-Template."
@@ -4227,7 +4327,11 @@ rt_reconfig_reset() {
   if rt_apply_branding "" "" "" ""; then rt_ui_success "Branding reset to defaults."; fi
 }
 rt_manager_reconfigure() {
-  local choice
+  local choice max=6 panel
+  panel="$(rt_panel_current)"
+  # PasarGuard and Rebecca keep their own name and support link (1.4.0): one
+  # more item, after the six every panel has, so their numbers never move.
+  case "$panel" in pasarguard|rebecca) max=7 ;; esac
   while true; do
     rt_ui_section "Reconfigure"
     printf '  %s1%s  Service name\n'          "$RT_C_BLD" "$RT_C_RST"
@@ -4236,8 +4340,11 @@ rt_manager_reconfigure() {
     printf '  %s4%s  Template\n'              "$RT_C_BLD" "$RT_C_RST"
     printf '  %s5%s  Reset branding\n'        "$RT_C_BLD" "$RT_C_RST"
     printf '  %s6%s  Reconfigure everything\n' "$RT_C_BLD" "$RT_C_RST"
+    if [ "$max" -eq 7 ]; then
+      printf '  %s7%s  Use %s'"'"'s name and support link\n' "$RT_C_BLD" "$RT_C_RST" "$(rt_panel_label "$panel")"
+    fi
     printf '  %s0%s  Back\n'                  "$RT_C_BLD" "$RT_C_RST"
-    choice="$(rt_ui_menu_select 6)"
+    choice="$(rt_ui_menu_select "$max")"
     case "$choice" in
       1) rt_reconfig_service_name ;;
       2) rt_reconfig_support_url ;;
@@ -4245,6 +4352,7 @@ rt_manager_reconfigure() {
       4) rt_reconfig_template ;;
       5) rt_reconfig_reset ;;
       6) rt_run_action rt_cmd_config ;;
+      7) rt_reconfig_from_panel ;;
       0) return 0 ;;
     esac
     rt_ui_pause

@@ -9,7 +9,7 @@
 
 import { health, isOnline, traffic, expiry } from './model.js';
 import { bytesText, percentText, barWidth, barLevel, relativeParts } from './format.js';
-import { safe, runs, SUPPORT_SCHEMES } from './url.js';
+import { safe, runs, SUPPORT_SCHEMES, LINK_SCHEMES } from './url.js';
 
 /* Bidi isolates, written as code points because the characters themselves are
    invisible in an editor. Technical values — byte counts, percentages, dates in
@@ -359,12 +359,18 @@ export function svgUse(doc, symbol) {
    only elements ever created around it are anchors for addresses this code
    found itself and checked, so there is no path from the panel field to markup.
    The card is rebuilt only when the text itself changes, which keeps an opened
-   "show more" open across a poll. */
-function renderAnnounce(el, model, i18n) {
+   "show more" open across a poll.
+
+   A panel may also give the announcement an address of its own (PasarGuard's
+   announce_url). It becomes one "Open link" under the text, and only when it is
+   a web address. */
+function renderAnnounce(el, model, i18n, url) {
   const slot = el.announceSlot;
   if (!slot) return;
   const doc = el.doc;
   const text = model.announce;
+  const href = text ? safe(url || '', LINK_SCHEMES) : null;
+  const key = text + '\n' + (href || '');
 
   if (!text) {
     if (slot.firstChild) empty(slot);
@@ -374,7 +380,7 @@ function renderAnnounce(el, model, i18n) {
     return;
   }
 
-  if (slot._rowText !== text) {
+  if (slot._rowText !== key) {
     empty(slot);
     const card = doc.createElement('section');
     card.className = 'announce';
@@ -419,8 +425,17 @@ function renderAnnounce(el, model, i18n) {
     });
     card.appendChild(more);
 
+    if (href) {
+      const open = doc.createElement('a');
+      open.className = 'text-link announce-link';
+      open.setAttribute('href', href);
+      open.setAttribute('target', '_blank');
+      open.setAttribute('rel', 'noopener noreferrer nofollow');
+      card.appendChild(open);
+    }
+
     slot.appendChild(card);
-    slot._rowText = text;
+    slot._rowText = key;
     slot._rowMore = more;
 
     /* Whether the text is long enough to need the toggle is a question only
@@ -444,6 +459,7 @@ function renderAnnounce(el, model, i18n) {
   }
   const head = slot.querySelector('.announce-head .section-title');
   setText(head, i18n.t('announce.title'));
+  setText(slot.querySelector('.announce-link'), i18n.t('announce.open'));
 }
 
 /* Support is a link the operator typed into the panel, so it is checked before
@@ -542,13 +558,13 @@ export function summary(el) {
   return out.join('. ');
 }
 
-export function render(el, model, i18n, now, branding) {
+export function render(el, model, i18n, now, branding, announceUrl) {
   const state = health(model, now);
   renderStatus(el, model, state, i18n);
   renderLive(el, model, state, i18n, now);
   renderTraffic(el, model, i18n);
   renderExpiry(el, model, i18n, now);
-  renderAnnounce(el, model, i18n);
+  renderAnnounce(el, model, i18n, announceUrl);
   renderSupport(el, model, branding, i18n);
   return state;
 }

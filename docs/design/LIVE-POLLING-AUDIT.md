@@ -265,3 +265,25 @@ to the deployment, it sees the subscription token in its logs, and it must not c
 ---
 
 LIVE POLLING AUDIT COMPLETE — TWO PROBLEMS, NOT ONE — RECOMMEND DEFER — AWAITING APPROVAL
+
+---
+
+## Addendum — 1.4.0: implemented as Option C
+
+With the 1.4.0 ceiling (280 KiB) the byte constraint of §4.3 no longer binds,
+and Option C shipped:
+
+- **Endpoint.** The PasarGuard and Rebecca shells carry a panel marker
+  (`src/panels/<panel>/extension.*`); `src/scripts/live.js` `infoUrl()` polls
+  `/<token>/info` for them and `?format=info` for a page without one (3X-UI,
+  unchanged). `tests/adapters.test.mjs` holds it equal to each adapter's
+  `livePath()`.
+- **Shape.** `fromPanel()` translates the panel's own payload — Rebecca's current
+  `SubscriptionInfo` nests the account under `user` — into the island names, and
+  returns null for anything it does not recognise, which halts the poller as
+  `unsupported` (§3's failure is closed: a foreign payload can never be
+  normalised). Only the changing figures are taken; name, support link and
+  addresses stay as rendered.
+- **Validation.** Unit tests (`tests/live-panels.test.mjs`), the three browser
+  engines against pages rendered by the panels' real engines, and the real
+  panels.

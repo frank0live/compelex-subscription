@@ -41,7 +41,7 @@ optional.
 | `more than one panel is installed here (…); choose one with RT_PANEL=3xui\|pasarguard\|rebecca.` | A non-interactive install on a server with several panels. | Re-run with `RT_PANEL` set to the panel to serve. |
 | `RT_PANEL=<panel>, but <panel> was not detected on this host.` | `RT_PANEL` names a panel that is not installed on this server. | Set `RT_PANEL` to a panel that is installed here. |
 | `Row-Template is installed for <panel> at …; uninstall it before installing for <panel>.` | Row-Template already serves another panel on this server. | Run `row-template uninstall` first, then install for the other panel. |
-| `panel rebecca: this is Rebecca 0.0.x, the Python edition …` | This Rebecca is the Docker image, which is still 0.0.x and cannot render the page. Nothing was changed. | Move Rebecca to 1.x with `rebecca migrate-binary`, then re-run. See [Troubleshooting](/troubleshooting/). |
+| `panel rebecca: this is Rebecca 0.0.x, the Python edition …` | This Rebecca is the Docker image, which is still 0.0.x and cannot render the page. Nothing was changed. | Install Rebecca 1.x with Rebecca's binary installer (`rebecca-binary.sh`), then re-run. See [Troubleshooting](/troubleshooting/). |
 | `an existing install was found at …; re-run interactively or set RT_ASSUME_YES=1 to repair` | Row-Template is already installed. | Run `row-template update`, or re-run with `RT_ASSUME_YES=1` to repair the existing install. |
 | A checksum refusal | The download was incomplete or came from somewhere other than the official release. | Re-download from the official releases page and re-run. **Do not bypass the check.** |
 | A network error | GitHub was unreachable. | Retry, or use [Offline installation](#offline-installation). |
