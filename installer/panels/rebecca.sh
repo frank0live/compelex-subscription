@@ -135,7 +135,7 @@ rt_panel_rebecca_edition_ok() {
   case "$(rt_panel_rebecca_edition)" in
     go) return 0 ;;
     python)
-      rt_err "panel rebecca: this is Rebecca 0.0.x, the Python edition (Docker image $(rt_panel_rebecca_image)). Row-Template's Rebecca page is built for Rebecca 1.x, the Go edition, which Rebecca publishes for its binary install (rebecca-binary.sh); Rebecca's own 'rebecca migrate-binary' moves a Docker install to it." ;;
+      rt_err "panel rebecca: this is Rebecca 0.0.x, the Python edition (Docker image $(rt_panel_rebecca_image)). Row-Template's Rebecca page is built for Rebecca 1.x, the Go edition, which Rebecca publishes for its binary install: install it with Rebecca's rebecca-binary.sh, then run this installer again." ;;
     *)
       rt_err "panel rebecca: cannot tell which Rebecca edition this is (the Docker image could not be inspected); refusing rather than placing a page Rebecca may not be able to render." ;;
   esac
@@ -186,6 +186,27 @@ rt_panel_rebecca_sql() {
 rt_panel_rebecca_quote() { printf '%s' "${1//\'/\'\'}"; }
 
 RT_RB_ROW="(SELECT id FROM subscription_settings ORDER BY id DESC LIMIT 1)"
+
+# The panel's own name and support link (1.4.0, read-only): the profile title
+# and the support URL of the subscription settings row Rebecca reads. The
+# installer offers them as this page's service name and support link;
+# lib/row-template.sh (rt_panel_branding_read) decides which of them are worth
+# offering and validates both. A value that holds a newline is dropped, so the
+# two lines this prints are always exactly the two settings.
+rt_panel_rebecca_branding() {
+  # echo the profile title, then the support URL, one per line.
+  local t u
+  rt_panel_rebecca_db_ready || return 1
+  t="$(sqlite3 -readonly -cmd '.timeout 5000' "$RT_RB_DB" \
+    "SELECT subscription_profile_title FROM subscription_settings WHERE id = $RT_RB_ROW;" 2>/dev/null)" || return 1
+  u="$(sqlite3 -readonly -cmd '.timeout 5000' "$RT_RB_DB" \
+    "SELECT subscription_support_url FROM subscription_settings WHERE id = $RT_RB_ROW;" 2>/dev/null)" || return 1
+  case "$t" in *'
+'*) t="" ;; esac
+  case "$u" in *'
+'*) u="" ;; esac
+  printf '%s\n%s\n' "$t" "$u"
+}
 
 rt_panel_rebecca_page_get() {
   # Echo subscription_page_template of the row Rebecca reads. Fails when there

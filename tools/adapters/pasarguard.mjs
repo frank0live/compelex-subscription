@@ -187,9 +187,10 @@ export function island(native) {
 }
 
 /* The info endpoint. PasarGuard serves it on a PATH SUFFIX, not a query
-   parameter — `/{token}/info`. This is the one place where the runtime is not
-   panel-agnostic, and it is why live polling needs a separately-approved
-   runtime change. This adapter only reports the path; it does not wire it up. */
+   parameter — `/{token}/info`. Since 1.4.0 the runtime polls it: the shell
+   names the panel (src/panels/pasarguard/extension.jinja2) and
+   src/scripts/live.js builds this same path (infoUrl) and translates the
+   payload (fromPanel); tests/adapters.test.mjs holds the two in agreement. */
 export function livePath(pathname) {
   const base = String(pathname === null || pathname === undefined ? '' : pathname);
   return base.replace(/\/+$/, '') + '/info';

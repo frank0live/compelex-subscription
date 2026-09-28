@@ -1179,6 +1179,62 @@ test('a backup whose page matches no installed design is restored from the store
   assert.match(r.out, /live=row/);
 });
 
+/* Found rolling a real 3X-UI 3.8.5 host back from 1.4.0 to the backup its
+   1.3.1 updater took: an updater from before 1.4.0 backs the old page up only
+   after the new release's designs are in the store, so the page matches none of
+   them and the backup records no template -- and every design changed in 1.4.0.
+   The rollback then restored Row instead of the operator's Editorial. The
+   selection the install had is still in the backup's own config.env, and is
+   now the last thing tried before Row: read as data, and only a known id. */
+test('a backup that names no design is restored with the selection its config.env saved', () => {
+  const r = shRoot(
+    'rt_switch_template row\n' +
+    'old="$RT_BACKUPS/20260927T000000Z__1.3.1"\n' +
+    'mkdir -p "$old"\n' +
+    'sed "s#<meta name=\\"robots\\"#<meta name=\\"generator\\" content=\\"1.3.1\\">&#" "$RT_TEMPLATE_STORE/editorial/template.html" > "$old/template.html"\n' +
+    'rt_sha256 "$old/template.html" > "$old/template.html.sha256"\n' +
+    'printf "1.3.1\\n" > "$old/VERSION"\n' +
+    'printf "created=20260927T000000Z\\nversion=1.3.1\\npanel=3xui\\n" > "$old/meta"\n' +
+    'cp "$RT_CONFIG" "$old/config.env" && sed -i "s/^TEMPLATE=.*/TEMPLATE=editorial/" "$old/config.env"\n' +
+    '[ -z "$(rt_template_id_for_artifact "$old/template.html")" ] && echo "old-is-unknown"\n' +
+    'rt_restore_from_backup "$old" && rt_activate && echo RESTORED\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
+    'cmp -s "$RT_DIST" "$RT_TEMPLATE_STORE/editorial/template.html" && echo "canonical-is-store-editorial"\n' +
+    'printf "ver=%s\\n" "$(cat "$RT_VERSION_FILE")"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
+    'grep -q "data-template=\\"editorial\\"" "$RT_LIVE" && echo "live=editorial"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /old-is-unknown/, 'the fixture really is a page no design matches');
+  assert.match(r.out, /RESTORED/);
+  assert.match(r.out, /tpl=editorial/, 'the selection the backup saved is restored');
+  assert.match(r.out, /canonical-is-store-editorial/, 'from the installed Editorial design');
+  assert.match(r.out, /ver=1\.3\.1/);
+  assert.match(r.out, /live=editorial/);
+  assert.match(r.out, /name=Test VPN/, 'the current branding is kept: the saved settings are not restored');
+  assert.doesNotMatch(r.err, /defaulting to Row/);
+});
+
+test('a backup config.env naming an unknown design still falls back to Row', () => {
+  const r = shRoot(
+    'rt_switch_template editorial\n' +
+    'old="$RT_BACKUPS/20260927T000000Z__1.3.1"\n' +
+    'mkdir -p "$old"\n' +
+    'sed "s#<meta name=\\"robots\\"#<meta name=\\"generator\\" content=\\"x\\">&#" "$RT_TEMPLATE_STORE/row/template.html" > "$old/template.html"\n' +
+    'rt_sha256 "$old/template.html" > "$old/template.html.sha256"\n' +
+    'printf "version=1.3.1\\n" > "$old/meta"\n' +
+    'printf "TEMPLATE=../../etc/passwd\\n" > "$old/config.env"\n' +
+    'rt_restore_from_backup "$old" && echo RESTORED\n' +
+    'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"',
+    { prepare: prepareInstall },
+  );
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /RESTORED/);
+  assert.match(r.out, /tpl=row/);
+  assert.match(r.err, /defaulting to Row/);
+});
+
 test('a corrupt or mismatched backup is refused before anything is restored', () => {
   const r = shRoot(
     'rt_switch_template editorial\n' +

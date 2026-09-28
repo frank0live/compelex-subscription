@@ -212,6 +212,10 @@ done
 db="$(cygpath -w "$1" 2>/dev/null || printf '%s' "$1")"
 "$RT_TEST_PYTHON" - "$db" "$2" <<'PYEOF'
 import sqlite3, sys
+# The real sqlite3 writes UTF-8 with bare newlines; a Windows Python would
+# otherwise write the console code page and CRLF, and a non-Latin value would
+# fail to print at all.
+sys.stdout.reconfigure(encoding="utf-8", newline="\\n")
 con = sqlite3.connect(sys.argv[1])
 try:
     cur = con.execute(sys.argv[2])
@@ -262,10 +266,15 @@ exit 1
    timeout, a cancelled job) never reaches the exit hook below, and a half-built
    mirror would otherwise be reused on the next run -- and, if `bash` happened to
    be the entry that never got linked, fail in a way that has nothing to do with
-   sqlite3. */
+   sqlite3.
+
+   Each test process builds its own. `node --test` runs the suites that use it
+   side by side, and a mirror they shared was removed by the exit hook of
+   whichever finished first, taking bash, grep and the rest of /usr/bin away
+   from the others mid-test (`spawnSync bash ENOENT`). */
 const mirrors = new Map();
 function mirrorWithoutSqlite(dir) {
-  const dest = join(tmpdir(), `row-nosqlite-${sha256(dir).slice(0, 12)}`);
+  const dest = join(tmpdir(), `row-nosqlite-${process.pid}-${sha256(dir).slice(0, 12)}`);
   const stamp = join(dest, '.mirror-complete');
   if (!existsSync(stamp)) {
     rmSync(dest, { recursive: true, force: true });
@@ -402,7 +411,7 @@ export function pasarguardHost(base, { running = true, env = PG_ENV, compose = t
       'CREATE TABLE admins (id INTEGER PRIMARY KEY, username VARCHAR(34), sub_template VARCHAR(1024))',
       'CREATE TABLE settings (id INTEGER PRIMARY KEY, subscription JSON NOT NULL)',
       `INSERT INTO settings (subscription) VALUES ('${JSON.stringify({ allow_browser_config: true,
-        disable_sub_template: Boolean(db.disable) })}')`,
+        disable_sub_template: Boolean(db.disable), ...(db.subscription || {}) }).split("'").join("''")}')`,
     ];
     (db.admins || []).forEach((t, i) => statements.push(
       `INSERT INTO admins (username, sub_template) VALUES ('a${i}', ${t === null ? 'NULL' : `'${t.split("'").join("''")}'`})`));
@@ -432,7 +441,7 @@ export function pasarguardHost(base, { running = true, env = PG_ENV, compose = t
 /* --- Rebecca -------------------------------------------------------------------- */
 
 export function rebeccaHost(base, { running = true, sqlite = true, url, customDir = null, pageTemplate = 'subscription/index.html',
-  rows = 1, admins = [], compose = true, cli = true, edition = 'go' } = {}) {
+  rows = 1, admins = [], compose = true, cli = true, edition = 'go', branding = null } = {}) {
   const app = join(base, 'opt', 'rebecca');
   const dataDir = join(base, 'var', 'lib', 'rebecca');
   const cliPath = join(base, 'usr', 'local', 'bin', 'rebecca');
@@ -466,6 +475,7 @@ export function rebeccaHost(base, { running = true, sqlite = true, url, customDi
   // columns around them that must survive untouched.
   const statements = [
     `CREATE TABLE subscription_settings (id INTEGER PRIMARY KEY, subscription_url_prefix VARCHAR(512) NOT NULL DEFAULT '',
+      subscription_profile_title VARCHAR(255) NOT NULL DEFAULT 'Subscription',
       subscription_support_url VARCHAR(512) NOT NULL DEFAULT 'https://t.me/', custom_templates_directory VARCHAR(512) NULL,
       clash_subscription_template VARCHAR(255) NOT NULL DEFAULT 'clash/default.yml',
       subscription_page_template VARCHAR(255) NOT NULL DEFAULT 'subscription/index.html',
@@ -479,6 +489,13 @@ export function rebeccaHost(base, { running = true, sqlite = true, url, customDi
       '${last ? pageTemplate : 'old/page.html'}')`);
   }
   admins.forEach((a, i) => statements.push(`INSERT INTO admins (username, subscription_settings) VALUES ('a${i}', '${a.split("'").join("''")}')`));
+  // `branding` sets the title and support URL of the row Rebecca reads (the
+  // newest), which is what 1.4.0 offers as this page's name and support link.
+  if (branding) {
+    const q = (v) => `'${String(v).split("'").join("''")}'`;
+    statements.push(`UPDATE subscription_settings SET subscription_profile_title = ${q(branding.title)},
+      subscription_support_url = ${q(branding.url)} WHERE id = (SELECT MAX(id) FROM subscription_settings)`);
+  }
   const r = spawnSync(PYTHON, ['-c', [
     'import sqlite3,sys,json',
     'con=sqlite3.connect(sys.argv[1])',

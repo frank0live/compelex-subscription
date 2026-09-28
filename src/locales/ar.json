@@ -90,5 +90,11 @@
   "theme.dark": "داكن",
   "footer.updated": "آخر تحديث {when}",
   "footer.stopped": "توقف التحديث المباشر.",
-  "footer.static": "التحديث المباشر غير متاح في هذه اللوحة"
+  "footer.static": "التحديث المباشر غير متاح في هذه اللوحة",
+  "platform.linux": "لينكس",
+  "platform.androidtv": "Android TV",
+  "platform.appletv": "Apple TV",
+  "client.recommended": "موصى به",
+  "client.download_for": "تنزيل {name}",
+  "announce.open": "فتح الرابط"
 }

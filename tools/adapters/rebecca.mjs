@@ -180,7 +180,10 @@ export function island(native) {
 
 /* The info endpoint. Rebecca serves it on a PATH SUFFIX, not a query parameter
    — `/{token}/info` — the same shape as PasarGuard and unlike 3X-UI's
-   `?format=info`. This adapter only reports the path; it does not wire it up. */
+   `?format=info`. Since 1.4.0 the runtime polls it (src/scripts/live.js
+   infoUrl and fromPanel; the current Rebecca nests the account under `user`,
+   which fromPanel reads); tests/adapters.test.mjs holds the two paths in
+   agreement. */
 export function livePath(pathname) {
   const base = String(pathname === null || pathname === undefined ? '' : pathname);
   return base.replace(/\/+$/, '') + '/info';

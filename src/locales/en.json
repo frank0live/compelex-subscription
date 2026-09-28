@@ -90,5 +90,11 @@
   "theme.dark": "Dark",
   "footer.updated": "Updated {when}",
   "footer.stopped": "Live updates stopped.",
-  "footer.static": "Live updates are not available on this panel"
+  "footer.static": "Live updates are not available on this panel",
+  "platform.linux": "Linux",
+  "platform.androidtv": "Android TV",
+  "platform.appletv": "Apple TV",
+  "client.recommended": "Recommended",
+  "client.download_for": "Download {name}",
+  "announce.open": "Open link"
 }

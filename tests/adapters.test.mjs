@@ -24,6 +24,9 @@ import {
   PANELS, ADAPTER_INTERFACE, assertAdapter, adapterFor, referencePanel, emitterFor,
 } from '../tools/panels.mjs';
 import { adapter, island as toIsland, livePath, id as panelId, emitter } from '../tools/adapters/3xui.mjs';
+import { livePath as pgLivePath } from '../tools/adapters/pasarguard.mjs';
+import { livePath as rbLivePath } from '../tools/adapters/rebecca.mjs';
+import { infoUrl } from '../src/scripts/live.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -124,13 +127,20 @@ test('the registry exposes the reference adapter and every panel now carries one
 /* --- livePath matches the runtime's own construction -------------------- */
 
 test('livePath reproduces exactly what live.js builds', () => {
-  /* The runtime builds the endpoint inline; this asserts the adapter agrees
-     with it rather than paraphrasing it. */
+  /* Since 1.4.0 the runtime builds the endpoint with infoUrl(panel, pathname),
+     which the poller calls with the page's own path; for a 3X-UI page (no
+     panel marker) it must be exactly what this adapter says, and each panel
+     adapter must agree with the runtime for its own panel. */
   const live = readFileSync(join(ROOT, 'src', 'scripts', 'live.js'), 'utf8');
   assert.ok(
-    live.includes("win.location.pathname + '?format=info'"),
-    'live.js must still build the endpoint as pathname + ?format=info',
+    live.includes('win.fetch(infoUrl(ctx.panel, win.location.pathname), init)'),
+    'live.js must build the endpoint from the page\'s own path',
   );
+  for (const path of ['/sub/abc123', '/', '', '/a/b/c/']) {
+    assert.equal(infoUrl('', path), livePath(path), `3X-UI ${path}`);
+    assert.equal(infoUrl('pasarguard', path), pgLivePath(path), `PasarGuard ${path}`);
+    assert.equal(infoUrl('rebecca', path), rbLivePath(path), `Rebecca ${path}`);
+  }
   assert.equal(livePath('/sub/abc123'), '/sub/abc123?format=info');
   assert.equal(livePath('/'), '/?format=info');
   assert.equal(livePath(''), '?format=info');

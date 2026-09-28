@@ -39,7 +39,7 @@ bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/dow
 | `more than one panel is installed here (…); choose one with RT_PANEL=3xui\|pasarguard\|rebecca.` | نصب غیرتعاملی روی سروری با چند پنل. | با تنظیم `RT_PANEL` روی پنل مورد نظر دوباره اجرا کنید. |
 | `RT_PANEL=<panel>, but <panel> was not detected on this host.` | `RT_PANEL` پنلی را نام می‌برد که روی این سرور نصب نیست. | `RT_PANEL` را روی پنلی بگذارید که اینجا نصب است. |
 | `Row-Template is installed for <panel> at …; uninstall it before installing for <panel>.` | رو-تمپلیت روی این سرور از قبل به پنل دیگری سرویس می‌دهد. | ابتدا `row-template uninstall` را اجرا کنید، سپس برای پنل دیگر نصب کنید. |
-| `panel rebecca: this is Rebecca 0.0.x, the Python edition …` | این Rebecca همان ایمیج Docker است که هنوز 0.0.x است و نمی‌تواند صفحه را رندر کند. چیزی تغییر نکرده است. | Rebecca را با `rebecca migrate-binary` به 1.x منتقل کنید، سپس دوباره اجرا کنید. [رفع اشکال](/fa/troubleshooting/) را ببینید. |
+| `panel rebecca: this is Rebecca 0.0.x, the Python edition …` | این Rebecca همان ایمیج Docker است که هنوز 0.0.x است و نمی‌تواند صفحه را رندر کند. چیزی تغییر نکرده است. | Rebecca نسخهٔ 1.x را با نصب‌کنندهٔ باینری Rebecca (`rebecca-binary.sh`) نصب کنید، سپس دوباره اجرا کنید. [رفع اشکال](/fa/troubleshooting/) را ببینید. |
 | `an existing install was found at …` | رو-تمپلیت از قبل نصب است. | `row-template update` را اجرا کنید، یا با `RT_ASSUME_YES=1` نصب موجود را ترمیم کنید. |
 | امتناع به‌دلیل checksum | دانلود ناقص بوده یا فایل از منبع رسمی نیامده است. | از صفحهٔ رسمی انتشار دوباره دانلود کنید. **این بررسی را دور نزنید.** |
 | خطای شبکه | GitHub در دسترس نبوده. | دوباره تلاش کنید، یا از [نصب آفلاین](#نصب-آفلاین) استفاده کنید. |

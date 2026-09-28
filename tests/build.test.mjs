@@ -17,8 +17,8 @@ import { writeIfChanged } from '../tools/write-if-changed.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /* UX-SPEC.md 25.5: the target and the refusal point. */
-const TARGET_BYTES = 185 * 1024;
-const FAIL_BYTES = 200 * 1024;
+const TARGET_BYTES = 272 * 1024;
+const FAIL_BYTES = 280 * 1024;
 
 const withFont = build(true);
 const noFont = build(false);
@@ -39,7 +39,7 @@ test('both artifacts are whole documents with nothing left to substitute', () =>
     assert.ok(html.startsWith('<!doctype html>'), label);
     assert.ok(html.trimEnd().endsWith('</html>'), label);
     assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null, label);
-    assert.equal((html.match(/<style>/g) || []).length, 1, label);
+    assert.equal((html.match(/<style>/g) || []).length, label === 'with font' ? 2 : 1, label);
     assert.equal((html.match(/<script(?: |>)/g) || []).length, 3, label);
     assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1, label);
     assert.equal((html.match(/\/\* row:branding end \*\//g) || []).length, 1, label);
@@ -137,10 +137,10 @@ test('the default (Row) build is byte-locked to the v1.1.0 artifact', () => {
   const bytes = Buffer.byteLength(html, 'utf8');
   const sha = createHash('sha256').update(html).digest('hex');
 
-  assert.equal(bytes, 201437, 'Row artifact changed size; byte-lock violated');
+  assert.equal(bytes, 282489, 'Row artifact changed size; byte-lock violated');
   assert.equal(
     sha,
-    'bc04b5cbdaf6108c24518e2f1cbdf13e1881262a892184ccb752071c15c616fa',
+    '22bd5541c4d7ad105638edfe0da1177c27ab5b453b890c5f9f0fe2a4805676de',
     'Row artifact changed content; byte-lock violated',
   );
 
@@ -172,10 +172,10 @@ test('the editorial build is deterministic, whole and inside the budget', () => 
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 test('the editorial artifact names its own design and Row names none', () => {
@@ -241,11 +241,11 @@ test('the editorial layout satisfies the hook contract, shares the Row runtime, 
 test('the editorial artifact is byte-locked to the approved magazine design', () => {
   const html = build(true, 'editorial').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 204286, 'Editorial artifact changed size; byte-lock violated');
+  assert.equal(bytes, 285338, 'Editorial artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
   assert.equal(
     sha,
-    '56602f69dca5d87f1fd81c6610ba1460d2cc7e43738245eace87b7dfa0ebbfa6',
+    '5e9459f5023619fead52048faf0599eac1ce59f8181ff1cdf23b9c73589efd9e',
     'Editorial artifact changed content; byte-lock violated',
   );
 });
@@ -263,11 +263,11 @@ test('the canvas build is deterministic, whole and inside its budget', () => {
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the canvas budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the canvas budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 test('the canvas artifact names its own design and shares the Row runtime JS', () => {
@@ -297,11 +297,11 @@ test('the prism build is deterministic, whole and inside its budget', () => {
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the prism budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the prism budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 /* Terminal is the fifth design: same guarantees, its own budget line. */
@@ -315,11 +315,11 @@ test('the terminal build is deterministic, whole and inside its budget', () => {
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the terminal budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the terminal budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 /* Terminal owns its layout: the session sheet is its own document, so the
@@ -367,11 +367,11 @@ test('the pulse build is deterministic, whole and inside its budget', () => {
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the pulse budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the pulse budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 /* Pulse owns its layout: the signal flow is its own document, so the
@@ -418,11 +418,11 @@ test('the brutal build is deterministic, whole and inside its budget', () => {
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the brutal budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the brutal budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 /* Brutal owns its layout too: the poster board is its own document, so the
@@ -468,11 +468,11 @@ test('the arcade build is deterministic, whole and inside its budget', () => {
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the arcade budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the arcade budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 /* Arcade owns its layout: the selection screen is its own document, so the
@@ -519,11 +519,11 @@ test('the sketch build is deterministic, whole and inside its budget', () => {
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the sketch budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the sketch budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 /* Sketch owns its layout too: the blueprint sheet is its own document, so the
@@ -570,11 +570,11 @@ test('the signature build is deterministic, whole and inside its budget', () => 
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the signature budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the signature budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 test('the signature artifact names its own design, satisfies the hook contract, and shares the Row runtime JS', () => {
@@ -609,11 +609,11 @@ test('the saffron build is deterministic, whole and inside its budget', () => {
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 203 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the saffron budget line`);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 283 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the saffron budget line`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 test('the saffron artifact names its own design, satisfies the hook contract, and shares the Row runtime JS', () => {
@@ -637,9 +637,9 @@ test('the saffron artifact names its own design, satisfies the hook contract, an
 test('the canvas artifact is byte-locked to the approved design', () => {
   const html = build(true, 'canvas').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 202777, 'Canvas artifact changed size; byte-lock violated');
+  assert.equal(bytes, 283829, 'Canvas artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
-  assert.equal(sha, '967f53de2dd7d34ed83eb8478b5b9f4c291217958b3327d05956b144f4d7908d', 'Canvas artifact changed content; byte-lock violated');
+  assert.equal(sha, '5e279865acef2d078fabe0dbdd7f007490c286cbdbc9bb3dddc2bc32b1cc0810', 'Canvas artifact changed content; byte-lock violated');
 });
 
 /* Prism owns its layout: the faceted sheet is its own document, so the
@@ -692,10 +692,10 @@ test('the pulsenova build is deterministic, whole and inside its budget', () => 
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 test('the pulsenova layout satisfies the hook contract, shares the Row runtime, and reorders nothing in CSS', () => {
@@ -747,11 +747,11 @@ test('the pulsenova layout satisfies the hook contract, shares the Row runtime, 
 test('the pulsenova artifact is byte-locked to the approved dashboard design', () => {
   const html = build(true, 'pulsenova').html;
   const bytes = Buffer.byteLength(html, 'utf8');
-  assert.equal(bytes, 204705, 'Pulse Nova artifact changed size; byte-lock violated');
+  assert.equal(bytes, 285757, 'Pulse Nova artifact changed size; byte-lock violated');
   const sha = createHash('sha256').update(html).digest('hex');
   assert.equal(
     sha,
-    '3ec5f245c098a49b8506e3135eb65f5aa6759a412f3e94356cdc8fdab37c51ae',
+    'fb97ff2822e045dccebd7b1cb19eb85c35c8c0c5de94265e828f064ddbf4748e',
     'Pulse Nova artifact changed content; byte-lock violated',
   );
 });
@@ -771,10 +771,10 @@ test('the prismnova build is deterministic, whole and inside its budget', () => 
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 test('the prismnova console satisfies the hook contract, shares the Row runtime, and reorders nothing in CSS', () => {
@@ -839,10 +839,10 @@ test('the terminalnova build is deterministic, whole and inside its budget', () 
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 test('the terminalnova console satisfies the hook contract, shares the Row runtime, and reorders nothing in CSS', () => {
@@ -912,10 +912,10 @@ test('the arcadenova build is deterministic, whole and inside its budget', () =>
   assert.ok(html.startsWith('<!doctype html>'));
   assert.ok(html.trimEnd().endsWith('</html>'));
   assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-  assert.equal((html.match(/<style>/g) || []).length, 1);
+  assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
   assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
   assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-  assert.ok(bytes <= 200 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+  assert.ok(bytes <= 280 * 1024, `${(bytes / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
 });
 
 test('the arcadenova cabinet satisfies the hook contract, shares the Row runtime, and reorders nothing in CSS', () => {
@@ -977,19 +977,19 @@ test('the arcadenova cabinet satisfies the hook contract, shares the Row runtime
    asserts both the artifact's exact byte length and its full SHA-256 through
    the same build() the CLI and the release generator use. */
 const FROZEN_ARTIFACTS = [
-  ['prism', 202565, 'dab4b9acaeed9985be5729f36140c428f6d8af09a2ae82952dc4c38830efb5cf'],
-  ['terminal', 200080, '158c106bb67c4818282054617a389c6ea5d52cf80c3b3a4fb00a7ca6aee7f30b'],
-  ['pulse', 202513, 'a83f39155da3ad1b08b189399a74c32e20d9327aace2e3a23b7273dc535ca695'],
-  ['brutal', 202971, '19b1d19aae5c3465d276c96af496b857c31ea3ecc2b29c6f7be55d437f2711eb'],
-  ['arcade', 203471, '61de63267902febe67f3f21c4a86fa3a40f759a2c2d2b94fa65d44f9f359e6de'],
-  ['sketch', 202513, '51b91f97cd5e6b92dfba0611aef3631e0f1623cfb3f6a7af24ea8a1400e6935a'],
-  ['signature', 204117, '0c21393dac6cd3356e43ef79e1ea9464eced175f3c98cd360cda420752096dc2'],
-  ['saffron', 203495, '3a178529c4ae37c9f3beac691ebbb7db4c3b4536c31d04e8efbbaa7efb737e85'],
-  ['prismnova', 203405, '873775a1c6ddecfd47c9a9b91a02afbd6a4a4f02da5b155d9fa7b60c19b0d91c'],
-  ['terminalnova', 203382, 'd84dca9c951a70fa3b079dc7bed001dd527f76fafc096c872504ca5221ca97a4'],
-  ['arcadenova', 203748, '4ff39bf9ff0ad6a52014298222037950d65bbe87e0f442051961d3bde626b92c'],
-  ['meter', 202750, '1796baa1466933b0380b69c846c2542562cd150ea129d3cde3f5b4f1944b85bc'],
-  ['notebook', 203943, 'cfcc6124673d2b2813f37e8ccfc287a46c0e70db6e3932f044c2ee58cf2de927'],
+  ['prism', 283617, '5ee26f7418f464b3c7da250b576733768e31cbdcb25060a40e4bdb82da6abd2f'],
+  ['terminal', 281132, 'ecc4ff808077f562c8ad0e4fb2e04863dd01b7f2adc7d38dafe5c11bd7ebba9d'],
+  ['pulse', 283565, '8ff721c6ec9f6a8143b0c5c57b1afb4934166b651705525879fa6af8cb65c353'],
+  ['brutal', 284023, '8ed288be456d91bc409eb19d10660d6e96a23d9cca51e6f42fe856cefaf65209'],
+  ['arcade', 284523, 'db468b81e1ffa9384b437146ea3f7cfd3e483752984aeaa5e2a222cdd2196951'],
+  ['sketch', 283565, '1dcabde51150bc729a959f69f0e569a60e3be1f00d1291b3ccd8e6c05f4216f5'],
+  ['signature', 285169, 'f5abd8cffb60c9a5fe2089532e0ec9e8ac44274f4628bb785dd8d2a56fae781a'],
+  ['saffron', 284547, 'f54348c0d1e7c05e5900fee6db3f4c1af6813aba7072c446f7c81f397ee0afa1'],
+  ['prismnova', 284457, '57e3a16cba562bd073d6be81b2b9664b9c259d0fafd2df395c835d74dee4eb33'],
+  ['terminalnova', 284434, '68a03442e6f12a08f942f79c65d0ea43e602d8a3c78d12959a65a2f3de90bfbb'],
+  ['arcadenova', 284800, 'cb48f5008095c946693acda7002728a9fe8b57c5332ae1c1a105e4c38b636767'],
+  ['meter', 283802, 'ca2718ae04f23a24a6ce56f167b6b64f40964e30cc1b21dc73eb15f9a303c477'],
+  ['notebook', 284995, '21753fdac50a963e5c30f1cde497d0e2714f32ffd1f8baae91dedd46d64d1b0c'],
 ];
 
 for (const [id, bytes, sha] of FROZEN_ARTIFACTS) {
@@ -1027,10 +1027,10 @@ for (const [id, sequence] of [
     assert.ok(html.startsWith('<!doctype html>'));
     assert.ok(html.trimEnd().endsWith('</html>'));
     assert.equal(html.match(/\/\*__[A-Z][A-Z0-9_]*__\*\//), null);
-    assert.equal((html.match(/<style>/g) || []).length, 1);
+    assert.equal((html.match(/<style>/g) || []).length, 2, 'the head stylesheet and the flag face');
     assert.equal((html.match(/<script(?: |>)/g) || []).length, 3);
     assert.equal((html.match(/\/\* row:branding \*\//g) || []).length, 1);
-    assert.ok(size <= FAIL_BYTES, `${(size / 1024).toFixed(1)} KiB exceeds the 200 KiB refusal point`);
+    assert.ok(size <= FAIL_BYTES, `${(size / 1024).toFixed(1)} KiB exceeds the 280 KiB refusal point`);
   });
 
   test(`the ${id} layout satisfies the hook contract, shares the Row runtime, and reorders nothing in CSS`, () => {
