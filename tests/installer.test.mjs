@@ -1201,6 +1201,7 @@ test('a backup that names no design is restored with the selection its config.en
     'printf "tpl=%s\\n" "$(rt_config_get_raw TEMPLATE)"\n' +
     'cmp -s "$RT_DIST" "$RT_TEMPLATE_STORE/editorial/template.html" && echo "canonical-is-store-editorial"\n' +
     'printf "ver=%s\\n" "$(cat "$RT_VERSION_FILE")"\n' +
+    'printf "name=%s\\n" "$(rt_config_get_text SERVICE_NAME_B64)"\n' +
     'grep -q "data-template=\\"editorial\\"" "$RT_LIVE" && echo "live=editorial"',
     { prepare: prepareInstall },
   );
@@ -1211,6 +1212,7 @@ test('a backup that names no design is restored with the selection its config.en
   assert.match(r.out, /canonical-is-store-editorial/, 'from the installed Editorial design');
   assert.match(r.out, /ver=1\.3\.1/);
   assert.match(r.out, /live=editorial/);
+  assert.match(r.out, /name=Test VPN/, 'the current branding is kept: the saved settings are not restored');
   assert.doesNotMatch(r.err, /defaulting to Row/);
 });
 

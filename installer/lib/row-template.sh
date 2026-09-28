@@ -1275,6 +1275,18 @@ rt_backup_meta() {
   rt_manifest_get "$1" "$2/meta"
 }
 
+rt_backup_saved_template() {
+  # echo the design the install had selected when snapshot DIR was taken, from
+  # the TEMPLATE key of the settings saved in it (1.4.0), or nothing. That one
+  # key is READ, as data -- the file is never sourced, and never restored: a
+  # rollback keeps the operator's current branding. Only an id this release
+  # ships is echoed.
+  local id
+  id="$(rt_config_get_raw TEMPLATE "$1/config.env" | LC_ALL=C tr -cd 'a-z0-9')"
+  if rt_template_allowed "$id"; then printf '%s' "$id"; fi
+  return 0
+}
+
 rt_backup_panels() {
   # echo the comma-separated panels this snapshot RECORDS STATE FOR.
   #
@@ -2731,10 +2743,7 @@ rt_restore_from_backup() {
     # the backup's own config.env: read as data (never sourced), and only a
     # known id is taken. Found rolling a real 3X-UI back from 1.4.0 to its 1.3.1
     # backup, which restored Row instead of the operator's Editorial.
-    if [ -z "$tpl_id" ] && [ -f "$dir/config.env" ]; then
-      tpl_id="$(rt_config_get_raw TEMPLATE "$dir/config.env" | LC_ALL=C tr -cd 'a-z0-9')"
-      rt_template_allowed "$tpl_id" || tpl_id=""
-    fi
+    [ -n "$tpl_id" ] || tpl_id="$(rt_backup_saved_template "$dir")"
     if [ -z "$tpl_id" ]; then
       tpl_id="row"
       rt_warn "backup artifact has no store match and no recorded template; defaulting to Row."
