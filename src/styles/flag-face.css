@@ -1,0 +1,30 @@
+/* The Twemoji flag face (src/fonts/twemoji-country-flags.woff2).
+
+   A node's flag is written as two regional-indicator letters, and whether they
+   become a flag is up to the platform's emoji font. Windows ships none that has
+   flags, so Chromium-based browsers there print the letters ("DE", "TR")
+   instead. This face carries the Twemoji flags; shared.css puts it first on the
+   flag badge, so every platform draws the same flag.
+
+   The unicode-range confines the face to the regional indicators: it is never
+   used for any other character, and a browser only decodes it on a page that
+   actually shows a flag. font-display: block, because the face is already in
+   the document, so there is no download to wait for, only a decode, and
+   showing the two letters for that instant is exactly what this exists to
+   prevent.
+
+   WHERE IT GOES. Not in the <head> stylesheet: the face is 68,748 bytes of
+   base64, and everything in the head is read before the page can paint. The
+   build writes it as a <style> of its own just before the locale island, after
+   the page's markup and before the script that creates the flag badges -- so
+   the page paints without waiting for it, and no badge exists before the face
+   does. */
+
+/* row:flag-face */
+@font-face {
+  font-family: "Row Flags";
+  src: url("data:font/woff2;base64,__FLAGS_BASE64__") format("woff2");
+  font-display: block;
+  unicode-range: U+1F1E6-1F1FF;
+}
+/* row:flag-face end */

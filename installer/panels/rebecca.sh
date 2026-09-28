@@ -187,6 +187,27 @@ rt_panel_rebecca_quote() { printf '%s' "${1//\'/\'\'}"; }
 
 RT_RB_ROW="(SELECT id FROM subscription_settings ORDER BY id DESC LIMIT 1)"
 
+# The panel's own name and support link (1.4.0, read-only): the profile title
+# and the support URL of the subscription settings row Rebecca reads. The
+# installer offers them as this page's service name and support link;
+# lib/row-template.sh (rt_panel_branding_read) decides which of them are worth
+# offering and validates both. A value that holds a newline is dropped, so the
+# two lines this prints are always exactly the two settings.
+rt_panel_rebecca_branding() {
+  # echo the profile title, then the support URL, one per line.
+  local t u
+  rt_panel_rebecca_db_ready || return 1
+  t="$(sqlite3 -readonly -cmd '.timeout 5000' "$RT_RB_DB" \
+    "SELECT subscription_profile_title FROM subscription_settings WHERE id = $RT_RB_ROW;" 2>/dev/null)" || return 1
+  u="$(sqlite3 -readonly -cmd '.timeout 5000' "$RT_RB_DB" \
+    "SELECT subscription_support_url FROM subscription_settings WHERE id = $RT_RB_ROW;" 2>/dev/null)" || return 1
+  case "$t" in *'
+'*) t="" ;; esac
+  case "$u" in *'
+'*) u="" ;; esac
+  printf '%s\n%s\n' "$t" "$u"
+}
+
 rt_panel_rebecca_page_get() {
   # Echo subscription_page_template of the row Rebecca reads. Fails when there
   # is no row, or the value holds a newline (it could not be restored exactly).

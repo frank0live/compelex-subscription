@@ -29,12 +29,12 @@
  * so the tests can prove a rendered page is correct.
  */
 
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { writeIfChanged } from './write-if-changed.mjs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { buildStyles, buildBoot, buildApp, buildLocales, substitute } from './build.mjs';
+import { buildStyles, buildBoot, buildApp, buildLocales, buildFlagFace, withFlagFace, substitute } from './build.mjs';
 import { resolveTemplate, templateIds } from './templates.mjs';
 import { transpile } from './transpile.mjs';
 import { emitterFor, resolvePanel, buildablePanelIds } from './panels.mjs';
@@ -138,6 +138,14 @@ export function assembleShell(panelId, templateId, { withFont = true } = {}) {
     html = substitute(html, token, text);
   }
 
+  /* 2b. the flag face, as the 3X-UI build places it: a <style> of its own just
+     before the locale island. It carries no delimiter either. */
+  const face = buildFlagFace(withFont);
+  if (emitter !== 'go' && TEMPLATE_DELIMITER.test(face)) {
+    throw new Error(`${panelId}/${templateId}: the flag face contains a template delimiter`);
+  }
+  html = withFlagFace(html, face);
+
   /* 3. the template hook on <html>. Row predates the attribute and drops it
      whole; every other template substitutes its id. */
   if (tpl.emitDataTemplate) {
@@ -170,7 +178,7 @@ export function assembleShell(panelId, templateId, { withFont = true } = {}) {
      announcement would be written into the page as raw HTML. On Rebecca pongo2
      already escapes by default; the block keeps it so. */
   const body = html;
-  if (emitter !== 'go') html = wrapForPanel(panelId, emitter, body);
+  if (emitter !== 'go') html = wrapForPanel(panelId, emitter, body, { extension: true });
 
   return {
     panelId,
@@ -196,13 +204,42 @@ export function preludePath(panelId, emitter) {
   return join(ROOT, 'src', 'panels', panelId, `prelude.${emitter}`);
 }
 
+/* The markup only that panel's pages carry: src/panels/<panel>/extension.<emitter>
+   -- the panel's name for the runtime, and on PasarGuard the announcement's
+   address and the operator's application list. */
+export function extensionPath(panelId, emitter) {
+  return join(ROOT, 'src', 'panels', panelId, `extension.${emitter}`);
+}
+
+/* Where the extension goes: just before the locale island, which every layout
+   carries exactly once (it is a required hook), so it lands inside <body>, after
+   the page's own markup, and inside the autoescape block. */
+export const EXTENSION_ANCHOR = '<script type="application/json" id="i18n-data">';
+
+/* The panel's extension markup, or '' for a panel without one. */
+export function extensionOf(panelId, emitter) {
+  const extPath = extensionPath(panelId, emitter);
+  return existsSync(extPath) ? readFileSync(extPath, 'utf8').replace(/\r\n/g, '\n').trimEnd() : '';
+}
+
+/* The body with the panel's extension inserted before the locale island. A
+   panel without an extension gets the body unchanged. */
+export function withExtension(panelId, emitter, body) {
+  const ext = extensionOf(panelId, emitter);
+  if (!ext) return body;
+  const parts = body.split(EXTENSION_ANCHOR);
+  if (parts.length !== 2) throw new Error(`${panelId}: a shell must carry the locale island exactly once`);
+  return `${parts[0]}${ext}\n${EXTENSION_ANCHOR}${parts[1]}`;
+}
+
 /* <!doctype html> + prelude + autoescape(body) + </html>.
 
    The doctype stays the first line, and </html> the last tag, so the installer's
    structural gate (rt_validate_template) reads a shell exactly as it reads a
    3X-UI artifact. Both are outside the autoescape block and neither is a
    template value, so nothing is lost by leaving them there. */
-export function wrapForPanel(panelId, emitter, body) {
+export function wrapForPanel(panelId, emitter, body, { extension = false } = {}) {
+  if (extension) body = withExtension(panelId, emitter, body);
   const esc = AUTOESCAPE[emitter];
   if (!esc) throw new Error(`no autoescape form for emitter ${JSON.stringify(emitter)}`);
   const prelude = readFileSync(preludePath(panelId, emitter), 'utf8').replace(/\r\n/g, '\n').trimEnd();

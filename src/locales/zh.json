@@ -90,5 +90,11 @@
   "theme.dark": "深色",
   "footer.updated": "更新于 {when}",
   "footer.stopped": "实时更新已停止。",
-  "footer.static": "此面板不支持实时更新"
+  "footer.static": "此面板不支持实时更新",
+  "platform.linux": "Linux",
+  "platform.androidtv": "Android TV",
+  "platform.appletv": "Apple TV",
+  "client.recommended": "推荐",
+  "client.download_for": "下载 {name}",
+  "announce.open": "打开链接"
 }

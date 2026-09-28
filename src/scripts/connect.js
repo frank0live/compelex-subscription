@@ -1,9 +1,13 @@
 /* The Connect card: one tab per platform, and under it the applications whose
  * import route was verified for this project. Nothing here is generated from a
  * pattern — an application appears because a real scheme exists for it, and it
- * appears without an Import button when it has none. */
+ * appears without an Import button when it has none.
+ *
+ * When the panel sends its own application list (PasarGuard, apps.js), the tabs
+ * are the platforms that list covers and the rows are its applications. */
 
 import { PLATFORMS, clientsFor } from './clients.js';
+import { appPlatforms, appsFor, describe, downloadFor } from './apps.js';
 import { setText, setAttr, empty, subLink } from './render.js';
 
 export function urlsFor(model, win) {
@@ -18,26 +22,31 @@ function tabId(platform) {
   return 'tab-' + platform;
 }
 
-function buildTabs(el, i18n, platform) {
+/* The platforms the card offers: the panel's list decides when there is one. */
+export function platformsFor(apps) {
+  return apps && apps.length ? appPlatforms(apps) : PLATFORMS;
+}
+
+function buildTabs(el, i18n, platform, platforms) {
   const doc = el.doc;
   const list = el.tabs;
   if (!list) return;
 
   if (!list.firstElementChild) {
-    for (let i = 0; i < PLATFORMS.length; i++) {
+    for (let i = 0; i < platforms.length; i++) {
       const button = doc.createElement('button');
       button.type = 'button';
       button.className = 'tab';
-      button.id = tabId(PLATFORMS[i]);
+      button.id = tabId(platforms[i]);
       button.setAttribute('role', 'tab');
       button.setAttribute('aria-controls', 'client-list');
-      button.setAttribute('data-platform', PLATFORMS[i]);
+      button.setAttribute('data-platform', platforms[i]);
       list.appendChild(button);
     }
   }
 
-  for (let i = 0; i < PLATFORMS.length; i++) {
-    const name = PLATFORMS[i];
+  for (let i = 0; i < platforms.length; i++) {
+    const name = platforms[i];
     const button = doc.getElementById(tabId(name));
     if (!button) continue;
     const on = name === platform;
@@ -151,23 +160,144 @@ function labelSwap(doc) {
   return swap;
 }
 
-export function renderConnect(el, i18n, urls, platform) {
-  buildTabs(el, i18n, platform);
-  buildClients(el, i18n, urls, platform);
+/* The panel's own applications for one platform. Rows are rebuilt when the
+   platform or the language changes, because the description and the download
+   link are chosen for the reader's language. */
+function buildApps(el, i18n, platform, apps) {
+  const doc = el.doc;
+  const host = el.clients;
+  if (!host) return;
+
+  const sig = 'apps|' + platform + '|' + i18n.lang;
+  if (host._rowSig !== sig) {
+    empty(host);
+    const found = appsFor(platform, apps);
+    for (let i = 0; i < found.length; i++) {
+      host.appendChild(appRow(doc, i18n, found[i].app, found[i].index));
+    }
+    host._rowSig = sig;
+    host._rowClients = found;
+  }
+
+  const found = host._rowClients || [];
+  for (let i = 0; i < found.length; i++) {
+    const row = doc.getElementById('app-' + found[i].index);
+    if (!row) continue;
+    const name = found[i].app.name;
+    const tag = row.querySelector('.client-tag');
+    if (tag) setText(tag, i18n.t('client.recommended'));
+    const actions = row.querySelectorAll('[data-act]');
+    for (let k = 0; k < actions.length; k++) {
+      const act = actions[k].getAttribute('data-act');
+      if (act === 'import') {
+        setText(actions[k], i18n.t('action.import'));
+        setAttr(actions[k], 'aria-label', i18n.t('client.import_for', { name: name }));
+      } else if (act === 'download') {
+        setText(actions[k], i18n.t('action.download'));
+        setAttr(actions[k], 'aria-label', i18n.t('client.download_for', { name: name }));
+      } else {
+        setAttr(actions[k], 'aria-label', i18n.t('client.copy_for', { name: name }));
+        const swap = actions[k].firstElementChild;
+        if (!swap) continue;
+        setText(swap.firstElementChild, i18n.t('action.copy_short'));
+        setText(swap.lastElementChild, i18n.t('action.copied'));
+      }
+    }
+  }
+
+  setText(el.connectTitle, i18n.t('connect.title'));
+  setText(el.connectHint, i18n.t(found.length ? 'connect.hint' : 'connect.none'));
+}
+
+/* The same row the built-in catalogue draws -- the name, and Import and Copy
+   -- plus the operator's description and a download link under the name. The
+   download is a text link rather than a third button: every template sizes
+   its rows for two, and it is a plain link to a web page, opened in a new tab.
+   The icon the panel names is never loaded. */
+function appRow(doc, i18n, app, index) {
+  const row = doc.createElement('div');
+  row.className = 'client';
+  row.id = 'app-' + index;
+
+  const head = doc.createElement('div');
+  head.className = 'client-head';
+  /* The operator's own words, in any script: each is isolated in a <bdi>, so a
+     Latin name keeps its own direction on a Persian page while the row still
+     lines up with the reading side, as the description under it does. */
+  const name = doc.createElement('span');
+  name.className = 'client-name';
+  name.appendChild(appText(doc, app.name));
+  head.appendChild(name);
+  if (app.recommended) {
+    const tag = doc.createElement('span');
+    tag.className = 'client-tag';
+    head.appendChild(tag);
+  }
+  const text = describe(app, i18n.lang);
+  if (text) {
+    const desc = doc.createElement('span');
+    desc.className = 'client-desc';
+    desc.appendChild(appText(doc, text));
+    head.appendChild(desc);
+  }
+  const dl = downloadFor(app, i18n.lang);
+  if (dl) {
+    const a = doc.createElement('a');
+    a.className = 'text-link client-dl';
+    a.setAttribute('href', dl.url);
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer nofollow');
+    a.setAttribute('data-act', 'download');
+    if (dl.name) a.setAttribute('title', dl.name);
+    head.appendChild(a);
+  }
+  row.appendChild(head);
+
+  const actions = doc.createElement('div');
+  actions.className = 'client-actions';
+  if (app.link) actions.appendChild(appButton(doc, index, 'import', 'btn-primary'));
+  const copy = appButton(doc, index, 'copy', app.link ? 'btn-quiet' : 'btn-outline');
+  copy.appendChild(labelSwap(doc));
+  actions.appendChild(copy);
+  row.appendChild(actions);
+  return row;
+}
+
+function appText(doc, text) {
+  const bdi = doc.createElement('bdi');
+  bdi.textContent = text;
+  return bdi;
+}
+
+function appButton(doc, index, act, variant) {
+  const button = doc.createElement('button');
+  button.type = 'button';
+  button.className = 'btn btn-sm ' + variant;
+  button.setAttribute('data-app', String(index));
+  button.setAttribute('data-act', act);
+  return button;
+}
+
+export function renderConnect(el, i18n, urls, platform, apps) {
+  const platforms = platformsFor(apps);
+  buildTabs(el, i18n, platform, platforms);
+  if (apps && apps.length) buildApps(el, i18n, platform, apps);
+  else buildClients(el, i18n, urls, platform);
 }
 
 /* Arrow keys move along the strip, and in a right-to-left page the visual
    direction of the arrows is what the reader expects, not the array order. */
-export function nextTab(current, key, rtl) {
-  const at = PLATFORMS.indexOf(current);
+export function nextTab(current, key, rtl, platforms) {
+  const list = platforms || PLATFORMS;
+  const at = list.indexOf(current);
   if (at < 0) return current;
   let step = 0;
   if (key === 'ArrowRight') step = rtl ? -1 : 1;
   else if (key === 'ArrowLeft') step = rtl ? 1 : -1;
-  else if (key === 'Home') return PLATFORMS[0];
-  else if (key === 'End') return PLATFORMS[PLATFORMS.length - 1];
+  else if (key === 'Home') return list[0];
+  else if (key === 'End') return list[list.length - 1];
   else return current;
-  const next = (at + step + PLATFORMS.length) % PLATFORMS.length;
-  return PLATFORMS[next];
+  const next = (at + step + list.length) % list.length;
+  return list[next];
 }
 

@@ -24,7 +24,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assembleShell, toIslandContext, SHELL_TOKENS } from '../tools/shell.mjs';
+import { assembleShell, toIslandContext, SHELL_TOKENS, extensionOf } from '../tools/shell.mjs';
 import { renderJinja } from '../tools/render-jinja.mjs';
 import { island as pasarguardIsland } from '../tools/adapters/pasarguard.mjs';
 import {
@@ -238,8 +238,14 @@ test('WITHOUT autoescape the layout body breaks out, so the shipped shell wraps 
   const close = shell.html.lastIndexOf('{%- endautoescape %}');
   const island = shell.html.indexOf('id="sub-data"');
   assert.ok(open > 0 && open < island && island < close, 'the shipped shell escapes the whole body');
+  /* 1.4.0: the PasarGuard extension (src/panels/pasarguard/extension.jinja2)
+     sits inside the same block, just before the locale island; with it taken
+     out, what remains is still exactly the rendered-and-tested body. */
   const inner = shell.body.slice(shell.body.indexOf('\n') + 1, shell.body.lastIndexOf('</html>'));
-  assert.equal(shell.html.includes(inner), true,
+  const ext = extensionOf('pasarguard', 'jinja2');
+  assert.ok(ext.length > 0 && shell.html.indexOf(ext) > open && shell.html.indexOf(ext) < close,
+    'the extension is inside the autoescape block');
+  assert.equal(shell.html.replace(ext + '\n', '').includes(inner), true,
     'and the body inside the block is exactly the rendered-and-tested body');
 });
 

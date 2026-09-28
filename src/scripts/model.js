@@ -54,6 +54,22 @@ export function readDocument(doc) {
   };
 }
 
+/* The panel a page was built for, when it is not 3X-UI. Only the PasarGuard
+   and Rebecca shells write this element (src/panels/<panel>/extension.*); a
+   3X-UI page has none, and the page then behaves exactly as it always has.
+   The name is checked against the two the shells write, so a stray attribute
+   cannot point the poller anywhere else. */
+const PANELS = ['pasarguard', 'rebecca'];
+
+export function readPanel(doc) {
+  const el = doc.getElementById('panel-data');
+  const id = el ? String(el.getAttribute('data-panel') || '') : '';
+  return {
+    id: PANELS.indexOf(id) > -1 ? id : '',
+    announceUrl: el ? String(el.getAttribute('data-announce-url') || '').trim() : '',
+  };
+}
+
 export function normalize(raw) {
   const src = raw || {};
   const download = counter(src.downloadByte);
