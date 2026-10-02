@@ -22,8 +22,8 @@ function jitter(ms) {
  *
  * This must accept OUR island payload and nothing else. The previous version
  * accepted `enabled` OR `totalByte` OR `expire`, and `expire` is the problem:
- * every panel sends it, in a different type — epoch seconds for 3X-UI, an ISO
- * datetime for PasarGuard, an int64 for Rebecca. A foreign payload therefore
+ * every payload carries `expire`, in a different type — epoch seconds,
+ * an ISO datetime, an int64. A foreign payload therefore
  * passed the guard, reached normalize(), and was coerced to
  * `enabled:false, online:false, all traffic null` — a silently wrong page that
  * looked healthy, repainting every 15 seconds.
@@ -38,17 +38,16 @@ function looksLikeInfo(value) {
   return 'totalByte' in value && 'downloadByte' in value;
 }
 
-/* PasarGuard and Rebecca serve the figures on a path suffix, /<token>/info, in
-   their own vocabulary; 3X-UI serves them in the page's own at ?format=info.
-   The panel is named by the shell the page was built for, never guessed from a
-   response. */
+/* 3X-UI serves the figures in the page's own vocabulary, at ?format=info.
+   The panel is named by the shell the page was built for, never guessed from
+   a response; this build only ever builds 3X-UI shells. */
 export function infoUrl(panel, pathname) {
   const path = String(pathname || '');
-  return panel ? path.replace(/\/+$/, '') + '/info' : path + '?format=info';
+  return path + '?format=info';
 }
 
-/* The statuses both panels define. Anything else is a payload this page does
-   not understand, and the poller stops rather than guess. */
+/* The statuses the poller understands. Anything else is a payload this page
+   does not understand, and the poller stops rather than guess. */
 const STATUSES = ['active', 'disabled', 'limited', 'expired', 'on_hold'];
 const ONLINE_WINDOW = 120000;
 /* An on-hold subscription whose duration the panel does not give: outside the
@@ -56,9 +55,8 @@ const ONLINE_WINDOW = 120000;
    shells render for it. */
 const HOLD_UNKNOWN = 9999999999;
 
-/* A datetime string in epoch milliseconds. A zoneless value is UTC: Rebecca
-   writes its timestamps that way, and reading them as local time would shift
-   them by the reader's offset. */
+/* A datetime string in epoch milliseconds. A zoneless value is read as UTC,
+   so the reader's local offset can never shift a timestamp. */
 function instant(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value * 1000 : null;
   if (typeof value !== 'string' || value === '') return null;
@@ -69,9 +67,7 @@ function instant(value) {
 
 /* A panel's /info payload -> the page's own field names, or null when it is
    not the payload this page expects. Only the figures that change are read;
-   the name, the support link and the addresses stay as the page was rendered.
-   Rebecca wraps the account in `user`; PasarGuard does not. The subscriber's
-   address, which PasarGuard includes, is never read. */
+   the name, the support link and the addresses stay as the page was rendered. */
 export function fromPanel(panel, data, now) {
   if (data === null || typeof data !== 'object' || Array.isArray(data)) return null;
   const u = data.user !== null && typeof data.user === 'object' && !Array.isArray(data.user) ? data.user : data;
@@ -83,8 +79,9 @@ export function fromPanel(panel, data, now) {
   const limit = Number(u.data_limit);
   let expire = 0;
   if (u.status === 'on_hold') {
-    const hold = panel === 'pasarguard' ? Number(u.on_hold_expire_duration) : 0;
-    expire = hold > 0 ? -Math.trunc(hold) : HOLD_UNKNOWN;
+    // 3X-UI reports no on-hold duration: read it as unknown, the same value
+    // the shells render for it.
+    expire = HOLD_UNKNOWN;
   } else if (u.expire !== null && u.expire !== undefined && u.expire !== '' && u.expire !== 0) {
     const at = instant(u.expire);
     if (at === null) return null;

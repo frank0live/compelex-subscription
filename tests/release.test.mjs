@@ -191,8 +191,8 @@ test('the release payload ships every panel shell for every design, with checksu
     'shells/ must contain exactly the buildable panels');
   /* Buildable, not supported: a shell is packaged for every panel in the
      registry, but only 3X-UI can be installed (see panel-support.test.mjs). */
-  assert.deepEqual(buildablePanelIds().sort(), ['3xui', 'pasarguard', 'rebecca'],
-    'the three buildable panels');
+  assert.deepEqual(buildablePanelIds().sort(), ['3xui'],
+    'the one buildable panel of this edition');
 
   // every design, under every panel
   for (const panel of buildablePanelIds()) {
@@ -266,7 +266,7 @@ test('the release tarball is byte-deterministic', () => {
 /* The management library's companions: what rt_panels_load and
    rt_transaction_load source, so what a release must ship and an install
    must put next to the library. */
-const COMPANIONS = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', 'panels/interface.sh', 'panels/pasarguard.sh', 'panels/rebecca.sh'];
+const COMPANIONS = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', 'panels/interface.sh'];
 
 /* installer/lib/row-template.sh exactly as released in v1.1.0; see its README. */
 const V110_LIB = join(ROOT, 'tests', 'fixtures', 'installer-1.1.0', 'row-template.sh');

@@ -1,28 +1,23 @@
-/* What each panel's support status really is, and that the documentation says
- * exactly that.
+/* What the one panel's support status really is, and that the documentation
+ * says exactly that.
  *
- * The release packages a page shell for every panel in the registry (3X-UI,
- * PasarGuard, Rebecca), and RT_PANEL_IDS names all three. Neither makes a panel
- * supported. Support means the installer can find the panel, install onto it,
- * activate, verify and roll back -- so the status is read from the installer
- * itself, and every README and compatibility page is checked against it:
+ * This edition registers a single panel — 3X-UI (MHSanaei) — and support means
+ * the installer can find the panel, install onto it, activate, verify and roll
+ * back. The status is read from the installer itself, and the README panel
+ * table is checked against it:
  *
  *   - the panel registry (installer/panels/index.sh) is asked which panels have
  *     an implementation, and every panel operation is called on a host where
  *     the panel is NOT installed, where none may report success;
- *   - the install command is run on a host where a panel is only half there
- *     (one detection signal), with real detection, to show it refuses;
- *   - the capability matrix in docs/.../compatibility.mdx (English, Persian,
- *     Arabic) and the panel table in all five READMEs must match those results.
+ *   - the install command is run on a host with NO detection signal and on a
+ *     host with only ONE, to show it refuses in both cases and writes nothing
+ *     (one signal is not identification);
+ *   - the panel table in README.md must mark the panel supported only when
+ *     this file, unchanged, finds all seven capabilities for it.
  *
- * Since 1.3.0 all three panels have an implementation, so all three are
- * Supported; the full install/activate/verify/rollback/uninstall behaviour of
- * PasarGuard and Rebecca is exercised in tests/installer-panel-pasarguard.test.mjs
- * and tests/installer-panel-rebecca.test.mjs.
- *
- * A panel becomes "Supported" in the docs only when this file, unchanged, finds
- * an implementation for it. Nothing here is satisfied by an adapter file merely
- * existing.
+ * The PasarGuard/Rebecca adapters left with those panels; the docs/ tree and
+ * the translated READMEs left with them too, so the documentation check is the
+ * single README this edition ships.
  */
 
 import test from 'node:test';
@@ -101,14 +96,13 @@ const CAPABILITY_COLUMNS = ['detection', 'install', 'activation', 'verification'
 
 const MATRIX = installerMatrix();
 const INSTALLABLE = Object.keys(MATRIX).filter((p) => MATRIX[p].implemented);
-const UNAVAILABLE = 2;
 
-test('the installer implements all three panels', () => {
-  assert.deepEqual(Object.keys(MATRIX).sort(), ['3xui', 'pasarguard', 'rebecca'], 'the closed panel set');
-  assert.deepEqual(INSTALLABLE.sort(), ['3xui', 'pasarguard', 'rebecca'],
-    'every panel in the registry has an installer implementation');
-  assert.deepEqual(buildablePanelIds().sort(), ['3xui', 'pasarguard', 'rebecca'],
-    'and a page shell is built for each');
+test('the installer implements exactly one panel: 3xui', () => {
+  assert.deepEqual(Object.keys(MATRIX).sort(), ['3xui'], 'the closed panel set');
+  assert.deepEqual(INSTALLABLE, ['3xui'],
+    'the one panel in the registry has an installer implementation');
+  assert.deepEqual(buildablePanelIds().sort(), ['3xui'],
+    'and a page shell is built for it');
 });
 
 test('every implemented panel declares a way to activate', () => {
@@ -131,11 +125,10 @@ function hasAllCapabilities(p) {
 }
 
 test('on a host without the panel, no operation reports success', () => {
-  /* This test host runs none of the panels. An operation that answered
-     SUCCESS here would be claiming work it could not have done. Detection must
-     say the panel is not here (NOT_APPLICABLE); everything else must refuse. */
-  const HAS = { '3xui': ['/usr/local/x-ui/x-ui', '/usr/local/bin/x-ui'],
-    pasarguard: ['/opt/pasarguard/.env'], rebecca: ['/opt/rebecca/.env'] };
+  /* This test host runs no panel. An operation that answered SUCCESS here
+     would be claiming work it could not have done. Detection must say the
+     panel is not here (NOT_APPLICABLE); everything else must refuse. */
+  const HAS = { '3xui': ['/usr/local/x-ui/x-ui', '/usr/local/bin/x-ui'] };
   for (const [p, paths] of Object.entries(HAS)) {
     if (paths.some((x) => existsSync(x))) continue;   // a real panel host: not this test's subject
     assert.equal(MATRIX[p].rc.detection, 3, `${p}: detection must be NOT_APPLICABLE (3)`);
@@ -145,45 +138,72 @@ test('on a host without the panel, no operation reports success', () => {
   }
 });
 
-/* A host where PasarGuard or Rebecca is only HALF there: the panel's systemd
-   unit is registered, and nothing else (no .env, no data directory, no CLI).
-   One signal is not identification (installer/panels/interface.sh), so install
-   must refuse, write nothing, and say why. Detection runs for real, against a
-   stand-in systemctl on PATH. Skipped where a real panel is installed, since
-   the library looks at fixed system paths. */
-const HAS_REAL_PANEL = ['/usr/local/x-ui/x-ui', '/usr/local/bin/x-ui', '/opt/pasarguard', '/opt/rebecca',
-  '/var/lib/pasarguard', '/var/lib/rebecca'].some((p) => existsSync(p));
+/* --- install refusal, both empty and half-present hosts -------------------- */
 
-test('on a host where PasarGuard or Rebecca is only half there, install refuses and writes nothing', { skip: HAS_REAL_PANEL }, () => {
-  for (const unit of ['pasarguard.service', 'rebecca.service']) {
-    const base = mkdtempSync(join(tmpdir(), 'row-panel-'));
-    try {
-      const bin = join(base, 'bin');
-      mkdirSync(bin);
-      writeFileSync(join(bin, 'systemctl'), `#!/bin/sh\nprintf '%s\\n' '${unit} enabled enabled'\n`);
-      chmodSync(join(bin, 'systemctl'), 0o755);
-      const payload = join(base, 'payload');
-      mkdirSync(join(payload, 'shells', 'pasarguard', 'row'), { recursive: true });
-      mkdirSync(join(payload, 'shells', 'rebecca', 'row'), { recursive: true });
-      copyFileSync(join(ROOT, 'template', 'index.html'), join(payload, 'template.html'));
-      writeFileSync(join(payload, 'VERSION'), read('VERSION'));
-      writeFileSync(join(payload, 'shells', 'pasarguard', 'row', 'shell.html'), '{{ user.username }}\n');
-      writeFileSync(join(payload, 'shells', 'rebecca', 'row', 'shell.html'), '{{ user.username }}\n');
+/* A throwaway payload that looks complete enough that only detection can stop
+   the install — so a refusal proves detection ran. */
+function payloadAt(base) {
+  const payload = join(base, 'payload');
+  mkdirSync(join(payload, 'shells', '3xui', 'row'), { recursive: true });
+  copyFileSync(join(ROOT, 'template', 'index.html'), join(payload, 'template.html'));
+  writeFileSync(join(payload, 'VERSION'), read('VERSION'));
+  writeFileSync(join(payload, 'shells', '3xui', 'row', 'shell.html'), '{{ .username }}\n');
+  return payload;
+}
 
-      const r = bash([
-        `export PATH="${bin}:$PATH" RT_ROOT="${base}/rt" RT_BIN="${base}/row-template"`,
-        '. installer/lib/row-template.sh',
-        'rt_require_root(){ :; }',
-        `RT_ASSUME_YES=1 rt_cmd_install "${payload}" </dev/null`,
-      ].join('\n'));
-      assert.notEqual(r.code, 0, `${unit}: install must refuse`);
-      assert.match(r.err, /looks partly installed/, `${unit}: and say the panel is only half there`);
-      assert.match(r.err, /no supported panel was detected/, `${unit}: and that nothing can be installed`);
-      assert.equal(existsSync(join(base, 'rt')), false, `${unit}: nothing is installed`);
-      assert.equal(existsSync(join(base, 'row-template')), false, `${unit}: no CLI is installed`);
-    } finally {
-      rmSync(base, { recursive: true, force: true });
-    }
+const HAS_REAL_PANEL = ['/usr/local/x-ui/x-ui', '/usr/local/bin/x-ui'].some((p) => existsSync(p));
+
+test('on a host where 3X-UI is only half there — one signal — install refuses and writes nothing', { skip: HAS_REAL_PANEL }, () => {
+  /* The panel's systemd unit is registered, and nothing else: no binary, no
+     database. One signal is not identification (installer/panels/3xui.sh:
+     "two independent signals must agree"), so detection must answer FAILURE —
+     not NOT_APPLICABLE, not SUCCESS — and install must refuse with its own
+     reason, writing nothing. Detection runs for real, against a stand-in
+     systemctl on PATH. */
+  const base = mkdtempSync(join(tmpdir(), 'row-panel-'));
+  try {
+    const bin = join(base, 'bin');
+    mkdirSync(bin);
+    writeFileSync(join(bin, 'systemctl'), `#!/bin/sh\nprintf '%s\\n' 'x-ui.service enabled enabled'\n`);
+    chmodSync(join(bin, 'systemctl'), 0o755);
+    const payload = payloadAt(base);
+
+    const r = bash([
+      `export PATH="${bin}:$PATH" RT_ROOT="${base}/rt" RT_BIN="${base}/row-template"`,
+      '. installer/lib/row-template.sh',
+      'rt_require_root(){ :; }',
+      'rc=0; rt_panel_detect 3xui >/dev/null 2>&1 || rc=$?; echo "detect=$rc"',
+      `RT_ASSUME_YES=1 rt_cmd_install "${payload}" </dev/null 2>&1`,
+    ].join('\n'));
+    assert.match(r.out, /detect=1/, 'one signal must be FAILURE (1), never a guess');
+    /* rt_cmd_install ends the process on refusal; the status is the verdict. */
+    assert.notEqual(r.code, 0, 'install must refuse');
+    assert.match(r.out + r.err, /refusing to proceed/, 'and say why it refuses');
+    assert.equal(existsSync(join(base, 'rt')), false, 'nothing is installed');
+    assert.equal(existsSync(join(base, 'row-template')), false, 'no CLI is installed');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('on a host with no signal at all, install refuses with the closed message', { skip: HAS_REAL_PANEL }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'row-panel-'));
+  try {
+    const payload = payloadAt(base);
+    const r = bash([
+      `export RT_ROOT="${base}/rt" RT_BIN="${base}/row-template"`,
+      '. installer/lib/row-template.sh',
+      'rt_require_root(){ :; }',
+      `RT_ASSUME_YES=1 rt_cmd_install "${payload}" </dev/null 2>&1`,
+    ].join('\n'));
+    assert.notEqual(r.code, 0, 'install must refuse');
+    assert.match(r.out + r.err, /no supported panel was detected/,
+      'and say that nothing can be installed');
+    assert.match(r.out + r.err, /nothing was changed/, 'and that nothing was changed');
+    assert.equal(existsSync(join(base, 'rt')), false, 'nothing is installed');
+    assert.equal(existsSync(join(base, 'row-template')), false, 'no CLI is installed');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
   }
 });
 
@@ -198,7 +218,7 @@ function panelIdOf(cell) {
     .replace(/[\u200e\u200f*\s]/g, '')
     .replace(/۳/g, '3')
     .toLowerCase();
-  return { '3x-ui': '3xui', pasarguard: 'pasarguard', rebecca: 'rebecca' }[name];
+  return { '3x-ui': '3xui' }[name];
 }
 
 function tableRows(md, width) {
@@ -213,98 +233,60 @@ function tableRows(md, width) {
   return rows;
 }
 
-/* The capability matrix. Columns 1-7 are the seven capabilities in
-   CAPABILITY_COLUMNS order, 8 is the page shell, 9 the status -- in every
-   language. A panel may be marked Supported only when ALL SEVEN are present, so
-   "Supported" cannot be claimed on a partial implementation. */
-const COMPAT = {
-  en: { file: 'docs/src/content/docs/compatibility.mdx', research: 'Research' },
-  fa: { file: 'docs/src/content/docs/fa/compatibility.mdx', research: 'پژوهش' },
-  ar: { file: 'docs/src/content/docs/ar/compatibility.mdx', research: 'بحث' },
-};
-
-for (const [lang, { file, research }] of Object.entries(COMPAT)) {
-  test(`the ${lang} compatibility matrix matches what the installer can do`, () => {
-    const rows = tableRows(read(file), 10);
-    assert.deepEqual(Object.keys(rows).sort(), Object.keys(MATRIX).sort(), `${file}: one matrix row per panel`);
-    for (const [p, cells] of Object.entries(rows)) {
-      const supported = hasAllCapabilities(p);
-      CAPABILITY_COLUMNS.forEach((col, i) => {
-        assert.equal(cells[i + 1], supported ? '✅' : '❌',
-          `${file}: ${p} ${col} must be ${supported ? '✅' : '❌'} -- the installer `
-          + `${supported ? 'implements' : 'does not implement'} it`);
-      });
-      assert.equal(cells[8], buildablePanelIds().includes(p) ? '✅' : '❌', `${file}: ${p} page shell`);
-      if (supported) {
-        assert.ok(cells[9].startsWith('**'), `${file}: ${p} is marked supported`);
-      } else {
-        assert.equal(cells[9].includes('**'), false, `${file}: ${p} must not be marked supported`);
-        assert.ok(cells[9].includes(research), `${file}: ${p} is marked as research`);
-      }
+test('the README marks the panel supported exactly when all seven capabilities exist', () => {
+  /* The translated READMEs and docs/ left with the panels they described;
+     README.md is this edition's single documentation surface. */
+  const rows = tableRows(read('README.md'), 3);
+  assert.deepEqual(Object.keys(rows).sort(), Object.keys(MATRIX).sort(),
+    'README.md: one row per panel');
+  for (const [p, cells] of Object.entries(rows)) {
+    const supported = hasAllCapabilities(p);
+    if (supported) {
+      assert.ok(cells[1].includes('✅'), `README.md: ${p} is supported`);
+    } else {
+      assert.equal(cells[1].includes('✅'), false, `README.md: ${p} must not be marked supported`);
     }
-  });
-}
-
-const READMES = ['README.md', 'README.fa.md', 'README.ar.md', 'README.ru.md', 'README.zh-CN.md'];
-
-test('every README marks only installable panels as supported', () => {
-  for (const file of READMES) {
-    const rows = tableRows(read(file), 3);
-    assert.deepEqual(Object.keys(rows).sort(), Object.keys(MATRIX).sort(), `${file}: one row per panel`);
-    for (const [p, cells] of Object.entries(rows)) {
-      if (INSTALLABLE.includes(p)) {
-        assert.ok(cells[1].includes('✅'), `${file}: ${p} is supported`);
-      } else {
-        assert.equal(cells[1].includes('✅'), false, `${file}: ${p} must not be marked supported`);
-        assert.ok(cells[1].includes('🔬'), `${file}: ${p} is marked as research`);
-      }
+    if (INSTALLABLE.includes(p)) {
+      assert.ok(cells[1].includes('✅'), `README.md: ${p} is installable`);
     }
+    assert.equal(cells[1].includes('✅'), buildablePanelIds().includes(p),
+      `README.md: ${p} page shell status matches the build`);
   }
 });
 
-/* The changelog is history: every release's section must describe the panels
-   as they were IN THAT RELEASE. Before 1.3.0 no release supported PasarGuard or
-   Rebecca, so no older section may call them supported; from the release that
-   implements a panel on, its section may -- and only because the installer,
-   asked above, really implements it. */
-function changelogSections() {
-  const out = [];
+/* The changelog is history: every OLD release's section describes the panels
+   as they were IN THAT RELEASE (1.3.0-1.4.0 shipped PasarGuard and Rebecca,
+   and that stays on the record). What must never return is a claim, in THIS
+   edition's section, that a removed panel is supported. */
+test('the changelog keeps history and claims no removed panel in this edition', () => {
+  const md = read('CHANGELOG.md');
+  const editionAt = md.indexOf('## [3X-UI Edition]');
+  assert.ok(editionAt >= 0, 'the edition section exists');
+  const rest = md.slice(editionAt + '## [3X-UI Edition]'.length);
+  const edition = rest.split(/\n## /)[0];
+  assert.match(edition, /3X-UI/, 'the edition section names 3X-UI');
+  for (const s of edition.replace(/\n\s*/g, ' ').split(/(?<=[.!?])\s+/)) {
+    if (!/PasarGuard|Rebecca/i.test(s) || !/\bsupported\b/i.test(s)) continue;
+    assert.match(s, /\bnot (?:yet )?supported\b|\bunsupported\b|removed/i,
+      `the edition section must not present a removed panel as supported: "${s}"`);
+  }
+  /* Pre-1.3.0 history: no older section may have claimed them supported. */
+  const sections = [];
   let cur = null;
-  for (const line of read('CHANGELOG.md').split('\n')) {
+  for (const line of md.split('\n')) {
     const m = line.match(/^## \[?(\d+\.\d+\.\d+)\]?/);
-    if (m) { cur = { version: m[1], text: '' }; out.push(cur); continue; }
+    if (m) { cur = { version: m[1], text: '' }; sections.push(cur); continue; }
     if (cur) cur.text += `${line}\n`;
   }
-  return out;
-}
-
-const semver = (v) => v.split('.').map(Number);
-const before = (a, b) => {
-  const [x, y] = [semver(a), semver(b)];
-  for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] < y[i];
-  return false;
-};
-
-test('the changelog calls PasarGuard or Rebecca supported only from the release that implements them', () => {
-  const sections = changelogSections();
-  assert.ok(sections.some((s) => s.version === '1.3.0'), 'the 1.3.0 section exists');
+  const semver = (v) => v.split('.').map(Number);
   for (const { version, text } of sections) {
-    const sentences = text.replace(/\n\s*/g, ' ').split(/(?<=[.!?])\s+/);
-    for (const s of sentences) {
+    const [x, y] = [semver(version), semver('1.3.0')];
+    const isBefore = (() => { for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] < y[i]; return false; })();
+    if (!isBefore) continue;
+    for (const s of text.replace(/\n\s*/g, ' ').split(/(?<=[.!?])\s+/)) {
       if (!/PasarGuard|Rebecca/.test(s) || !/\bsupported\b/i.test(s)) continue;
-      if (before(version, '1.3.0')) {
-        assert.match(s, /\bnot (?:yet )?supported\b|\bunsupported\b|not supported panels/i,
-          `${version}: a changelog sentence names PasarGuard/Rebecca as supported before 1.3.0: "${s}"`);
-      } else {
-        for (const p of ['pasarguard', 'rebecca']) {
-          if (new RegExp(p, 'i').test(s) && !/\bnot (?:yet )?supported\b|\bunsupported\b/i.test(s)) {
-            assert.ok(INSTALLABLE.includes(p), `${version}: claims ${p} is supported, but the installer does not implement it`);
-          }
-        }
-      }
+      assert.match(s, /\bnot (?:yet )?supported\b|\bunsupported\b|not supported panels/i,
+        `${version}: an old section names PasarGuard/Rebecca as supported before 1.3.0: "${s}"`);
     }
   }
-  const current = sections.find((s) => s.version === '1.3.0').text;
-  assert.match(current, /PasarGuard/, 'the 1.3.0 section names PasarGuard');
-  assert.match(current, /Rebecca/, 'the 1.3.0 section names Rebecca');
 });

@@ -87,7 +87,7 @@ export function posix(p) {
 
 /* --- a release payload, laid out exactly as tools/make-release.sh does -------- */
 
-export function makePayload(dir, { ids = ['row', 'editorial'], panels = ['3xui', 'pasarguard', 'rebecca'], version } = {}) {
+export function makePayload(dir, { ids = ['row', 'editorial'], panels = ['3xui'], version } = {}) {
   const put = (rel, content, mode) => {
     const f = join(dir, rel);
     mkdirSync(dirname(f), { recursive: true });

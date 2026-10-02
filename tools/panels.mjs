@@ -31,13 +31,11 @@
  */
 
 import { adapter as xuiAdapter } from './adapters/3xui.mjs';
-import { adapter as pgAdapter } from './adapters/pasarguard.mjs';
-import { adapter as rebeccaAdapter } from './adapters/rebecca.mjs';
 
-/* The three shell dialects the transpiler can emit. Kept as a closed set for
+/* The one shell dialect this build can emit. Kept as a closed set for
    the same reason the template registry is closed: an unknown emitter must
    fail loudly rather than silently falling back to Go. */
-export const EMITTERS = ['go', 'jinja2', 'pongo2'];
+export const EMITTERS = ['go'];
 
 /* A panel's implementation status.
  *
@@ -71,27 +69,6 @@ export const PANELS = {
        adapter is thin — but it is not a no-op: it is the boundary the contract
        is validated at, and the shape every future adapter must imitate. */
     adapter: xuiAdapter,
-  },
-  pasarguard: {
-    id: 'pasarguard',
-    name: 'PasarGuard',
-    status: 'active',
-    emitter: 'jinja2',
-    /* The first adapter that actually translates. PasarGuard's island is not the
-       normalized shape, so this one carries real mapping logic — and refuses
-       `on_hold` rather than guessing a slot for it. */
-    adapter: pgAdapter,
-  },
-  rebecca: {
-    id: 'rebecca',
-    name: 'Rebecca',
-    status: 'active',
-    emitter: 'pongo2',
-    /* The third and last panel. Its `expire` is already epoch seconds, so that
-       field needs no conversion at all — but its `online_at` is a ZONELESS
-       timestamp that must be read as UTC, which is the trap this adapter exists
-       to close. `on_hold` is refused, as it is for PasarGuard. */
-    adapter: rebeccaAdapter,
   },
 };
 

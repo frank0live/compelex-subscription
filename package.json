@@ -1,16 +1,16 @@
 {
   "name": "row-template",
   "type": "module",
-  "description": "Custom subscription page template for 3x-ui panels",
+  "description": "Custom subscription page template for 3x-ui panels (VPN Centers edition)",
   "license": "MIT",
   "author": "frank0live",
-  "homepage": "https://github.com/frank0live/Row-Template#readme",
+  "homepage": "https://github.com/frank0live/row-template#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/frank0live/Row-Template.git"
+    "url": "git+https://github.com/frank0live/row-template.git"
   },
   "bugs": {
-    "url": "https://github.com/frank0live/Row-Template/issues"
+    "url": "https://github.com/frank0live/row-template/issues"
   },
   "keywords": [
     "3x-ui",

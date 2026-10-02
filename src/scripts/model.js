@@ -54,12 +54,11 @@ export function readDocument(doc) {
   };
 }
 
-/* The panel a page was built for, when it is not 3X-UI. Only the PasarGuard
-   and Rebecca shells write this element (src/panels/<panel>/extension.*); a
-   3X-UI page has none, and the page then behaves exactly as it always has.
-   The name is checked against the two the shells write, so a stray attribute
-   cannot point the poller anywhere else. */
-const PANELS = ['pasarguard', 'rebecca'];
+/* The panel a page was built for, when it is not 3X-UI. This build supports
+   3X-UI only: no shell writes a panel-data attribute, so every id is read
+   back as "" and the page behaves exactly as it always has. The empty list
+   also means a stray data-panel attribute cannot point the poller elsewhere. */
+const PANELS = [];
 
 export function readPanel(doc) {
   const el = doc.getElementById('panel-data');

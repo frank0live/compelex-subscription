@@ -22,19 +22,16 @@ The tarball expands to a single `row-template-<version>/` directory:
 | ---- | -------- |
 | `template.html` | The Row design, the page an older installed version updates against. |
 | `templates/<id>/template.html` (+ `.sha256`) | Every selectable design for 3X-UI, each with its own checksum. |
-| `shells/<panel>/<id>/shell.html` (+ `.sha256`) | Every design for every panel, each with its own checksum. On PasarGuard (Jinja2) and Rebecca 1.x (pongo2) the installer places the one you select, and refuses a page built for another panel or by a release before 1.3.0. `shells/3xui/` is byte-identical to `templates/`, which is what 3X-UI installs use. |
+| `shells/<panel>/<id>/shell.html` (+ `.sha256`) | Every design, each with its own checksum. This edition ships one panel (`shells/3xui/`), which is byte-identical to `templates/`. |
 | `VERSION`, `install.sh`, `lib/`, `bin/` | The version, the installer and the `row-template` manager. |
-| `panels/` | The panel interface and one adapter per panel (`3xui.sh`, `pasarguard.sh`, `rebecca.sh`); installed next to `lib/`. |
+| `panels/` | The panel interface and the adapter (`3xui.sh`); installed next to `lib/`. |
 | `SHA256SUMS` | The checksum of every payload file, so the contents can be checked after extraction as well. |
 
 Every design is built from this repository's own sources (`src/`). Meter and
-Notebook (1.3.0) were contributed by the project's author and ported onto the
-shared runtime; like every other design they contain no third-party code beyond
-the bundled QR generator and font listed in the README's License section. The
-PasarGuard and Rebecca pages contain no code from either panel: both panels are
-AGPL-3.0, so the preludes and the test harnesses that render them with the
-panels' real engines are independent implementations, written from the source
-audits in `docs/design/`.
+Notebook (1.3.0) were contributed by the original project's author and ported
+onto the shared runtime; like every other design they contain no third-party
+code beyond the bundled QR generator and font listed in the README's License
+section.
 
 The build is deterministic: the same sources always produce a byte-identical
 `row-template-<version>.tar.gz`. Anyone can rebuild it from a checkout with
@@ -76,7 +73,7 @@ Two things contribute to publisher trust here, and neither is the checksum:
 - **HTTPS/TLS** authenticates the GitHub host and encrypts the transfer, so you
   know you reached GitHub and not a machine on the path.
 - **GitHub account and repository control** determine who is allowed to publish
-  a release under `frank0live/Row-Template`.
+  a release under `frank0live/row-template`.
 
 Do not read "checksum verified" as "signed by the author." They are different
 guarantees.
@@ -90,8 +87,8 @@ public key you already trust — that is authenticity, not just integrity.
 To verify a signed tag, when a signature is published:
 
 ```bash
-git clone https://github.com/frank0live/Row-Template
-cd Row-Template
+git clone https://github.com/frank0live/row-template
+cd row-template
 git tag -v v<version>
 ```
 

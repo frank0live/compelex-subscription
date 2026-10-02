@@ -37,16 +37,6 @@ test('every script of every 3X-UI artifact compiles', () => {
   }
 });
 
-test('every script of every PasarGuard and Rebecca shell compiles', () => {
-  for (const panel of ['pasarguard', 'rebecca']) {
-    for (const id of templateIds()) {
-      for (const body of scripts(assembleShell(panel, id).html)) {
-        assert.doesNotThrow(() => new vm.Script(body, { filename: `${panel}/${id}` }), `${panel}/${id}`);
-      }
-    }
-  }
-});
-
 test('no two runtime modules declare the same top-level name', () => {
   const build = readFileSync(join(ROOT, 'tools', 'build.mjs'), 'utf8');
   const list = build.match(/const APP = \[([\s\S]*?)\];/)[1].match(/'([a-z]+\.js)'/g).map((s) => s.slice(1, -1));

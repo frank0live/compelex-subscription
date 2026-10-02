@@ -281,8 +281,6 @@ const SCENARIOS = [
    * not returned to its recorded state, and the engine must not call that a
    * clean rollback merely because the status was not FAILURE. */
   ['rollback-restore-unavailable', '3xui', ['D_INSTALL=1', 'D_RESTORE=2']],
-  ['pasarguard-ok',           'pasarguard', []],
-  ['rebecca-ok',              'rebecca',    []],
 ];
 
 function runTable() {
@@ -369,14 +367,13 @@ test('a successful transaction commits, and performs every step in the frozen or
   ]);
 });
 
-test('every panel in the closed enum runs the same generic path', () => {
-  for (const [panel, label] of [['3xui', 'ok'], ['pasarguard', 'pasarguard-ok'], ['rebecca', 'rebecca-ok']]) {
-    const row = R(label);
-    assert.equal(row.rc, 0, `${panel} should commit`);
-    assert.equal(row.state, 'COMMITTED');
-    assert.deepEqual(calls(label), calls('ok'),
-      `${panel} must take the identical generic path`);
-  }
+test('the panel in the closed enum runs the same generic path', () => {
+  /* With one panel id the cross-panel repetition is vacuous: `ok` above IS
+     the generic path, pinned step-by-step. The other panels' rows left with
+     the adapters they exercised. */
+  const row = R('ok');
+  assert.equal(row.rc, 0, '3xui should commit');
+  assert.equal(row.state, 'COMMITTED');
 });
 
 /* ------------------------------------------------------------------------ */
@@ -1047,12 +1044,11 @@ test('the user-facing rollback path is unchanged: it still reads the format-1 na
 });
 
 test('the panels directory holds exactly the authorised adapters', () => {
-  /* P4 added no adapter; P5A added 3xui; 1.3.0 adds pasarguard and rebecca.
-     The claim stays PRECISE: an adapter appearing without a release
-     authorising it is still a failure. */
+  /* Only 3xui is authorised in this edition: an adapter appearing without a
+     release authorising it is still a failure. */
   const files = readdirSync(PANELS_DIR).sort();
-  assert.deepEqual(files, ['3xui.sh', 'index.sh', 'interface.sh', 'pasarguard.sh', 'rebecca.sh'],
-    'expected the two contract files plus the three authorised adapters');
+  assert.deepEqual(files, ['3xui.sh', 'index.sh', 'interface.sh'],
+    'expected the two contract files plus the one authorised adapter');
 });
 
 test('the registry implements exactly the panels a phase has authorised', () => {
@@ -1071,14 +1067,9 @@ test('the registry implements exactly the panels a phase has authorised', () => 
   const r = sh(probe);
   assert.equal(r.code, 0, r.err);
   const got = new Map(r.out.split('\n').filter(Boolean).map((l) => l.split('|')));
-  for (const p of ['3xui', 'pasarguard', 'rebecca']) {
-    assert.equal(got.get(p), p, `${p} must resolve to its real implementation`);
-  }
-  const absent = sh('RT_PANEL_PASARGUARD_LOADED=""; RT_PANEL_REBECCA_LOADED=""\n' + probe);
-  assert.equal(absent.code, 0, absent.err);
-  const gone = new Map(absent.out.split('\n').filter(Boolean).map((l) => l.split('|')));
-  assert.equal(gone.get('pasarguard'), 'none', 'an absent adapter resolves to nothing');
-  assert.equal(gone.get('rebecca'), 'none', 'an absent adapter resolves to nothing');
+  assert.equal(got.get('3xui'), '3xui', '3xui must resolve to its real implementation');
+  assert.equal(got.get('pasarguard'), 'none', 'the removed panel resolves to nothing');
+  assert.equal(got.get('rebecca'), 'none', 'the removed panel resolves to nothing');
 });
 
 test('a transaction against the real interface, with no panel on this host, fails closed', () => {

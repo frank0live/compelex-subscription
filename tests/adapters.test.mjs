@@ -24,8 +24,6 @@ import {
   PANELS, ADAPTER_INTERFACE, assertAdapter, adapterFor, referencePanel, emitterFor,
 } from '../tools/panels.mjs';
 import { adapter, island as toIsland, livePath, id as panelId, emitter } from '../tools/adapters/3xui.mjs';
-import { livePath as pgLivePath } from '../tools/adapters/pasarguard.mjs';
-import { livePath as rbLivePath } from '../tools/adapters/rebecca.mjs';
 import { infoUrl } from '../src/scripts/live.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -111,15 +109,13 @@ test('the registry exposes the reference adapter and every panel now carries one
   assert.equal(adapterFor('3xui'), adapter, 'the reference panel must expose its adapter');
   assert.equal(PANELS['3xui'].adapter, adapter);
 
-  /* PasarGuard went active in Phase 3C and Rebecca in Phase 4E; each has its own
-     suite (tests/adapters-pasarguard.test.mjs, tests/adapters-rebecca.test.mjs).
-     No panel is planned any more, so this asserts the whole registry. */
-  assert.equal(PANELS.pasarguard.status, 'active');
-  assert.ok(PANELS.pasarguard.adapter, 'PasarGuard is active, so it carries an adapter');
-  assert.equal(PANELS.rebecca.status, 'active');
-  assert.ok(PANELS.rebecca.adapter, 'Rebecca is active, so it carries an adapter');
+  /* The whole registry is one panel, and it is active with an adapter —
+     nothing is planned, and the removed panels are not entries at all. */
+  assert.deepEqual(Object.keys(PANELS).sort(), ['3xui']);
+  assert.equal(PANELS['3xui'].status, 'reference', 'the one panel is the reference panel');
+  assert.ok(PANELS['3xui'].adapter, 'the reference panel carries an adapter');
 
-  for (const id of ['3xui', 'pasarguard', 'rebecca']) {
+  for (const id of Object.keys(PANELS)) {
     assert.ok(adapterFor(id), id + ' must resolve an adapter');
   }
 });
@@ -127,10 +123,10 @@ test('the registry exposes the reference adapter and every panel now carries one
 /* --- livePath matches the runtime's own construction -------------------- */
 
 test('livePath reproduces exactly what live.js builds', () => {
-  /* Since 1.4.0 the runtime builds the endpoint with infoUrl(panel, pathname),
-     which the poller calls with the page's own path; for a 3X-UI page (no
-     panel marker) it must be exactly what this adapter says, and each panel
-     adapter must agree with the runtime for its own panel. */
+  /* The runtime builds the endpoint with infoUrl(panel, pathname), which the
+     poller calls with the page's own path. This edition only ever builds
+     3X-UI pages (no panel marker), so the adapter and the runtime must agree
+     on the query-string form for every path. */
   const live = readFileSync(join(ROOT, 'src', 'scripts', 'live.js'), 'utf8');
   assert.ok(
     live.includes('win.fetch(infoUrl(ctx.panel, win.location.pathname), init)'),
@@ -138,8 +134,7 @@ test('livePath reproduces exactly what live.js builds', () => {
   );
   for (const path of ['/sub/abc123', '/', '', '/a/b/c/']) {
     assert.equal(infoUrl('', path), livePath(path), `3X-UI ${path}`);
-    assert.equal(infoUrl('pasarguard', path), pgLivePath(path), `PasarGuard ${path}`);
-    assert.equal(infoUrl('rebecca', path), rbLivePath(path), `Rebecca ${path}`);
+    assert.equal(infoUrl('3xui', path), livePath(path), `3X-UI marker ${path}`);
   }
   assert.equal(livePath('/sub/abc123'), '/sub/abc123?format=info');
   assert.equal(livePath('/'), '/?format=info');

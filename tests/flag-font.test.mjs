@@ -242,12 +242,6 @@ test('the face is its own <style>, after the markup and before the badges exist,
   for (const id of templateIds()) facePlacement(build(true, id).html, id);
 });
 
-test('the PasarGuard and Rebecca shells place it the same way', () => {
-  for (const panel of ['pasarguard', 'rebecca']) {
-    for (const id of templateIds()) facePlacement(assembleShell(panel, id).html, `${panel}/${id}`);
-  }
-});
-
 test('a system-fonts build carries no face at all', () => {
   const html = build(false).html;
   assert.equal(html.includes('Row Flags"') && html.includes('@font-face'), false);

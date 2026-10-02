@@ -358,12 +358,12 @@ test('a symlink inside a snapshot is refused, not silently skipped', (t) => {
 
 /* --- 7. panel ids --------------------------------------------------------- */
 
-test('invalid and unknown panel ids are refused; the three known ones are accepted', () => {
+test('invalid and unknown panel ids are refused; the only known one is accepted', () => {
   assertAllRefused('rt_panel_id_ok',
     ['../etc', '3xui/../..', 'a b', 'A', '3XUI', '', '3xui ', ' 3xui', '3xui/x', '.',
-      'nginx', 'xui', '3xui2', 'pasarguardx', 'rebeccax', 'sqlite'],
+      'nginx', 'xui', '3xui2', 'pasarguard', 'rebecca', 'pasarguardx', 'rebeccax', 'sqlite'],
     'panel id grammar');
-  assertAllAccepted('rt_panel_id_ok', ['3xui', 'pasarguard', 'rebecca'], 'known panel ids');
+  assertAllAccepted('rt_panel_id_ok', ['3xui'], 'the only known panel id');
 });
 
 test('the writer refuses an unknown or unstaged panel outright', () => {
@@ -403,18 +403,19 @@ test('the panel writer refuses values outside the closed sets', () => {
 /* --- 7b. the placed-file list (P2 follow-up) ------------------------------ */
 
 test('the placed-file list round-trips through a snapshot, one path per line', () => {
-  /* PasarGuard and Rebecca both place a file into a directory the operator also
-     owns. Without this record a rollback must choose between deleting the
+  /* A panel that places a file into a directory the operator also owns needs
+     this record: without it a rollback must choose between deleting the
      directory (destroys operator content) and deleting nothing (leaves our file
      and the panel pointing at it). The record is what makes "remove exactly our
-     files, never the directory" possible. */
+     files, never the directory" possible. The mechanism is panel-generic and is
+     exercised with the one id this edition knows. */
   const r = sh(`
-    rt_backup_panel_write "$RT_PANEL_STAGE" pasarguard present subscription/index.html env 1 \\
+    rt_backup_panel_write "$RT_PANEL_STAGE" 3xui present subscription/index.html env 1 \
       subscription/index.html
-    d="$(rt_backup_create v2 pasarguard)"
-    echo "on-disk:"; cat "$d/panels/pasarguard/files"
-    echo "count:$(rt_backup_panel_files "$d" pasarguard | wc -l)"
-    echo "reader:[$(rt_backup_panel_files "$d" pasarguard)]"
+    d="$(rt_backup_create v2 3xui)"
+    echo "on-disk:"; cat "$d/panels/3xui/files"
+    echo "count:$(rt_backup_panel_files "$d" 3xui | wc -l)"
+    echo "reader:[$(rt_backup_panel_files "$d" 3xui)]"
   `);
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /on-disk:\nsubscription\/index\.html\n/, 'the path is stored');
@@ -449,12 +450,12 @@ test('the placed-file list is de-duplicated and LC_ALL=C sorted', () => {
      byte-identical output, or two snapshots of one state would compare unequal
      and the manifest would differ for no reason. */
   const r = sh(`
-    rt_backup_panel_write "$RT_PANEL_STAGE" rebecca present t api 1 \\
+    rt_backup_panel_write "$RT_PANEL_STAGE" 3xui present t api 1 \
       zz/last.html aa/first.html mm/mid.html zz/last.html aa/first.html
-    echo "sorted:"; cat "$RT_PANEL_STAGE/rebecca/files"
-    rt_backup_panel_write "$RT_ROOT/stage2" rebecca present t api 1 \\
+    echo "sorted:"; cat "$RT_PANEL_STAGE/3xui/files"
+    rt_backup_panel_write "$RT_ROOT/stage2" 3xui present t api 1 \
       mm/mid.html zz/last.html aa/first.html
-    cmp -s "$RT_PANEL_STAGE/rebecca/files" "$RT_ROOT/stage2/rebecca/files" \\
+    cmp -s "$RT_PANEL_STAGE/3xui/files" "$RT_ROOT/stage2/3xui/files" \
       && echo "deterministic:yes" || echo "deterministic:NO"
   `);
   assert.equal(r.code, 0, r.err);
@@ -543,21 +544,10 @@ test('a symlinked files list cannot be staged into a snapshot', () => {
   assert.match(r.out, /leftovers:0/);
 });
 
-test('two panels in one snapshot each carry their own file list', () => {
-  const r = sh(`
-    rt_backup_panel_write "$RT_PANEL_STAGE" pasarguard present subscription/index.html env 1 \\
-      subscription/index.html
-    rt_backup_panel_write "$RT_PANEL_STAGE" 3xui absent "" db 0
-    d="$(rt_backup_create v2 pasarguard 3xui)"
-    echo "pg:[$(rt_backup_panel_files "$d" pasarguard | tr '\\n' ' ')]"
-    echo "xui:[$(rt_backup_panel_files "$d" 3xui)]"
-    rt_backup_snapshot_check "$d" >/dev/null 2>&1 && echo "valid:yes" || echo "valid:no"
-  `);
-  assert.equal(r.code, 0, r.err);
-  assert.match(r.out, /pg:\[subscription\/index\.html \]/);
-  assert.match(r.out, /xui:\[\]/, '3X-UI places nothing and records that');
-  assert.match(r.out, /valid:yes/);
-});
+/* The two-panels-in-one-snapshot test was removed with the PasarGuard and
+   Rebecca adapters: this edition's closed id set has exactly one panel, so a
+   multi-panel snapshot is not expressible and nothing can be asserted about
+   it. The per-panel file list itself is covered above with 3xui. */
 
 /* --- 8. secrets ----------------------------------------------------------- */
 
@@ -694,11 +684,11 @@ test('the placed-file record cannot express a pre-existing operator file', () =>
   /* Everything under panels/<panel>/ is a file we wrote, byte-for-byte: the
      four record files and nothing else. A stray capture would show up here. */
   const r = sh(`
-    rt_backup_panel_write "$RT_PANEL_STAGE" pasarguard present subscription/index.html env 1 \\
+    rt_backup_panel_write "$RT_PANEL_STAGE" 3xui present subscription/index.html env 1 \\
       subscription/index.html
-    d="$(rt_backup_create v2 pasarguard)"
-    echo "entries:"; (cd "$d/panels/pasarguard" && find . -type f | LC_ALL=C sort)
-    echo "bytes:"$(find "$d/panels/pasarguard" -type f | wc -l)
+    d="$(rt_backup_create v2 3xui)"
+    echo "entries:"; (cd "$d/panels/3xui" && find . -type f | LC_ALL=C sort)
+    echo "bytes:"$(find "$d/panels/3xui" -type f | wc -l)
   `);
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /entries:\n\.\/files\n\.\/meta\n\.\/selection\n\.\/selection\.state\n/,
