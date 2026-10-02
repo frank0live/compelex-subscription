@@ -2294,7 +2294,7 @@ function readDocument(doc) {
   };
 }
 
-const PANELS = ['pasarguard', 'rebecca'];
+const PANELS = [];
 
 function readPanel(doc) {
   const el = doc.getElementById('panel-data');
@@ -3323,7 +3323,7 @@ function looksLikeInfo(value) {
 
 function infoUrl(panel, pathname) {
   const path = String(pathname || '');
-  return panel ? path.replace(/\/+$/, '') + '/info' : path + '?format=info';
+  return path + '?format=info';
 }
 
 const STATUSES = ['active', 'disabled', 'limited', 'expired', 'on_hold'];
@@ -3349,8 +3349,7 @@ function fromPanel(panel, data, now) {
   const limit = Number(u.data_limit);
   let expire = 0;
   if (u.status === 'on_hold') {
-    const hold = panel === 'pasarguard' ? Number(u.on_hold_expire_duration) : 0;
-    expire = hold > 0 ? -Math.trunc(hold) : HOLD_UNKNOWN;
+    expire = HOLD_UNKNOWN;
   } else if (u.expire !== null && u.expire !== undefined && u.expire !== '' && u.expire !== 0) {
     const at = instant(u.expire);
     if (at === null) return null;

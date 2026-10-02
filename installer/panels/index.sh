@@ -9,8 +9,8 @@
 # importantly — that P5 can add an implementation by changing this file alone,
 # without touching a single line of the contract.
 #
-# ALL THREE PANELS ARE IMPLEMENTED (3X-UI since P5A; PasarGuard and Rebecca
-# since 1.3.0), each by one adapter file beside this one. The registry still
+# ONE PANEL IS IMPLEMENTED (3X-UI, since P5A), by the adapter file beside this
+# one. The registry still
 # never defines a stub that returns SUCCESS and never falls back to a generic
 # implementation: a panel whose adapter file is absent or does not load is
 # reported as having no implementation, which every verb answers UNAVAILABLE.
@@ -34,28 +34,12 @@
 # an undefined function at call time, and "command not found" is an exit 127
 # that no return-code contract describes.
 RT_PANEL_3XUI_LOADED=""
-RT_PANEL_PASARGUARD_LOADED=""
-RT_PANEL_REBECCA_LOADED=""
 rt_panel_registry_dir="$(dirname "${BASH_SOURCE[0]}")"
 if [ -f "$rt_panel_registry_dir/3xui.sh" ]; then
   if . "$rt_panel_registry_dir/3xui.sh"; then
     RT_PANEL_3XUI_LOADED=1
   else
     rt_err "panel registry: the 3xui adapter exists but could not be loaded"
-  fi
-fi
-if [ -f "$rt_panel_registry_dir/pasarguard.sh" ]; then
-  if . "$rt_panel_registry_dir/pasarguard.sh"; then
-    RT_PANEL_PASARGUARD_LOADED=1
-  else
-    rt_err "panel registry: the pasarguard adapter exists but could not be loaded"
-  fi
-fi
-if [ -f "$rt_panel_registry_dir/rebecca.sh" ]; then
-  if . "$rt_panel_registry_dir/rebecca.sh"; then
-    RT_PANEL_REBECCA_LOADED=1
-  else
-    rt_err "panel registry: the rebecca adapter exists but could not be loaded"
   fi
 fi
 unset rt_panel_registry_dir
@@ -83,11 +67,9 @@ rt_panel_impl_for() {
   rt_panel_id_ok "$panel" || return 0
   # Each panel is reported ONLY when its adapter actually loaded, so a payload
   # missing a file reports "none" rather than sending a caller to a function
-  # that is not there. 3X-UI since P5A; PasarGuard and Rebecca since 1.3.0.
+  # that is not there. 3X-UI since P5A.
   case "$panel" in
     3xui)       if [ -n "${RT_PANEL_3XUI_LOADED:-}" ]; then printf '%s\n' "3xui"; fi ;;
-    pasarguard) if [ -n "${RT_PANEL_PASARGUARD_LOADED:-}" ]; then printf '%s\n' "pasarguard"; fi ;;
-    rebecca)    if [ -n "${RT_PANEL_REBECCA_LOADED:-}" ]; then printf '%s\n' "rebecca"; fi ;;
   esac
   return 0
 }
@@ -138,20 +120,6 @@ rt_panel_dispatch() {
     3xui:verify)             rt_panel_3xui_verify "$panel" "$@" ;;
     3xui:restore_state)      rt_panel_3xui_restore_state "$panel" "$@" ;;
     3xui:uninstall_template) rt_panel_3xui_uninstall_template "$panel" "$@" ;;
-    pasarguard:detect)             rt_panel_pasarguard_detect "$panel" "$@" ;;
-    pasarguard:capabilities)       rt_panel_pasarguard_capabilities "$panel" "$@" ;;
-    pasarguard:backup_state)       rt_panel_pasarguard_backup_state "$panel" "$@" ;;
-    pasarguard:install_template)   rt_panel_pasarguard_install_template "$panel" "$@" ;;
-    pasarguard:verify)             rt_panel_pasarguard_verify "$panel" "$@" ;;
-    pasarguard:restore_state)      rt_panel_pasarguard_restore_state "$panel" "$@" ;;
-    pasarguard:uninstall_template) rt_panel_pasarguard_uninstall_template "$panel" "$@" ;;
-    rebecca:detect)                rt_panel_rebecca_detect "$panel" "$@" ;;
-    rebecca:capabilities)          rt_panel_rebecca_capabilities "$panel" "$@" ;;
-    rebecca:backup_state)          rt_panel_rebecca_backup_state "$panel" "$@" ;;
-    rebecca:install_template)      rt_panel_rebecca_install_template "$panel" "$@" ;;
-    rebecca:verify)                rt_panel_rebecca_verify "$panel" "$@" ;;
-    rebecca:restore_state)         rt_panel_rebecca_restore_state "$panel" "$@" ;;
-    rebecca:uninstall_template)    rt_panel_rebecca_uninstall_template "$panel" "$@" ;;
     *)
       rt_err "panel dispatch: no dispatch arm for implementation '$impl' verb '$verb'"
       return "$RT_PANEL_FAIL" ;;
@@ -201,8 +169,6 @@ rt_panel_refresh_page() {
   shift
   impl="$(rt_panel_impl_for "$panel")"
   case "$impl" in
-    pasarguard) rt_panel_pasarguard_refresh "$@" ;;
-    rebecca)    rt_panel_rebecca_refresh "$@" ;;
     3xui)       return "$RT_PANEL_NOT_APPLICABLE" ;;
     *)          return "$RT_PANEL_UNAVAILABLE" ;;
   esac
@@ -216,7 +182,6 @@ rt_panel_preflight() {
   rt_panel_id_ok "$panel" || return "$RT_PANEL_FAIL"
   impl="$(rt_panel_impl_for "$panel")"
   case "$impl" in
-    rebecca) rt_panel_rebecca_edition_ok ;;
     *)       return 0 ;;
   esac
 }
@@ -226,8 +191,6 @@ rt_panel_status() {
   rt_panel_id_ok "$panel" || return "$RT_PANEL_FAIL"
   impl="$(rt_panel_impl_for "$panel")"
   case "$impl" in
-    pasarguard) rt_panel_pasarguard_status ;;
-    rebecca)    rt_panel_rebecca_status ;;
     *)          printf 'unknown' ;;
   esac
 }
@@ -237,8 +200,6 @@ rt_panel_branding() {
   rt_panel_id_ok "$panel" || return "$RT_PANEL_FAIL"
   impl="$(rt_panel_impl_for "$panel")"
   case "$impl" in
-    pasarguard) rt_panel_pasarguard_branding || return "$RT_PANEL_UNAVAILABLE" ;;
-    rebecca)    rt_panel_rebecca_branding || return "$RT_PANEL_UNAVAILABLE" ;;
     *)          return "$RT_PANEL_UNAVAILABLE" ;;
   esac
 }

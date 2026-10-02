@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3X-UI Edition] - 2026-10-02
+
+Fork of `frank0live/Row-Template` 1.4.0, rebranded and restricted to **3X-UI
+(MHSanaei) only** by frank0live.
+
+### Changed
+
+- **Removed PasarGuard and Rebecca support.** Their panel adapters
+  (`tools/adapters/`, `installer/panels/`), shells (`src/panels/`), engines
+  (Jinja2/pongo2 renderers), tests, and installer paths were deleted; the panel
+  registry, `RT_PANEL_IDS`, and the installer now accept `3xui` only.
+- **Removed the documentation site** (`docs/`), translated READMEs, and the
+  community files (CONTRIBUTING, CODE_OF_CONDUCT, SECURITY).
+- **Branding:** author, repository URLs, installer help, and release channel now
+  point at `frank0live/row-template`. The served page remains fully white-label.
+- The project's runtime behaviour on 3X-UI is unchanged from 1.4.0.
+
 ## [1.4.0] - 2026-09-28
 
 Every country's flag, on every platform. On PasarGuard, the applications and

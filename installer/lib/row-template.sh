@@ -59,7 +59,7 @@ RT_XUI_DB_DEFAULTS=(/etc/x-ui/x-ui.db /usr/local/x-ui/x-ui.db /etc/3x-ui/x-ui.db
 # Installation Info screen and help — never on the served subscription page.
 RT_PROJECT_NAME="Row-Template"
 RT_DEVELOPER="frank0live"
-RT_GITHUB="https://github.com/frank0live/Row-Template"
+RT_GITHUB="https://github.com/frank0live/row-template"
 
 # Public release channel. GitHub resolves releases/latest/download/<name> to the
 # newest published (non-draft, non-prerelease) release's asset, over https, with
@@ -100,7 +100,7 @@ rt_root_set() {
 # it back from the payload's own library (rt_payload_companions). Both read the
 # line as text, which is why it is never expanded in this file.
 # shellcheck disable=SC2034
-RT_INSTALLER_COMPANIONS="lib/transaction.sh panels/3xui.sh panels/index.sh panels/interface.sh panels/pasarguard.sh panels/rebecca.sh"
+RT_INSTALLER_COMPANIONS="lib/transaction.sh panels/3xui.sh panels/index.sh panels/interface.sh"
 
 # Limits.
 RT_LOGO_MAX_BYTES=$((256 * 1024))           # raw image cap before base64
@@ -1187,7 +1187,7 @@ RT_BACKUP_FORMAT_READABLE=2
 # The panel ids this library will record state for. A CLOSED SET: an id outside
 # it is refused rather than sanitised, because a panel directory we do not
 # understand is exactly the case where a rollback would act on the wrong thing.
-RT_PANEL_IDS="3xui pasarguard rebecca"
+RT_PANEL_IDS="3xui"
 
 rt_panel_id_ok() {
   # 0 only for an id in the closed set above. Rejects uppercase, spaces, empty,
@@ -2287,20 +2287,10 @@ RT_PB_NAME=""
 RT_PB_URL=""
 
 rt_panel_branding_read() {
-  # PANEL -> RT_PB_NAME, RT_PB_URL. 0 when at least one of them is usable.
-  local panel="${1:-}" raw t="" u=""
+  # PANEL -> RT_PB_NAME, RT_PB_URL. Only 3X-UI remains in this build; it keeps
+  # branding in the panel itself, so there is never a panel record to read.
   RT_PB_NAME=""; RT_PB_URL=""
-  case "$panel" in pasarguard|rebecca) : ;; *) return 1 ;; esac
-  raw="$(rt_panel_branding "$panel" 2>/dev/null)" || return 1
-  { IFS= read -r t || true; IFS= read -r u || true; } <<< "$raw"
-  t="$(rt_trim "$t")"; u="$(rt_trim "$u")"
-  [ "$t" = "Subscription" ] && t=""
-  if [ "$panel" = "pasarguard" ]; then case "$t" in *'{'*) t="" ;; esac; fi
-  case "$u" in https://t.me/|https://t.me|http://t.me/|http://t.me) u="" ;; esac
-  rt_validate_service_name "$t" || t=""
-  rt_validate_support_url "$u" || u=""
-  RT_PB_NAME="$t"; RT_PB_URL="$u"
-  [ -n "$t" ] || [ -n "$u" ]
+  return 1
 }
 
 # --- interactive configuration ----------------------------------------------
@@ -2807,8 +2797,6 @@ RT_ACTIVE_PANEL=""
 rt_panel_label() {
   case "${1:-}" in
     3xui)       printf '3X-UI' ;;
-    pasarguard) printf 'PasarGuard' ;;
-    rebecca)    printf 'Rebecca' ;;
     *)          printf '%s' "${1:-unknown}" ;;
   esac
 }
@@ -2845,15 +2833,10 @@ rt_panel_record() {
 
 rt_panel_on_host() {
   # 0 when PANEL is on this host. 3X-UI keeps the rule it has had since 1.0.0
-  # (its binary or its unit); PasarGuard and Rebecca need their adapter's two
-  # corroborating signals. Read-only.
+  # (its binary or its unit). Read-only.
   local rc=0
   case "$1" in
     3xui) rt_detect_xui >/dev/null 2>&1 ;;
-    pasarguard|rebecca)
-      [ -n "${RT_PANELS_LOADED:-}" ] || return 1
-      rt_panel_detect "$1" >/dev/null 2>&1 || rc=$?
-      [ "$rc" -eq 0 ] ;;
     *) return 1 ;;
   esac
 }
@@ -2911,7 +2894,7 @@ rt_panel_choose() {
   fi
 
   if [ -n "${RT_PANEL:-}" ]; then
-    rt_panel_id_ok "$RT_PANEL" || { rt_err "RT_PANEL='$RT_PANEL' is not a panel Row-Template supports (3xui, pasarguard, rebecca)."; return 1; }
+    rt_panel_id_ok "$RT_PANEL" || { rt_err "RT_PANEL='$RT_PANEL' is not a panel Row-Template supports (3xui)."; return 1; }
     if ! rt_panel_on_host "$RT_PANEL"; then
       if [ "$RT_PANEL" = "3xui" ]; then rt_err "no 3x-ui installation was detected on this host."
       else rt_err "RT_PANEL=$RT_PANEL, but $(rt_panel_label "$RT_PANEL") was not detected on this host."; fi
@@ -2923,7 +2906,7 @@ rt_panel_choose() {
     n="$(printf '%s' "$found" | grep -c . || true)"
     if [ "$n" -eq 0 ]; then
       rt_panel_report_partial
-      rt_err "no supported panel was detected on this host: no 3x-ui installation, and no PasarGuard or Rebecca installation."
+      rt_err "no supported panel was detected on this host: no 3X-UI installation was found." 
       return 1
     elif [ "$n" -eq 1 ]; then
       panel="$found"
@@ -2937,7 +2920,7 @@ rt_panel_choose() {
       [ "$choice" -ge 1 ] 2>/dev/null || { rt_err "no panel was chosen; nothing was changed."; return 1; }
       panel="${list[$((choice - 1))]}"
     else
-      rt_err "more than one panel is installed here ($(printf '%s' "$found" | tr '\n' ' ')); choose one with RT_PANEL=3xui|pasarguard|rebecca."
+      rt_err "more than one panel is installed here ($(printf '%s' "$found" | tr '\n' ' ')); choose one with RT_PANEL=3xui."
       return 1
     fi
   fi
@@ -2947,16 +2930,8 @@ rt_panel_choose() {
 }
 
 rt_panel_report_partial() {
-  # Say so when a panel is half-there (one detection signal): refusing to act
-  # on it is right, but the operator deserves to know why.
-  local p rc
-  [ -n "${RT_PANELS_LOADED:-}" ] || return 0
-  for p in pasarguard rebecca; do
-    rc=0; rt_panel_detect "$p" >/dev/null 2>&1 || rc=$?
-    if [ "$rc" -eq "$RT_PANEL_FAIL" ]; then
-      rt_warn "$(rt_panel_label "$p") looks partly installed (only one of its files was found); it is not treated as present."
-    fi
-  done
+  # No half-installed panel can be reported any more: this build has a single
+  # panel and 3X-UI's presence is decided by its own two signals.
   return 0
 }
 
@@ -2980,8 +2955,6 @@ rt_artifact_fits_panel() {
     3xui)
       if LC_ALL=C grep -Eq '\{%-? *(autoescape|if|for|set|comment) ' "$f" 2>/dev/null; then return 1; fi
       return 0 ;;
-    pasarguard) declare -F rt_panel_pasarguard_shell_ok >/dev/null && rt_panel_pasarguard_shell_ok "$f" ;;
-    rebecca)    declare -F rt_panel_rebecca_shell_ok >/dev/null && rt_panel_rebecca_shell_ok "$f" ;;
     *) return 1 ;;
   esac
 }
@@ -3003,7 +2976,8 @@ rt_panel_activation_record() {
 }
 
 rt_panel_activate() {
-  # Make PasarGuard or Rebecca serve the generated page. Echo the outcome:
+  # Make the panel serve the generated page (3X-UI serves from the install
+  # root itself). Echo the outcome:
   #   auto    placed and selected, through the transaction engine (snapshot,
   #           verify, and an automatic restore if anything fails)
   #   manual  the page is placed, but the selection cannot be written here
@@ -3065,19 +3039,6 @@ rt_panel_restore_confirmed() {
 rt_panel_manual_steps() {
   # print what the operator must set in the panel when activation is manual.
   case "$(rt_panel_current)" in
-    rebecca)
-      rt_info "In the Rebecca dashboard: Settings -> Subscription -> Templates"
-      rt_info "  Subscription page template:   row-template/index.html"
-      rt_info "  Custom templates directory:   ${RT_RB_DATA_DIR:-/var/lib/rebecca}/templates"
-      rt_info "If a custom templates directory is already set, keep it and copy"
-      rt_info "  ${RT_RB_DATA_DIR:-/var/lib/rebecca}/templates/row-template/ into it instead."
-      rt_info "(Automatic activation needs the sqlite3 command and Rebecca's SQLite database.)" ;;
-    pasarguard)
-      rt_info "Copy $RT_LIVE to ${RT_PG_DATA_DIR:-/var/lib/pasarguard}/templates/row-template/index.html,"
-      rt_info "then in ${RT_PG_APP_DIR:-/opt/pasarguard}/.env set these and run 'pasarguard restart':"
-      rt_info "  CUSTOM_TEMPLATES_DIRECTORY = \"${RT_PG_DATA_DIR:-/var/lib/pasarguard}/templates\""
-      rt_info "  SUBSCRIPTION_PAGE_TEMPLATE = \"row-template/index.html\""
-      rt_info "(Keep your own CUSTOM_TEMPLATES_DIRECTORY if you have one, and copy the page into it.)" ;;
     *)
       rt_info "In the panel: Settings -> Subscription -> Sub Theme Directory"
       rt_info "Set it to exactly: $RT_ROOT" ;;
@@ -3288,17 +3249,6 @@ rt_install_activate_panel() {
   if [ "$interactive" -eq 1 ]; then
     {
       rt_ui_section "Activate Row-Template on $(rt_panel_label "$panel")"
-      case "$panel" in
-        pasarguard)
-          rt_ui_info "This places the page in PasarGuard's templates directory, adds a"
-          rt_ui_info "Row-Template block to ${RT_PG_APP_DIR:-/opt/pasarguard}/.env selecting it, and"
-          rt_ui_info "restarts PasarGuard once. Your users, nodes and settings are not touched."
-          rt_ui_info "Uninstalling removes the block again." ;;
-        rebecca)
-          rt_ui_info "This places the page in Rebecca's templates directory and selects it"
-          rt_ui_info "in Rebecca's subscription settings. No restart is needed. Your users,"
-          rt_ui_info "nodes and other settings are not touched." ;;
-      esac
     } >&2
     if ! rt_ui_confirm "Make Row-Template the active $(rt_panel_label "$panel") subscription page now?" yes; then
       printf 'skipped'
@@ -3590,7 +3540,7 @@ rt_uninstall_files() {
 }
 
 rt_uninstall_panel() {
-  # Put PasarGuard or Rebecca back to the page it had before Row-Template, and
+  # Put the panel back to the page it had before Row-Template, and
   # remove the page Row-Template placed. Returns non-zero only when the revert
   # FAILED; "nothing to revert" and "must be reverted by hand" are reported and
   # let the uninstall continue.
@@ -3606,7 +3556,6 @@ rt_uninstall_panel() {
     2)
       rt_warn "$(rt_panel_label "$panel")'s selection cannot be changed automatically here."
       case "$panel" in
-        rebecca) rt_info "In the Rebecca dashboard set Subscription page template back to subscription/index.html (or your own page)." ;;
         *) rt_info "Select your previous subscription page in the panel." ;;
       esac ;;
     *) rt_err "could not revert $(rt_panel_label "$panel")."; return 1 ;;
@@ -3798,8 +3747,8 @@ rt_cmd_rollback() {
 
 rt_print_help() {
   cat <<'EOF'
-Row-Template — custom subscription page manager for 3X-UI, PasarGuard and Rebecca
-by frank0live — https://github.com/frank0live/Row-Template
+Row-Template — custom subscription page manager for 3X-UI
+by frank0live — https://github.com/frank0live/row-template
 
 Usage:
   row-template                Open the interactive manager (when run in a terminal)
@@ -4073,7 +4022,7 @@ rt_manager_activate() {
   fi
 }
 rt_manager_activate_panel() {
-  # Activate / re-apply on PasarGuard or Rebecca. The page is regenerated first,
+  # Activate / re-apply on the panel. The page is regenerated first,
   # so what is activated is exactly what verify will check.
   local panel st outcome
   panel="$(rt_panel_current)"
@@ -4329,9 +4278,6 @@ rt_reconfig_reset() {
 rt_manager_reconfigure() {
   local choice max=6 panel
   panel="$(rt_panel_current)"
-  # PasarGuard and Rebecca keep their own name and support link (1.4.0): one
-  # more item, after the six every panel has, so their numbers never move.
-  case "$panel" in pasarguard|rebecca) max=7 ;; esac
   while true; do
     rt_ui_section "Reconfigure"
     printf '  %s1%s  Service name\n'          "$RT_C_BLD" "$RT_C_RST"

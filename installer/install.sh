@@ -3,7 +3,7 @@
 #
 # Public one-command UX:
 #
-#   bash <(curl -fsSL https://github.com/frank0live/Row-Template/releases/latest/download/install.sh)
+#   bash <(curl -fsSL https://github.com/frank0live/row-template/releases/latest/download/install.sh)
 #
 # With no environment set it downloads from the public GitHub stable channel
 # (releases/latest/download resolves to the newest published, non-prerelease
@@ -53,7 +53,7 @@ else
   # resolves to the newest published (non-draft, non-prerelease) release asset,
   # over https, with no API token — so the one-command install just works.
   command -v curl >/dev/null 2>&1 || b_die "curl is required to download the release."
-  B_KIND=url; B_BASE="https://github.com/frank0live/Row-Template/releases/latest/download"
+  B_KIND=url; B_BASE="https://github.com/frank0live/row-template/releases/latest/download"
 fi
 
 WORK="$(mktemp -d)" || b_die "cannot create a work directory."

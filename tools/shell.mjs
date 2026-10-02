@@ -25,8 +25,7 @@
  * WHAT THIS DOES NOT DO
  *
  * It does not render the shell. Rendering is the panel's job at request time —
- * Jinja2 for PasarGuard, pongo2 for Rebecca. tools/render-jinja.mjs exists only
- * so the tests can prove a rendered page is correct.
+ * 3X-UI renders Go templates itself, from the artifact this build emits.
  */
 
 import { readFileSync, mkdirSync, existsSync } from 'node:fs';

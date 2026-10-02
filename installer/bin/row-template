@@ -10,8 +10,7 @@
 set -Eeuo pipefail
 
 # The install root is decided at install time by the panel: 3X-UI installs live
-# at /etc/3x-ui/sub_templates/row-template (every release), PasarGuard and
-# Rebecca installs at /etc/row-template (1.3.0+). The launcher uses whichever
+# at /etc/3x-ui/sub_templates/row-template. The launcher uses whichever
 # one holds a management library. RT_ROOT may be overridden in the environment
 # for testing; the library reads the same variable.
 if [ -z "${RT_ROOT:-}" ]; then

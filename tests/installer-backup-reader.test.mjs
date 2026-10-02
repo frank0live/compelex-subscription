@@ -277,7 +277,9 @@ test('an untagged panel id is refused, so a state path cannot be crafted', () =>
 });
 
 test('a panel the snapshot did not touch reads as empty, not as an error', () => {
-  const r = withSnapshot(format1Files(), 'rt_backup_panel_state "$SNAP" rebecca; echo "|done"');
+  /* Only one panel id exists in this edition, so "untouched" is expressed with
+     a snapshot that has no panel record at all. */
+  const r = withSnapshot(format1Files(), 'rt_backup_panel_state "$SNAP" 3xui; echo "|done"');
   assert.equal(r.out, '|done');
 });
 
@@ -285,12 +287,12 @@ test('a panel the snapshot did not touch reads as empty, not as an error', () =>
 
 test('the recorded placed-file list round-trips as data, one path per line', () => {
   const files = format1Files();
-  files['panels/pasarguard/selection.state'] = 'present\n';
-  files['panels/pasarguard/selection'] = 'subscription/index.html';
-  files['panels/pasarguard/meta'] = 'mechanism=env\nwas_running=1\n';
-  files['panels/pasarguard/files'] = 'aa/first.html\nzz/last.html\n';
+  files['panels/3xui/selection.state'] = 'present\n';
+  files['panels/3xui/selection'] = 'subscription/index.html';
+  files['panels/3xui/meta'] = 'mechanism=env\nwas_running=1\n';
+  files['panels/3xui/files'] = 'aa/first.html\nzz/last.html\n';
   const r = withSnapshot(files, `
-    rt_backup_panel_files "$SNAP" pasarguard
+    rt_backup_panel_files "$SNAP" 3xui
     echo "|done"
   `);
   assert.equal(r.out, 'aa/first.html\nzz/last.html\n|done');

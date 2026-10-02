@@ -213,9 +213,6 @@ test('no icon the panel names is ever loaded', () => {
   for (const token of ["'img'", 'icon_url', '.src', 'fetch(', 'innerHTML', 'insertAdjacentHTML']) {
     assert.equal(src.includes(token), false, token);
   }
-  const ext = readFileSync(join(ROOT, 'src', 'panels', 'pasarguard', 'extension.jinja2'), 'utf8');
-  const markup = ext.slice(ext.indexOf('-#}') + 3);
-  assert.equal(/icon/.test(markup), false, 'the shell does not even write the icon address');
 });
 
 /* --- the panel marker and the announcement link -------------------------------- */
@@ -227,10 +224,10 @@ function panelDoc(attrs) {
   return doc;
 }
 
-test('the panel marker names only the two panels the shells write', () => {
+test('the panel marker is never written, so every id reads back empty', () => {
   assert.deepEqual(readPanel(new Document()), { id: '', announceUrl: '' }, 'a 3X-UI page has none');
-  assert.equal(readPanel(panelDoc({ 'data-panel': 'pasarguard' })).id, 'pasarguard');
-  assert.equal(readPanel(panelDoc({ 'data-panel': 'rebecca' })).id, 'rebecca');
+  assert.equal(readPanel(panelDoc({ 'data-panel': 'pasarguard' })).id, '', 'a stray attribute is refused');
+  assert.equal(readPanel(panelDoc({ 'data-panel': 'rebecca' })).id, '', 'a stray attribute is refused');
   assert.equal(readPanel(panelDoc({ 'data-panel': 'evil' })).id, '');
   assert.equal(readPanel(panelDoc({ 'data-panel': 'pasarguard', 'data-announce-url': ' https://t.me/news ' })).announceUrl,
     'https://t.me/news');

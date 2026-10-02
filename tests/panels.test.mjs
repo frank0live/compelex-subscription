@@ -63,21 +63,23 @@ test('G1: the action vocabulary is closed and fully classified', () => {
 
 test('G1: an action outside the vocabulary is refused, not copied', () => {
   assert.throws(() => classify('template "x"'), /unsupported template action/);
-  assert.throws(() => transpile('{{ template "x" }}', 'jinja2'), /unsupported template action/);
   assert.throws(() => transpile('{{ .a }}', 'php'), /unknown emitter/);
+  /* The dialects this edition removed are unknown emitters, not fallbacks. */
+  assert.throws(() => transpile('{{ template "x" }}', 'jinja2'), /unknown emitter/);
+  assert.throws(() => transpile('{{ template "x" }}', 'pongo2'), /unknown emitter/);
 });
 
 /* --- G1b — the other dialects are well formed --------------------------- */
 
-test('every layout transpiles to balanced Jinja2 and pongo2', () => {
+test('the removed Jinja2 and pongo2 dialects are refused at the emitter seam', () => {
   for (const id of templateIds()) {
     for (const dialect of ['jinja2', 'pongo2']) {
-      const out = transpile(LAYOUTS[id], dialect);
+      assert.throws(() => transpile(LAYOUTS[id], dialect), /unknown emitter/,
+        id + '/' + dialect + ' must no longer emit');
+      const out = transpile(LAYOUTS[id], 'go');
       const opens = (out.match(/\{% (?:if|for) /g) || []).length;
       const closes = (out.match(/\{% (?:endif|endfor) %\}/g) || []).length;
-      assert.equal(opens, closes, id + '/' + dialect + ' must have balanced blocks');
-      assert.equal(/\{\{\s*\.[A-Za-z]/.test(out), false, id + '/' + dialect + ' left Go field syntax behind');
-      assert.equal(/\{\{\s*(?:if|else|end|range)\b/.test(out), false, id + '/' + dialect + ' left a Go tag behind');
+      assert.equal(opens, closes, id + '/go must have balanced blocks');
     }
   }
 });
@@ -133,11 +135,11 @@ test('G3: the reference panel shell is byte-identical to its source layout', () 
 
 /* --- G4 — the registry refuses what it should --------------------------- */
 
-test('G4: the registry declares exactly three panels and one reference', () => {
-  assert.deepEqual(panelIds(), ['3xui', 'pasarguard', 'rebecca']);
+test('G4: the registry declares exactly one panel and one reference', () => {
+  assert.deepEqual(panelIds(), ['3xui']);
   assert.equal(referencePanel(), '3xui');
-  /* All three are buildable as of Phase 4E — every panel now carries an adapter. */
-  assert.deepEqual(buildablePanelIds(), ['3xui', 'pasarguard', 'rebecca']);
+  /* The single panel is buildable — it carries an adapter. */
+  assert.deepEqual(buildablePanelIds(), ['3xui']);
 });
 
 test('G4: no panel is left planned, and every panel carries an adapter', () => {
@@ -158,12 +160,13 @@ test('G4: an unknown panel fails loudly rather than defaulting', () => {
 });
 
 test('G4: assertAdapter accepts a well-formed adapter and rejects the rest', () => {
-  const good = { id: 'x', emitter: 'jinja2' };
+  const good = { id: 'x', emitter: 'go' };
   assert.equal(assertAdapter(good, 'x'), good);
 
   assert.throws(() => assertAdapter(null, 'x'), /must be an object/);
   assert.throws(() => assertAdapter([], 'x'), /must be an object/);
-  assert.throws(() => assertAdapter({ emitter: 'jinja2' }, 'x'), /missing required field id/);
+  assert.throws(() => assertAdapter({ emitter: 'go' }, 'x'), /missing required field id/);
+  assert.throws(() => assertAdapter({ id: 'x', emitter: 'jinja2' }, 'x'), /unknown emitter/);
   assert.throws(() => assertAdapter({ id: 'x' }, 'x'), /missing required field emitter/);
   assert.throws(() => assertAdapter({ id: 'x', emitter: 'php' }, 'x'), /unknown emitter/);
   assert.throws(() => assertAdapter({ id: 'y', emitter: 'go' }, 'x'), /declares id/);
@@ -172,7 +175,7 @@ test('G4: assertAdapter accepts a well-formed adapter and rejects the rest', () 
 });
 
 test('G4: the declared emitters and interface are the closed sets the code uses', () => {
-  assert.deepEqual(EMITTERS, ['go', 'jinja2', 'pongo2']);
+  assert.deepEqual(EMITTERS, ['go']);
   assert.deepEqual(Object.keys(ADAPTER_INTERFACE.required), ['id', 'emitter']);
   assert.deepEqual(Object.keys(ADAPTER_INTERFACE.optional), ['island', 'livePath']);
   for (const id of panelIds()) {

@@ -291,7 +291,7 @@ const svcState = (f) => readFileSync(join(f.work, 'svc'), 'utf8').trim();
 /* 1. registration                                                          */
 /* ------------------------------------------------------------------------ */
 
-test('3xui is registered and reachable, as are the two panels added in 1.3.0', () => {
+test('3xui is registered and reachable; the removed panels resolve to nothing', () => {
   const r = sh(`
     for p in 3xui pasarguard rebecca; do
       printf 'impl|%s|%s\\n' "$p" "$(rt_panel_impl_for "$p" || true)"
@@ -301,12 +301,12 @@ test('3xui is registered and reachable, as are the two panels added in 1.3.0', (
   assert.equal(r.code, 0, r.err);
   const got = new Map(r.out.split('\n').filter(Boolean).map((l) => l.split('|').slice(1)));
   assert.equal(got.get('3xui'), '3xui', '3xui must resolve to its real implementation');
-  assert.equal(got.get('pasarguard'), 'pasarguard', 'pasarguard resolves to its own adapter');
-  assert.equal(got.get('rebecca'), 'rebecca', 'rebecca resolves to its own adapter');
+  assert.notEqual(got.get('pasarguard'), 'pasarguard', 'pasarguard no longer resolves to an adapter');
+  assert.notEqual(got.get('rebecca'), 'rebecca', 'rebecca no longer resolves to an adapter');
 });
 
 test('the shipping adapters are what answer, each defining every frozen verb', () => {
-  for (const name of ['3xui', 'pasarguard', 'rebecca']) {
+  for (const name of ['3xui']) {
     const file = join(PANELS_DIR, `${name}.sh`);
     assert.equal(existsSync(file), true, `installer/panels/${name}.sh must exist`);
     const src = read(file);
@@ -314,6 +314,10 @@ test('the shipping adapters are what answer, each defining every frozen verb', (
       'verify', 'restore_state', 'uninstall_template']) {
       assert.match(src, new RegExp(`^rt_panel_${name}_${v}\\(\\)`, 'm'), `${name} adapter must define ${v}`);
     }
+  }
+  for (const gone of ['pasarguard', 'rebecca']) {
+    assert.equal(existsSync(join(PANELS_DIR, `${gone}.sh`)), false,
+      `installer/panels/${gone}.sh must not ship any more`);
   }
 });
 
