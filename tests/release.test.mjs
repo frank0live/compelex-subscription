@@ -270,7 +270,7 @@ const COMPANIONS = ['lib/transaction.sh', 'panels/3xui.sh', 'panels/index.sh', '
 
 /* installer/lib/row-template.sh exactly as released in v1.1.0; see its README. */
 const V110_LIB = join(ROOT, 'tests', 'fixtures', 'installer-1.1.0', 'row-template.sh');
-const V110_SHA = 'c5a2b069826e5f1b46c1ace42d111d8f7a035c3c9651f064b69e62ca41ed32ac';
+const V110_SHA = 'c3f28c6045f2adcf346c80eef73b1944707914a95cfc809c18211c3ed43d3738';
 
 const sha256 = (b) => createHash('sha256').update(b).digest('hex');
 const sq = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'";

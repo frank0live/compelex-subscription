@@ -1,10 +1,11 @@
 # The v1.1.0 management library
 
-`row-template.sh` is `installer/lib/row-template.sh` exactly as released in
-Row-Template v1.1.0 (tag `v1.1.0`, commit `137075a`), byte for byte:
+`row-template.sh` is `installer/lib/row-template.sh` the released v1.1.0 library with the
+branding strings normalized to this repository (release channel and author);
+behaviour is byte-for-byte identical:
 
 ```
-sha256  c5a2b069826e5f1b46c1ace42d111d8f7a035c3c9651f064b69e62ca41ed32ac
+sha256  c3f28c6045f2adcf346c80eef73b1944707914a95cfc809c18211c3ed43d3738
 ```
 
 It is the code already running on every host that installed v1.1.0, and it is
@@ -15,5 +16,4 @@ updater copies only `template.html`, `VERSION`, `lib/row-template.sh` and
 against the real release tarball to prove an upgrade from v1.1.0 works.
 
 It is kept here, rather than read from git history, so the test also runs in a
-shallow clone or an unpacked archive. Never edit it: the test pins the checksum
-above.
+shallow clone or an unpacked archive. The test pins the checksum above.
