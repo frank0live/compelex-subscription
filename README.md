@@ -9,7 +9,7 @@
 
 A polished, self-contained subscription page for the [3X-UI](https://github.com/MHSanaei/3x-ui) panel (MHSanaei) — seventeen designs, each a single HTML file, fully white-label, with no third-party requests from the page your subscribers open.
 
-Maintained by **frank0live**. Based on the original [frank0live/Row-Template](https://github.com/frank0live/Row-Template); this edition supports **3X-UI only**.
+Maintained by **frank0live**. Supports **3X-UI (MHSanaei) only**.
 
 ## What it is
 
@@ -32,6 +32,31 @@ Row-Template ships seventeen designs. **Row** is the default:
 `row` · `editorial` · `canvas` · `prism` · `terminal` · `pulse` · `brutal` · `arcade` · `sketch` · `signature` · `saffron` · `pulsenova` · `prismnova` · `terminalnova` · `arcadenova` · `meter` · `notebook`
 
 Choose a design during a fresh interactive install, set `RT_TEMPLATE` for a scripted one, or change it later from the manager (**Reconfigure branding → Template**). Updates keep your choice.
+
+## Gallery
+
+| | | |
+|---|---|---|
+| ![Row](docs/public/previews/row-desktop.webp) | ![Editorial](docs/public/previews/editorial-desktop.webp) | ![Canvas](docs/public/previews/canvas-desktop.webp) |
+| **Row** (default) | **Editorial** | **Canvas** |
+| ![Prism](docs/public/previews/prism-desktop.webp) | ![Terminal](docs/public/previews/terminal-desktop.webp) | ![Pulse](docs/public/previews/pulse-desktop.webp) |
+| **Prism** | **Terminal** | **Pulse** |
+| ![Brutal](docs/public/previews/brutal-desktop.webp) | ![Arcade](docs/public/previews/arcade-desktop.webp) | ![Sketch](docs/public/previews/sketch-desktop.webp) |
+| **Brutal** | **Arcade** | **Sketch** |
+| ![Signature](docs/public/previews/signature-desktop.webp) | ![Saffron](docs/public/previews/saffron-desktop.webp) | ![Meter](docs/public/previews/meter-desktop.webp) |
+| **Signature** | **Saffron** | **Meter** |
+| ![Notebook](docs/public/previews/notebook-desktop.webp) | ![Pulse Nova](docs/public/previews/pulsenova-desktop.webp) | ![Prism Nova](docs/public/previews/prismnova-desktop.webp) |
+| **Notebook** | **Pulse Nova** | **Prism Nova** |
+| ![Terminal Nova](docs/public/previews/terminalnova-desktop.webp) | ![Arcade Nova](docs/public/previews/arcadenova-desktop.webp) | |
+| **Terminal Nova** | **Arcade Nova** | |
+
+Mobile views (dark / light themes):
+
+| | |
+|---|---|
+| ![Mobile dark](docs/assets/screenshot-mobile-dark.png) | ![Mobile light](docs/assets/screenshot-mobile-light.png) |
+
+All previews are real pages built from this repository — every design ships the same features, languages, and safety checks.
 
 ## Features
 
@@ -208,7 +233,5 @@ Bug reports, translations, and documentation fixes are very welcome. Open an iss
 Released under the [MIT License](LICENSE). The bundled QR code generator (`src/vendor/uqr`) is included under its own MIT license, and the embedded Vazirmatn font subset under the SIL Open Font License (`src/fonts/OFL.txt`). The embedded flag font is Twemoji artwork under CC-BY 4.0 (`src/fonts/TWEMOJI-LICENSE.txt`). See [PROVENANCE.md](PROVENANCE.md) for the origin of this codebase.
 
 ## Credits
-
-Original project by **frank0live** — <https://github.com/frank0live/Row-Template> (MIT).
 
 This edition is maintained by **frank0live** — <https://github.com/frank0live/row-template>

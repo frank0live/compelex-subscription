@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3X-UI Edition] - 2026-10-02
 
-Fork of `frank0live/Row-Template` 1.4.0, rebranded and restricted to **3X-UI
+Rebased from the 1.4.0 base, rebranded and restricted to **3X-UI
 (MHSanaei) only** by frank0live.
 
 ### Changed
@@ -16,8 +16,9 @@ Fork of `frank0live/Row-Template` 1.4.0, rebranded and restricted to **3X-UI
   (`tools/adapters/`, `installer/panels/`), shells (`src/panels/`), engines
   (Jinja2/pongo2 renderers), tests, and installer paths were deleted; the panel
   registry, `RT_PANEL_IDS`, and the installer now accept `3xui` only.
-- **Removed the documentation site** (`docs/`), translated READMEs, and the
-  community files (CONTRIBUTING, CODE_OF_CONDUCT, SECURITY).
+- **Removed the documentation site and translated READMEs**, plus the
+  community files (CONTRIBUTING, CODE_OF_CONDUCT, SECURITY). The README now
+  embeds the design gallery directly from `docs/`.
 - **Branding:** author, repository URLs, installer help, and release channel now
   point at `frank0live/row-template`. The served page remains fully white-label.
 - The project's runtime behaviour on 3X-UI is unchanged from 1.4.0.
@@ -644,9 +645,9 @@ First stable release.
 - Requires 3X-UI (MHSanaei) **>= 3.6.0**; validated against stock 3.7.0.
 - Recommended operating system: Ubuntu 24.04 LTS (x86_64).
 
-[1.3.1]: https://github.com/frank0live/Row-Template/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.3.0
-[1.2.1]: https://github.com/frank0live/Row-Template/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.2.0
-[1.1.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.1.0
-[1.0.0]: https://github.com/frank0live/Row-Template/releases/tag/v1.0.0
+[1.3.1]: https://github.com/frank0live/row-template/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/frank0live/row-template/releases/tag/v1.3.0
+[1.2.1]: https://github.com/frank0live/row-template/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/frank0live/row-template/releases/tag/v1.2.0
+[1.1.0]: https://github.com/frank0live/row-template/releases/tag/v1.1.0
+[1.0.0]: https://github.com/frank0live/row-template/releases/tag/v1.0.0
