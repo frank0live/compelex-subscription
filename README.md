@@ -122,6 +122,43 @@ Browser: subscriber opens the page ─► live figures come only from your own p
 | `installer/` | `install.sh`, the `row-template` command, its management library, and the 3X-UI adapter in `installer/panels/` |
 | `tests/` | The test suites |
 
+## 🇮🇷 نصب سریع (فارسی)
+
+این نسخه **فقط از پنل 3X-UI (MHSanaei)** پشتیبانی می‌کند — نسخه 3.6.0 به بالا، با دسترسی root.
+
+```bash
+bash <(curl -fsSL https://github.com/frank0live/row-template/releases/latest/download/install.sh)
+```
+
+نصب‌کننده به‌صورت خودکار این کارها را انجام می‌دهد:
+
+1. پنل 3X-UI را روی سرور شما شناسایی می‌کند
+2. فایل نصب را از GitHub دانلود و **checksum (SHA-256)** را اجباراً بررسی می‌کند
+3. قبل از هر تغییری، **بکاپ کامل** می‌گیرد
+4. صفحهٔ اشتراک را نصب و در تنظیمات پنل فعال می‌کند (`subThemeDir`)
+5. در صورت هر خطایی، **همه‌چیز را خودکار به حالت قبل برمی‌گرداند** (فعال‌سازی اتمیک)
+
+**انتخاب طرح:** کافیست قبل از نصب متغیر `RT_TEMPLATE` را تنظیم کنید، مثلاً:
+
+```bash
+RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/row-template/releases/latest/download/install.sh)
+```
+
+**مدیریت بعد از نصب:**
+
+```bash
+row-template            # منوی تعاملی
+row-template config     # تغییر برند (نام سرویس، لینک پشتیبانی، لوگو)
+row-template update     # آپدیت امن با بررسی checksum
+row-template rollback   # بازگردانی نسخهٔ قبلی
+row-template verify     # بررسی سلامت نصب
+row-template uninstall  # حذف کامل و بازگردانی پنل به حالت قبل
+```
+
+**ویژگی‌های کلیدی:** ۱۷ طرح مدرن · کاملاً سفید-برچسب (white-label) · ۵ زبان (فارسی، English، العربية، Русский، 中文) · تم روشن/تیره · کد QR داخل خود صفحه (بدون سرویس خارجی) · بدون هیچ درخواست خارجی از صفحهٔ مشتری · وضعیت زندهٔ مصرف و انقضا · نمایش پرچم کشور هر سرور.
+
+نصب دستی و جزئیات فنی در بخش **Installation** پایین‌تر آمده است.
+
 ## Installation
 
 > **Recommended OS: Ubuntu 24.04 LTS (x86_64).** Other modern Linux distributions may work but have not had the same validation coverage.
