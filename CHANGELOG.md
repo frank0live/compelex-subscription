@@ -645,9 +645,9 @@ First stable release.
 - Requires 3X-UI (MHSanaei) **>= 3.6.0**; validated against stock 3.7.0.
 - Recommended operating system: Ubuntu 24.04 LTS (x86_64).
 
-[1.3.1]: https://github.com/frank0live/row-template/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/frank0live/row-template/releases/tag/v1.3.0
-[1.2.1]: https://github.com/frank0live/row-template/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/frank0live/row-template/releases/tag/v1.2.0
-[1.1.0]: https://github.com/frank0live/row-template/releases/tag/v1.1.0
-[1.0.0]: https://github.com/frank0live/row-template/releases/tag/v1.0.0
+[1.3.1]: https://github.com/frank0live/row-template/releases
+[1.3.0]: https://github.com/frank0live/row-template/releases
+[1.2.1]: https://github.com/frank0live/row-template/releases
+[1.2.0]: https://github.com/frank0live/row-template/releases
+[1.1.0]: https://github.com/frank0live/row-template/releases
+[1.0.0]: https://github.com/frank0live/row-template/releases
