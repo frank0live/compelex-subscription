@@ -73,7 +73,7 @@ Two things contribute to publisher trust here, and neither is the checksum:
 - **HTTPS/TLS** authenticates the GitHub host and encrypts the transfer, so you
   know you reached GitHub and not a machine on the path.
 - **GitHub account and repository control** determine who is allowed to publish
-  a release under `frank0live/row-template`.
+  a release under `frank0live/compelex-subscription`.
 
 Do not read "checksum verified" as "signed by the author." They are different
 guarantees.
@@ -87,7 +87,7 @@ public key you already trust — that is authenticity, not just integrity.
 To verify a signed tag, when a signature is published:
 
 ```bash
-git clone https://github.com/frank0live/row-template
+git clone https://github.com/frank0live/compelex-subscription
 cd row-template
 git tag -v v<version>
 ```

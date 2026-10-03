@@ -414,7 +414,7 @@ test('the first run of the new code completes the install from the installed ver
   assert.match(r.out, /panels=1 txn=1/, 'the installer components load in the same run');
   assert.equal(field(r.out, 'complete'), 'yes');
   assert.doesNotMatch(r.out, /absent=/);
-  assert.match(r.out, new RegExp(`fetched https://github\\.com/frank0live/row-template/releases/download/v${VERSION.replace(/\./g, '\\.')}$`, 'm'),
+  assert.match(r.out, new RegExp(`fetched https://github\\.com/frank0live/compelex-subscription/releases/download/v${VERSION.replace(/\./g, '\\.')}$`, 'm'),
     'the download is pinned to the INSTALLED version, never "latest"');
   assert.match(r.out, /dist=untouched/, 'the live design is not changed');
   assert.equal(field(r.out, 'name'), 'Test VPN', 'branding is not touched');

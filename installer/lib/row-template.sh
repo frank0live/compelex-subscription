@@ -59,7 +59,7 @@ RT_XUI_DB_DEFAULTS=(/etc/x-ui/x-ui.db /usr/local/x-ui/x-ui.db /etc/3x-ui/x-ui.db
 # Installation Info screen and help — never on the served subscription page.
 RT_PROJECT_NAME="Row-Template"
 RT_DEVELOPER="frank0live"
-RT_GITHUB="https://github.com/frank0live/row-template"
+RT_GITHUB="https://github.com/frank0live/compelex-subscription"
 
 # Public release channel. GitHub resolves releases/latest/download/<name> to the
 # newest published (non-draft, non-prerelease) release's asset, over https, with
@@ -3748,7 +3748,7 @@ rt_cmd_rollback() {
 rt_print_help() {
   cat <<'EOF'
 Row-Template — custom subscription page manager for 3X-UI
-by frank0live — https://github.com/frank0live/row-template
+by frank0live — https://github.com/frank0live/compelex-subscription
 
 Usage:
   row-template                Open the interactive manager (when run in a terminal)

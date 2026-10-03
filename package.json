@@ -4,13 +4,13 @@
   "description": "Custom subscription page template for 3x-ui panels (VPN Centers edition)",
   "license": "MIT",
   "author": "frank0live",
-  "homepage": "https://github.com/frank0live/row-template#readme",
+  "homepage": "https://github.com/frank0live/compelex-subscription#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/frank0live/row-template.git"
+    "url": "git+https://github.com/frank0live/compelex-subscription.git"
   },
   "bugs": {
-    "url": "https://github.com/frank0live/row-template/issues"
+    "url": "https://github.com/frank0live/compelex-subscription/issues"
   },
   "keywords": [
     "3x-ui",
