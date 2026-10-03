@@ -1,6 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/panel-3X--UI%20(MHSanaei)-blue" alt="Panel: 3X-UI (MHSanaei)">
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/frank0live/row-template"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/frank0live/compelex-subscription"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
   <img alt="Languages" src="https://img.shields.io/badge/languages-EN%20%7C%20FA%20%7C%20AR%20%7C%20RU%20%7C%20ZH-lightgrey">
 </p>
@@ -127,7 +127,7 @@ Browser: subscriber opens the page ─► live figures come only from your own p
 این نسخه **فقط از پنل 3X-UI (MHSanaei)** پشتیبانی می‌کند — نسخه 3.6.0 به بالا، با دسترسی root.
 
 ```bash
-bash <(curl -fsSL https://github.com/frank0live/row-template/releases/latest/download/install.sh)
+bash <(curl -fsSL https://github.com/frank0live/compelex-subscription/releases/latest/download/install.sh)
 ```
 
 نصب‌کننده به‌صورت خودکار این کارها را انجام می‌دهد:
@@ -141,7 +141,7 @@ bash <(curl -fsSL https://github.com/frank0live/row-template/releases/latest/dow
 **انتخاب طرح:** کافیست قبل از نصب متغیر `RT_TEMPLATE` را تنظیم کنید، مثلاً:
 
 ```bash
-RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/row-template/releases/latest/download/install.sh)
+RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/compelex-subscription/releases/latest/download/install.sh)
 ```
 
 **مدیریت بعد از نصب:**
@@ -168,7 +168,7 @@ row-template uninstall  # حذف کامل و بازگردانی پنل به حا
 Run as **root** on the server that hosts your panel:
 
 ```bash
-bash <(curl -fsSL https://github.com/frank0live/row-template/releases/latest/download/install.sh)
+bash <(curl -fsSL https://github.com/frank0live/compelex-subscription/releases/latest/download/install.sh)
 ```
 
 The installer:
@@ -183,10 +183,10 @@ The installer:
 To choose a design without the chooser, for example in a script:
 
 ```bash
-RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/row-template/releases/latest/download/install.sh)
+RT_TEMPLATE=editorial bash <(curl -fsSL https://github.com/frank0live/compelex-subscription/releases/latest/download/install.sh)
 ```
 
-If you prefer not to pipe from the network, download the four release assets (`install.sh`, `manifest.txt`, `SHA256SUMS`, and `row-template-<version>.tar.gz`) from the [Releases page](https://github.com/frank0live/row-template/releases/latest) into one folder, verify the checksum yourself as described in [PROVENANCE.md](PROVENANCE.md), and point the installer at that folder:
+If you prefer not to pipe from the network, download the four release assets (`install.sh`, `manifest.txt`, `SHA256SUMS`, and `row-template-<version>.tar.gz`) from the [Releases page](https://github.com/frank0live/compelex-subscription/releases/latest) into one folder, verify the checksum yourself as described in [PROVENANCE.md](PROVENANCE.md), and point the installer at that folder:
 
 ```bash
 RT_RELEASE_DIR=/root/row-template-release bash /root/row-template-release/install.sh
@@ -259,7 +259,7 @@ The build is deterministic — the same sources always produce a byte-identical 
 
 ## Contributing
 
-Bug reports, translations, and documentation fixes are very welcome. Open an issue at <https://github.com/frank0live/row-template/issues>.
+Bug reports, translations, and documentation fixes are very welcome. Open an issue at <https://github.com/frank0live/compelex-subscription/issues>.
 
 **Bug reports:** include your Row-Template version (`row-template version`), your 3X-UI version, operating system and version, CPU architecture, the output of `row-template verify`, and clear steps to reproduce.
 
@@ -271,4 +271,4 @@ Released under the [MIT License](LICENSE). The bundled QR code generator (`src/v
 
 ## Credits
 
-This edition is maintained by **frank0live** — <https://github.com/frank0live/row-template>
+This edition is maintained by **frank0live** — <https://github.com/frank0live/compelex-subscription>

@@ -20,7 +20,7 @@ Rebased from the 1.4.0 base, rebranded and restricted to **3X-UI
   community files (CONTRIBUTING, CODE_OF_CONDUCT, SECURITY). The README now
   embeds the design gallery directly from `docs/`.
 - **Branding:** author, repository URLs, installer help, and release channel now
-  point at `frank0live/row-template`. The served page remains fully white-label.
+  point at `frank0live/compelex-subscription`. The served page remains fully white-label.
 - The project's runtime behaviour on 3X-UI is unchanged from 1.4.0.
 
 ## [1.4.0] - 2026-09-28
@@ -645,9 +645,9 @@ First stable release.
 - Requires 3X-UI (MHSanaei) **>= 3.6.0**; validated against stock 3.7.0.
 - Recommended operating system: Ubuntu 24.04 LTS (x86_64).
 
-[1.3.1]: https://github.com/frank0live/row-template/releases
-[1.3.0]: https://github.com/frank0live/row-template/releases
-[1.2.1]: https://github.com/frank0live/row-template/releases
-[1.2.0]: https://github.com/frank0live/row-template/releases
-[1.1.0]: https://github.com/frank0live/row-template/releases
-[1.0.0]: https://github.com/frank0live/row-template/releases
+[1.3.1]: https://github.com/frank0live/compelex-subscription/releases
+[1.3.0]: https://github.com/frank0live/compelex-subscription/releases
+[1.2.1]: https://github.com/frank0live/compelex-subscription/releases
+[1.2.0]: https://github.com/frank0live/compelex-subscription/releases
+[1.1.0]: https://github.com/frank0live/compelex-subscription/releases
+[1.0.0]: https://github.com/frank0live/compelex-subscription/releases
