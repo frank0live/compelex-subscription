@@ -272,3 +272,7 @@ Released under the [MIT License](LICENSE). The bundled QR code generator (`src/v
 ## Credits
 
 This edition is maintained by **frank0live** — <https://github.com/frank0live/compelex-subscription>
+
+## Support
+
+- 💬 Telegram: [@master_supports](https://t.me/master_supports)
